@@ -22,7 +22,7 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(backgroundColor: Colors.blue, title: Text('Music App')),
       body: Center(
         child: Text(
-          'Music Home Page',
+          'Hello world',
           style: TextStyle(fontSize: 32, fontWeight: FontWeight.w900),
         ),
       ),
