@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Music App',
+      title: 'Music Application',
       theme: AppTheme.dark,
       home: const MainScreen(),
     );
