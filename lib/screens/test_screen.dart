@@ -25,6 +25,8 @@ class TestScreen extends StatelessWidget {
             const SizedBox(height: 16),
             AppPrimaryButton(label: 'Primary', onPressed: () {}),
             const SizedBox(height: 16),
+            ElevatedButton(onPressed: () {}, child: Text('ElevatedButton')),
+            const SizedBox(height: 16),
             AppSecondaryButton(label: 'Secondary', onPressed: () {}),
             const SizedBox(height: 16),
             AppWarningButton(label: 'Warning', onPressed: () {}),
