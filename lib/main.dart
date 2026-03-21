@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/screens/login_screen.dart';
+import 'package:music_app_frontend/screens/Auth/login_screen.dart';
 import 'package:music_app_frontend/screens/main_screen.dart';
 import 'theme/app_theme.dart';
 

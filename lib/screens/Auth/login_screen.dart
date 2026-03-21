@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:music_app_frontend/constants/app_colors.dart';
 import 'package:music_app_frontend/constants/app_text_styles.dart';
+import 'package:music_app_frontend/screens/Auth/ForgotPasswordGroup/forgotpassword_screen.dart';
+import 'package:music_app_frontend/screens/Auth/register_screen.dart';
 import 'package:music_app_frontend/widgets/app_text_field.dart';
 import 'package:music_app_frontend/widgets/widgets.dart';
 
@@ -30,11 +32,19 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _onForgotPassword() {
-    debugPrint('Forgot Password pressed');
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ForgotPasswordScreen(),
+      ),
+    );
   }
 
   void _onCreateAccount() {
-    debugPrint('Create Account pressed');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const RegisterScreen()),
+    );
   }
 
   void _onGoogleSignIn() {
