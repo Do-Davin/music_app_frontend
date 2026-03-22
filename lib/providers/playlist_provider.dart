@@ -6,12 +6,12 @@ final playlistServiceProvider =
     Provider<PlaylistService>((ref) => PlaylistService());
 
 final playlistsProvider = FutureProvider<List<Playlist>>((ref) async {
-  final service = ref.read(playlistServiceProvider);
+  final service = ref.watch(playlistServiceProvider);
   return service.fetchPlaylists();
 });
 
 final playlistByIdProvider =
     FutureProvider.family<Playlist, String>((ref, id) async {
-  final service = ref.read(playlistServiceProvider);
+  final service = ref.watch(playlistServiceProvider);
   return service.fetchPlaylistById(id);
 });

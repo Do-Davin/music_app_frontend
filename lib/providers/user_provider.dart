@@ -5,6 +5,6 @@ import 'package:music_app_frontend/services/user_service.dart';
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 
 final meProvider = FutureProvider<User>((ref) async {
-  final service = ref.read(userServiceProvider);
+  final service = ref.watch(userServiceProvider);
   return service.fetchMe();
 });
