@@ -68,7 +68,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       children: [
                         CircleAvatar(
                           radius: 52,
-                          backgroundColor: AppColors.surface.withOpacity(0.4),
+                          backgroundColor: AppColors.surface.withValues(alpha: 0.4),
                           child: Icon(
                             page.icon,
                             color: AppColors.primary,
@@ -110,7 +110,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         decoration: BoxDecoration(
                           color: isActive
                               ? AppColors.primary
-                              : Colors.white.withOpacity(0.4),
+                              : Colors.white.withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(6),
                         ),
                       );

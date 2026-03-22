@@ -66,7 +66,7 @@ class StatelessStatusScreen extends StatelessWidget {
                   shape: BoxShape.circle,
                   border: Border.all(
                     // outer ring — very faint
-                    color: iconColor.withOpacity(0.15),
+                    color: iconColor.withValues(alpha: 0.15),
                     width: 12,
                   ),
                 ),

@@ -176,7 +176,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withOpacity(0.4)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
       ),
       child: Row(
         children: [
@@ -205,7 +205,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
       child: Text(
         'Minimum 8 characters, at least one number and one symbol.',
         style: AppTextStyles.body.copyWith(
-          color: AppColors.onSurface.withOpacity(0.6),
+          color: AppColors.onSurface.withValues(alpha: 0.6),
           fontSize: 12,
         ),
       ),
