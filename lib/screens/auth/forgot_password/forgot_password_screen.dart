@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_app_frontend/constants/app_colors.dart';
 import 'package:music_app_frontend/constants/app_text_styles.dart';
-import 'package:music_app_frontend/screens/Auth/ForgotPasswordGroup/verifyAccount_screen.dart';
+import 'package:music_app_frontend/screens/auth/forgot_password/verify_account_screen.dart';
 import 'package:music_app_frontend/widgets/widgets.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -27,15 +27,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => VerifyAccountScreen(
-          email: _emailController.text,
-        ),
+        builder: (context) => VerifyAccountScreen(email: _emailController.text),
       ),
     );
   }
 
   void _onBackToLogin() {
-    Navigator.pop(context); 
+    Navigator.pop(context);
   }
 
   @override

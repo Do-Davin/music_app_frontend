@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_app_frontend/constants/app_colors.dart';
 import 'package:music_app_frontend/constants/app_text_styles.dart';
-import 'package:music_app_frontend/screens/Auth/ForgotPasswordGroup/newpassword_screen.dart';
+import 'package:music_app_frontend/screens/auth/forgot_password/new_password_screen.dart';
 import 'package:music_app_frontend/widgets/widgets.dart';
 
 class VerifyAccountScreen extends StatefulWidget {

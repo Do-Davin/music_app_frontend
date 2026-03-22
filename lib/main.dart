@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/screens/Auth/login_screen.dart';
-import 'package:music_app_frontend/screens/main_screen.dart';
+import 'package:music_app_frontend/core/navigation/auth_wrapper.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -17,7 +16,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       //title: 'Music Applicationss',
       theme: AppTheme.dark,
-      home: const LoginScreen(),
+      home: const AuthWrapper(),
     );
   }
 }
