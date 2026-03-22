@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/features/playlist/domain/playlist.dart';
-import 'package:music_app_frontend/features/playlist/domain/playlist_service.dart';
+import 'package:music_app_frontend/features/playlist/domain/models/playlist.dart';
+import 'package:music_app_frontend/features/playlist/data/services/playlist_service.dart';
 
 final playlistServiceProvider =
     Provider<PlaylistService>((ref) => PlaylistService());

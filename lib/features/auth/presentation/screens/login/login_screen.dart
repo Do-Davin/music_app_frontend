@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
-import 'package:music_app_frontend/features/auth/data/auth_provider.dart';
-import 'package:music_app_frontend/features/auth/presentation/forgot_password/forgot_password_screen.dart';
-import 'package:music_app_frontend/features/auth/presentation/register/register_screen.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
+import 'package:music_app_frontend/features/auth/presentation/screens/forgot_password/forgot_password_screen.dart';
+import 'package:music_app_frontend/features/auth/presentation/screens/register/register_screen.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {

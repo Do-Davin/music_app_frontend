@@ -1,7 +1,7 @@
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/core/config/graphql_config.dart';
 import 'package:music_app_frontend/core/network/queries.dart';
-import 'package:music_app_frontend/features/auth/domain/user.dart';
+import 'package:music_app_frontend/features/auth/domain/models/user.dart';
 
 class UserService {
   final GraphQLClient _client = GraphQLConfig.clientToQuery();

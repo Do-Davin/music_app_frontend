@@ -1,9 +1,7 @@
-// lib/screens/main_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/routing/navigation_provider.dart';
-import 'package:music_app_frontend/features/home/presentation/home_screen.dart';
+import 'package:music_app_frontend/features/home/presentation/screens/home_screen.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 
 // Placeholder screens for tabs not yet built

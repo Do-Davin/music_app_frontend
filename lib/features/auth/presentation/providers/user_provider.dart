@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/features/auth/domain/user.dart';
-import 'package:music_app_frontend/features/auth/domain/user_service.dart';
+import 'package:music_app_frontend/features/auth/domain/models/user.dart';
+import 'package:music_app_frontend/features/auth/data/services/user_service.dart';
 
 final userServiceProvider = Provider<UserService>((ref) => UserService());
 

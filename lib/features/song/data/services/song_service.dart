@@ -1,28 +1,28 @@
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/core/config/graphql_config.dart';
 import 'package:music_app_frontend/core/network/queries.dart';
-import 'package:music_app_frontend/features/playlist/domain/playlist.dart';
+import 'package:music_app_frontend/features/song/domain/models/song.dart';
 
-class PlaylistService {
+class SongService {
   final GraphQLClient _client = GraphQLConfig.clientToQuery();
 
-  Future<List<Playlist>> fetchPlaylists() async {
+  Future<List<Song>> fetchSongs() async {
     final result = await _client.query(
-      QueryOptions(document: gql(PlaylistQueries.getAllPlaylists)),
+      QueryOptions(document: gql(SongQueries.getAllSongs)),
     );
 
     if (result.hasException) {
       throw Exception(result.exception.toString());
     }
 
-    final List<dynamic> data = result.data?['playlists'] ?? [];
-    return data.map((json) => Playlist.fromJson(json)).toList();
+    final List<dynamic> data = result.data?['songs'] ?? [];
+    return data.map((json) => Song.fromJson(json)).toList();
   }
 
-  Future<Playlist> fetchPlaylistById(String id) async {
+  Future<Song> fetchSongById(String id) async {
     final result = await _client.query(
       QueryOptions(
-        document: gql(PlaylistQueries.getPlaylistById),
+        document: gql(SongQueries.getSongById),
         variables: {'id': id},
       ),
     );
@@ -31,6 +31,6 @@ class PlaylistService {
       throw Exception(result.exception.toString());
     }
 
-    return Playlist.fromJson(result.data!['playlist']);
+    return Song.fromJson(result.data!['song']);
   }
 }

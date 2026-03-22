@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/features/song/domain/song.dart';
-import 'package:music_app_frontend/features/song/domain/song_service.dart';
+import 'package:music_app_frontend/features/song/domain/models/song.dart';
+import 'package:music_app_frontend/features/song/data/services/song_service.dart';
 
 final songServiceProvider = Provider<SongService>((ref) => SongService());
 
