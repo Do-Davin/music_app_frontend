@@ -27,4 +27,11 @@ class AppColors {
   static const Color onError = Color.fromRGBO(255, 255, 255, 1);
   static const Color onWarning = Color.fromRGBO(18, 18, 18, 1);
   static const Color onSurface = Color.fromRGBO(255, 255, 255, 1);
+  static const Color errorBackground = Color(0x33FF5252); // transparent red
+  static const Color statusIconBrown = Color(
+    0xFF3D2E00,
+  ); // dark brown circle bg
+  static const Color statusIconBrownRing = Color(
+    0xFF5C4A00,
+  ); // ring/badge color
 }

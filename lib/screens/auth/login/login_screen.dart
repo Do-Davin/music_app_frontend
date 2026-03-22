@@ -5,7 +5,6 @@ import 'package:music_app_frontend/constants/app_text_styles.dart';
 import 'package:music_app_frontend/providers/auth_provider.dart';
 import 'package:music_app_frontend/screens/auth/forgot_password/forgot_password_screen.dart';
 import 'package:music_app_frontend/screens/auth/register/register_screen.dart';
-import 'package:music_app_frontend/widgets/app_text_field.dart';
 import 'package:music_app_frontend/widgets/widgets.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
