@@ -4,28 +4,9 @@ import 'package:music_app_frontend/core/routing/navigation_provider.dart';
 import 'package:music_app_frontend/features/home/presentation/screens/home_screen.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 
-// Placeholder screens for tabs not yet built
-// Replace these with real screens as your team builds them
-class _SearchScreen extends StatelessWidget {
-  const _SearchScreen();
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: Text('Search — coming soon'));
-}
-
-class _LibraryScreen extends StatelessWidget {
-  const _LibraryScreen();
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: Text('Library — coming soon'));
-}
-
-class _ProfileScreen extends StatelessWidget {
-  const _ProfileScreen();
-  @override
-  Widget build(BuildContext context) =>
-      const Center(child: Text('Profile — coming soon'));
-}
+import 'package:music_app_frontend/features/search/presentation/screens/search_screen.dart';
+import 'package:music_app_frontend/features/library/presentation/screens/library_screen.dart';
+import 'package:music_app_frontend/features/profile/presentation/screens/profile_screen.dart';
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -37,9 +18,9 @@ class MainScreen extends ConsumerWidget {
   // When your team builds the real screens, swap the placeholders here
   static const _screens = [
     HomeScreen(),
-    _SearchScreen(),
-    _LibraryScreen(),
-    _ProfileScreen(),
+    SearchScreen(),
+    LibraryScreen(),
+    ProfileScreen(),
   ];
 
   @override
