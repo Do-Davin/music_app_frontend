@@ -1,7 +1,7 @@
 name: music_app_frontend
 description: "A new Flutter project."
 
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
@@ -24,5 +24,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
-
   uses-material-design: true
+
+  assets:
+    - assets/images/Logo.png
+    - assets/images/Google.png
