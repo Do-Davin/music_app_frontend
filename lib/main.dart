@@ -1,10 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app_frontend/config/app_config.dart';
+import 'package:music_app_frontend/config/routes.dart';
+import 'package:music_app_frontend/constants/app_colors.dart';
 import 'package:music_app_frontend/core/navigation/auth_wrapper.dart';
+import 'package:music_app_frontend/screens/main/main_screen.dart';
+import 'package:music_app_frontend/screens/onboarding_screen.dart';
+import 'package:music_app_frontend/screens/playlists/no_playlists_screen.dart';
+import 'package:music_app_frontend/screens/songs/no_results_screen.dart';
+import 'package:music_app_frontend/screens/splash_screen.dart';
+import 'package:music_app_frontend/screens/stateless_status_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:music_app_frontend/providers/shared_prefs_provider.dart';
 import 'theme/app_theme.dart';
 
-void main() {
-  runApp(const ProviderScope(child: MyApp()));
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final sharedPreferences = await SharedPreferences.getInstance();
+  await sharedPreferences
+      .clear(); // Temporarily for development REMOVE After launch App
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -14,9 +37,26 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      //title: 'Music Applicationss',
+      title: AppConfig.appName,
       theme: AppTheme.dark,
       home: const AuthWrapper(),
+      routes: {
+        Routes.splash: (_) => const SplashScreen(),
+        Routes.onboarding: (_) => const OnboardingScreen(),
+        Routes.main: (_) => const MainScreen(),
+        Routes.status: (_) => const StatelessStatusScreen(
+          icon: Icons.signal_wifi_off,
+          appBarTitle: 'Library',
+          title: 'No Internet Connection',
+          subtitle:
+              'You\'re offline. Some content may not be available. Check your connection and try again.',
+          iconColor: AppColors.error, // red for error
+          iconBackgroundColor: Color(0x33FF5252), // transparent red bg
+          highlightWord: 'Internet',
+        ),
+        Routes.noPlaylists: (_) => const NoPlaylistsScreen(),
+        Routes.noResults: (_) => const NoResultsScreen(),
+      },
     );
   }
 }
