@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/config/app_config.dart';
-import 'package:music_app_frontend/config/routes.dart';
-import 'package:music_app_frontend/constants/app_colors.dart';
-import 'package:music_app_frontend/core/navigation/auth_wrapper.dart';
-import 'package:music_app_frontend/screens/main/main_screen.dart';
-import 'package:music_app_frontend/screens/onboarding_screen.dart';
-import 'package:music_app_frontend/screens/playlists/no_playlists_screen.dart';
-import 'package:music_app_frontend/screens/songs/no_results_screen.dart';
-import 'package:music_app_frontend/screens/splash_screen.dart';
-import 'package:music_app_frontend/screens/stateless_status_screen.dart';
+import 'package:music_app_frontend/core/config/app_config.dart';
+import 'package:music_app_frontend/core/config/routes.dart';
+import 'package:music_app_frontend/core/constants/app_colors.dart';
+import 'package:music_app_frontend/core/routing/auth_wrapper.dart';
+import 'package:music_app_frontend/features/home/presentation/main_screen.dart';
+import 'package:music_app_frontend/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:music_app_frontend/features/playlist/presentation/no_playlists_screen.dart';
+import 'package:music_app_frontend/features/song/presentation/no_results_screen.dart';
+import 'package:music_app_frontend/features/onboarding/presentation/splash_screen.dart';
+import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:music_app_frontend/providers/shared_prefs_provider.dart';
-import 'theme/app_theme.dart';
+import 'package:music_app_frontend/features/onboarding/data/shared_prefs_provider.dart';
+import 'package:music_app_frontend/core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
