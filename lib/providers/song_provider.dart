@@ -5,12 +5,12 @@ import 'package:music_app_frontend/services/song_service.dart';
 final songServiceProvider = Provider<SongService>((ref) => SongService());
 
 final songsProvider = FutureProvider<List<Song>>((ref) async {
-  final service = ref.read(songServiceProvider);
+  final service = ref.watch(songServiceProvider);
   return service.fetchSongs();
 });
 
 final songByIdProvider =
     FutureProvider.family<Song, String>((ref, id) async {
-  final service = ref.read(songServiceProvider);
+  final service = ref.watch(songServiceProvider);
   return service.fetchSongById(id);
 });
