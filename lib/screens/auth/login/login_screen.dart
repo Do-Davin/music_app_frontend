@@ -5,7 +5,6 @@ import 'package:music_app_frontend/constants/app_text_styles.dart';
 import 'package:music_app_frontend/providers/auth_provider.dart';
 import 'package:music_app_frontend/screens/auth/forgot_password/forgot_password_screen.dart';
 import 'package:music_app_frontend/screens/auth/register/register_screen.dart';
-import 'package:music_app_frontend/widgets/app_text_field.dart';
 import 'package:music_app_frontend/widgets/widgets.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -47,12 +46,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  void _onGoogleSignIn() {}
+  void _onGoogleSignIn() {
+    print('Pressed Button Google login');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -60,11 +62,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             key: _formKey,
             child: Column(
               children: [
-                const Spacer(),
+                const SizedBox(height: 10),
 
-                Image.asset('assets/images/Logo.png', height: 120),
+                Image.asset('assets/images/Logo.png', height: 270),
 
-                const Spacer(),
+                const SizedBox(height: 20),
 
                 Text(
                   'Start your music journey',
@@ -72,11 +74,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   textAlign: TextAlign.center,
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 50),
 
                 Text('Sign in to continue', style: AppTextStyles.body),
 
-                const Spacer(),
+                const SizedBox(height: 30),
 
                 AppTextField(
                   controller: _fullNameController,
@@ -84,14 +86,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   prefixIcon: Icons.person_outline,
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
 
                 AppPasswordField(
                   controller: _passwordController,
                   hint: 'Password',
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 AppPrimaryButton(label: 'Sign In', onPressed: _onSignIn),
 

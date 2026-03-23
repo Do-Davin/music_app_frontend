@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_app_frontend/constants/app_colors.dart';
 import 'package:music_app_frontend/constants/app_text_styles.dart';
+import 'package:music_app_frontend/screens/auth/login/login_screen.dart';
 import 'package:music_app_frontend/widgets/widgets.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -30,6 +31,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     debugPrint('Create Account pressed');
     debugPrint('Email: ${_emailController.text}');
     debugPrint('Password: ${_passwordController.text}');
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
   }
 
   void _onTermsTap() {
@@ -64,26 +69,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
               children: [
                 SizedBox(height: sectionGap),
 
-                _buildLogoSection(logoHeight),
+                _buildLogoSection(),
 
                 SizedBox(height: sectionGap),
 
-                
                 _buildHeadlineSection(),
 
                 SizedBox(height: sectionGap),
 
-                
                 _buildFormSection(),
 
                 SizedBox(height: sectionGap),
 
-               
                 _buildTermsSection(),
 
                 const SizedBox(height: 14),
 
-              
                 _buildLoginRow(),
 
                 SizedBox(height: sectionGap),
@@ -95,16 +96,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  
-  Widget _buildLogoSection(double height) {
-    return SizedBox(
-      height: height,
-      width: MediaQuery.of(context).size.width,
-      child: Image.asset('assets/images/Logo.png', fit: BoxFit.fitWidth),
+  Widget _buildLogoSection() {
+    return Image.asset(
+      'assets/images/Logo.png',
+      height: 270,
     );
   }
 
- 
   Widget _buildHeadlineSection() {
     return Column(
       children: [
@@ -123,7 +121,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
- 
   Widget _buildFormSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,10 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         const SizedBox(height: 12),
 
-        AppPasswordField(
-          controller: _passwordController,
-          hint: 'Password',
-        ),
+        AppPasswordField(controller: _passwordController, hint: 'Password'),
 
         const SizedBox(height: 6),
 

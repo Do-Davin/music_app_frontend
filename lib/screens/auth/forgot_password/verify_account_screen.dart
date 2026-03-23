@@ -70,31 +70,26 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: sectionGap),
+                SizedBox(height: 10),
 
-                // ── Logo ──────────────────────────────────────────────────
-                _buildLogoSection(logoHeight),
+                _buildLogoSection(),
 
-                SizedBox(height: sectionGap),
+                SizedBox(height: 15),
 
-                // ── Headline ──────────────────────────────────────────────
                 _buildHeadlineSection(),
 
                 SizedBox(height: sectionGap * 0.6),
 
-                // ── "Code send successfully." ─────────────────────────────
                 if (_codeSentSuccess) _buildSuccessBanner(),
 
                 SizedBox(height: sectionGap * 0.8),
 
-                // ── Email Address (read-only) ──────────────────────────────
                 _buildLabel('Email Address'),
                 const SizedBox(height: 8),
                 _buildReadOnlyEmailField(),
 
                 SizedBox(height: sectionGap * 0.6),
 
-                // ── Passcode ──────────────────────────────────────────────
                 _buildLabel('Passcode'),
                 const SizedBox(height: 8),
                 AppTextField(
@@ -106,7 +101,6 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
 
                 SizedBox(height: sectionGap),
 
-                // ── Submit Code Button ────────────────────────────────────
                 AppPrimaryButton(
                   label: 'Submit Code',
                   onPressed: _onSubmitCode,
@@ -114,7 +108,6 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
 
                 SizedBox(height: sectionGap * 0.8),
 
-                // ── Resend Code ───────────────────────────────────────────
                 Center(
                   child: GestureDetector(
                     onTap: _onResendCode,
@@ -132,7 +125,6 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
 
                 SizedBox(height: sectionGap * 0.6),
 
-                // ── Back to Login ─────────────────────────────────────────
                 Center(
                   child: GestureDetector(
                     onTap: _onBackToLogin,
@@ -153,11 +145,10 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
     );
   }
 
-  Widget _buildLogoSection(double height) {
-    return SizedBox(
-      height: height,
-      width: MediaQuery.of(context).size.width,
-      child: Image.asset('assets/images/Logo.png', fit: BoxFit.fitWidth),
+  Widget _buildLogoSection() {
+    return Image.asset(
+      'assets/images/Logo.png',
+      height: 270,
     );
   }
 

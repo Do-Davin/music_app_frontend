@@ -44,14 +44,11 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
 
-    // ── Tighter values because this screen has more fields ────────────────
-    final double logoHeight = screenHeight * 0.17;  // smaller logo
-    final double sectionGap = screenHeight * 0.022; // tighter gaps
+    final double sectionGap = screenHeight * 0.022;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        // SingleChildScrollView = safety net on very small devices
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Form(
@@ -59,26 +56,22 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: sectionGap),
+                SizedBox(height: 5),
 
-                // ── Logo ──────────────────────────────────────────────────
-                _buildLogoSection(logoHeight),
+                _buildLogoSection(),
 
-                SizedBox(height: sectionGap),
+                SizedBox(height: 5),
 
-                // ── Headline ──────────────────────────────────────────────
                 _buildHeadlineSection(),
 
                 SizedBox(height: sectionGap),
 
-                // ── Email Address (read-only) ──────────────────────────────
                 _buildLabel('Email Address'),
                 const SizedBox(height: 8),
                 _buildReadOnlyEmailField(),
 
                 SizedBox(height: sectionGap),
 
-                // ── New Password ───────────────────────────────────────────
                 _buildLabel('New Password'),
                 const SizedBox(height: 8),
                 AppPasswordField(
@@ -88,7 +81,6 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
 
                 SizedBox(height: sectionGap),
 
-                // ── Confirm New Password ───────────────────────────────────
                 _buildLabel('Confirm New Password'),
                 const SizedBox(height: 8),
                 AppPasswordField(
@@ -98,12 +90,10 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
 
                 const SizedBox(height: 8),
 
-                // ── Hint box ──────────────────────────────────────────────
                 _buildHintBox(),
 
                 SizedBox(height: sectionGap * 1.2),
 
-                // ── Reset Password Button ─────────────────────────────────
                 AppPrimaryButton(
                   label: 'Reset Password',
                   onPressed: _onResetPassword,
@@ -111,7 +101,6 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
 
                 SizedBox(height: sectionGap),
 
-                // ── Back to Login ─────────────────────────────────────────
                 Center(
                   child: GestureDetector(
                     onTap: _onBackToLogin,
@@ -134,11 +123,10 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
     );
   }
 
-  Widget _buildLogoSection(double height) {
-    return SizedBox(
-      height: height,
-      width: MediaQuery.of(context).size.width,
-      child: Image.asset('assets/images/Logo.png', fit: BoxFit.fitWidth),
+  Widget _buildLogoSection() {
+    return Image.asset(
+      'assets/images/Logo.png',
+      height: 270,
     );
   }
 

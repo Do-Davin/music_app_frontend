@@ -14,3 +14,4 @@ class AuthWrapper extends ConsumerWidget {
     return isLoggedIn ? const MainScreen() : const LoginScreen();
   }
 }
+   
