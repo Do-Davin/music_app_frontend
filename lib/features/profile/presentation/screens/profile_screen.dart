@@ -1,30 +1,33 @@
-// lib/features/profile/presentation/screens/profile_screen.dart
+// ─────────────────────────────────────────────────────────────────────────────
+// TIER 3 — PRESENTATION LAYER
+// Path: lib/features/profile/presentation/screens/profile_screen.dart
+// ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
-import 'package:music_app_frontend/features/profile/data/services/profile_service.dart';
-import 'package:music_app_frontend/features/profile/presentation/providers/profile_provider.dart';
+import 'package:music_app_frontend/features/profile/data/services/profile_model.dart';
+import 'package:music_app_frontend/features/profile/domain/providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ── Watch the profile provider ─────────────────────────────────────────
+    // ── Watch Tier 2 provider ──────────────────────────────────────────────
     final profileState = ref.watch(profileProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: profileState.when(
-          // ── Loading state ─────────────────────────────────────────────────
+          // ── Loading ───────────────────────────────────────────────────────
           loading: () => const Center(
             child: CircularProgressIndicator(color: AppColors.primary),
           ),
 
-          // ── Error state ───────────────────────────────────────────────────
+          // ── Error ─────────────────────────────────────────────────────────
           error: (error, _) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -59,7 +62,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
 
-          // ── Data state ────────────────────────────────────────────────────
+          // ── Data ──────────────────────────────────────────────────────────
           data: (profile) => _ProfileContent(profile: profile),
         ),
       ),
@@ -68,7 +71,7 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ProfileContent  –  the actual UI rendered when data is loaded
+// _ProfileContent — rendered when data loaded successfully
 // ─────────────────────────────────────────────────────────────────────────────
 class _ProfileContent extends ConsumerWidget {
   final ProfileModel profile;
@@ -84,17 +87,17 @@ class _ProfileContent extends ConsumerWidget {
         children: [
           const SizedBox(height: 32),
 
-          // ── Avatar + Name + Email + Followers ───────────────────────────
+          // ── Avatar + Name + Email + Followers ────────────────────────────
           _buildProfileHeader(),
 
           const SizedBox(height: 20),
 
-          // ── Edit Profile Button ─────────────────────────────────────────
+          // ── Edit Profile Button ──────────────────────────────────────────
           _buildEditProfileButton(context),
 
           const SizedBox(height: 32),
 
-          // ── Playlists Section ───────────────────────────────────────────
+          // ── Playlists ────────────────────────────────────────────────────
           _buildPlaylistsSection(context),
 
           const SizedBox(height: 32),
@@ -103,7 +106,7 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  // ── Avatar + Name + Email + Followers ──────────────────────────────────────
+  // ── Avatar + Name + Email + Followers ─────────────────────────────────────
   Widget _buildProfileHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -131,9 +134,7 @@ class _ProfileContent extends ConsumerWidget {
         // Name
         Text(
           profile.name,
-          style: AppTextStyles.header.copyWith(
-            color: AppColors.onSurface,
-          ),
+          style: AppTextStyles.header.copyWith(color: AppColors.onSurface),
           textAlign: TextAlign.center,
         ),
 
@@ -154,16 +155,14 @@ class _ProfileContent extends ConsumerWidget {
         // Followers / Following
         Text(
           '${profile.followers} Followers , ${profile.following} Following',
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.onSurface,
-          ),
+          style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
           textAlign: TextAlign.center,
         ),
       ],
     );
   }
 
-  // ── Edit Profile outlined button ───────────────────────────────────────────
+  // ── Edit Profile Button ────────────────────────────────────────────────────
   Widget _buildEditProfileButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
@@ -190,12 +189,11 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  // ── Playlists section ──────────────────────────────────────────────────────
+  // ── Playlists Section ──────────────────────────────────────────────────────
   Widget _buildPlaylistsSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section title
         Text(
           'Playlists',
           style: AppTextStyles.header.copyWith(
@@ -206,7 +204,6 @@ class _ProfileContent extends ConsumerWidget {
 
         const SizedBox(height: 16),
 
-        // List or empty state
         if (profile.playlists.isEmpty)
           Center(
             child: Text(
@@ -222,7 +219,7 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  // ── Single playlist row ────────────────────────────────────────────────────
+  // ── Single Playlist Row ────────────────────────────────────────────────────
   Widget _buildPlaylistItem(BuildContext context, PlaylistItem playlist) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -260,13 +257,12 @@ class _ProfileContent extends ConsumerWidget {
 
             const SizedBox(width: 16),
 
-            // Playlist title
+            // Title
             Expanded(
               child: Text(
                 playlist.title,
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.onSurface,
-                ),
+                style:
+                    AppTextStyles.body.copyWith(color: AppColors.onSurface),
               ),
             ),
           ],

@@ -1,49 +1,60 @@
-// lib/features/profile/data/services/profile_model.dart
+// ─────────────────────────────────────────────────────────────────────────────
+// TIER 1 — DATA LAYER
+// Path: lib/features/profile/data/services/profile_service.dart
+// ─────────────────────────────────────────────────────────────────────────────
 
-class ProfileModel {
-  final String name;
-  final String email;
-  final String? avatarUrl;
-  final int followers;
-  final int following;
-  final List<PlaylistItem> playlists;
+import 'package:music_app_frontend/features/profile/data/services/profile_model.dart';
 
-  const ProfileModel({
-    required this.name,
-    required this.email,
-    this.avatarUrl,
-    required this.followers,
-    required this.following,
-    required this.playlists,
-  });
+class ProfileService {
+  /// Fetch user profile from API
+  Future<ProfileModel> fetchProfile() async {
+    try {
+      // TODO: Replace with real HTTP call e.g:
+      // final response = await http.get(Uri.parse('https://your-api.com/profile'));
+      // final json = jsonDecode(response.body);
+      // return ProfileModel.fromJson(json);
 
-  ProfileModel copyWith({
-    String? name,
-    String? email,
-    String? avatarUrl,
-    int? followers,
-    int? following,
-    List<PlaylistItem>? playlists,
-  }) {
-    return ProfileModel(
-      name: name ?? this.name,
-      email: email ?? this.email,
-      avatarUrl: avatarUrl ?? this.avatarUrl,
-      followers: followers ?? this.followers,
-      following: following ?? this.following,
-      playlists: playlists ?? this.playlists,
-    );
+      // ── Simulated API response ─────────────────────────────────────────
+      await Future.delayed(const Duration(milliseconds: 600));
+
+      return const ProfileModel(
+        name: 'Kheang Ann',
+        email: 'kheangann@gmail.com',
+        avatarUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmXq1tnSCYbI-u3RouvLiSi23pAvpaSgtsOw&s',
+        followers: 1,
+        following: 1,
+        playlists: [
+          PlaylistItem(
+            id: '1',
+            title: 'playlist by Angsopheary',
+            thumbnailUrl: null,
+          ),
+          PlaylistItem(
+            id: '2',
+            title: 'playlist by Vvo',
+            thumbnailUrl: null,
+          ),
+        ],
+      );
+    } catch (e) {
+      throw Exception('Failed to fetch profile: $e');
+    }
   }
-}
 
-class PlaylistItem {
-  final String id;
-  final String title;
-  final String? thumbnailUrl;
+  /// Update user profile via API
+  Future<ProfileModel> updateProfile(ProfileModel updatedProfile) async {
+    try {
+      // TODO: Replace with real HTTP call e.g:
+      // final response = await http.put(
+      //   Uri.parse('https://your-api.com/profile'),
+      //   body: jsonEncode(updatedProfile.toJson()),
+      // );
 
-  const PlaylistItem({
-    required this.id,
-    required this.title,
-    this.thumbnailUrl,
-  });
+      // ── Simulated API response ─────────────────────────────────────────
+      await Future.delayed(const Duration(milliseconds: 400));
+      return updatedProfile;
+    } catch (e) {
+      throw Exception('Failed to update profile: $e');
+    }
+  }
 }
