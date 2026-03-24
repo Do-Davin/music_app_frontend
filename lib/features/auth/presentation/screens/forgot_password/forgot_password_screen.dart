@@ -39,22 +39,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
-    final double logoHeight = screenHeight * 0.25;
     final double sectionGap = screenHeight * 0.04;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 SizedBox(height: sectionGap),
 
-                _buildLogoSection(logoHeight),
+                const AuthLogo(),
 
                 SizedBox(height: sectionGap),
 
@@ -88,19 +88,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     ),
                   ),
                 ),
+                SizedBox(height: sectionGap),
               ],
             ),
           ),
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _buildLogoSection(double height) {
-    return SizedBox(
-      height: height,
-      width: MediaQuery.of(context).size.width,
-      child: Image.asset('assets/images/Logo.png', fit: BoxFit.fitWidth),
     );
   }
 
