@@ -198,7 +198,7 @@ class HomeScreen extends StatelessWidget {
                     image: NetworkImage(playlist.imageUrl),
                     fit: BoxFit.cover,
                     colorFilter: ColorFilter.mode(
-                      Colors.black.withOpacity(0.4),
+                      Colors.black.withValues(alpha: 0.4),
                       BlendMode.darken,
                     ),
                   )
@@ -241,7 +241,7 @@ class HomeScreen extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: songs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        separatorBuilder: (_, _) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final song = songs[index];
           return SizedBox(
@@ -330,7 +330,7 @@ class HomeScreen extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: MockData.popularArtistsUrls.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 24),
+        separatorBuilder: (_, _) => const SizedBox(width: 24),
         itemBuilder: (context, index) {
           return CircleAvatar(
             radius: 50, // 100x100 circle
