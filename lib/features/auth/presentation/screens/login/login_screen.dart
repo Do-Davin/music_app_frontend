@@ -46,24 +46,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  void _onGoogleSignIn() {}
+  void _onGoogleSignIn() {
+    debugPrint('Pressed Button Google login');
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Form(
             key: _formKey,
             child: Column(
               children: [
-                const Spacer(),
+                const SizedBox(height: 10),
 
-                Image.asset('assets/images/Logo.png', height: 120),
+                const AuthLogo(),
 
-                const Spacer(),
+                const SizedBox(height: 20),
 
                 Text(
                   'Start your music journey',
@@ -71,11 +75,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   textAlign: TextAlign.center,
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 50),
 
                 Text('Sign in to continue', style: AppTextStyles.body),
 
-                const Spacer(),
+                const SizedBox(height: 30),
 
                 AppTextField(
                   controller: _fullNameController,
@@ -83,14 +87,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   prefixIcon: Icons.person_outline,
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 20),
 
                 AppPasswordField(
                   controller: _passwordController,
                   hint: 'Password',
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 AppPrimaryButton(label: 'Sign In', onPressed: _onSignIn),
 
@@ -157,10 +161,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ),
 
-                const Spacer(),
+                const SizedBox(height: 20),
               ],
             ),
           ),
+        ),
         ),
       ),
     );

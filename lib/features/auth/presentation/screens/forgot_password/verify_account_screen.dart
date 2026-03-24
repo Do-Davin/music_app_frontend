@@ -57,44 +57,40 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
-    final double logoHeight = screenHeight * 0.22;
+
     final double sectionGap = screenHeight * 0.03;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: sectionGap),
+                SizedBox(height: 10),
 
-                // ── Logo ──────────────────────────────────────────────────
-                _buildLogoSection(logoHeight),
+                const AuthLogo(),
 
-                SizedBox(height: sectionGap),
+                SizedBox(height: 15),
 
-                // ── Headline ──────────────────────────────────────────────
                 _buildHeadlineSection(),
 
                 SizedBox(height: sectionGap * 0.6),
 
-                // ── "Code send successfully." ─────────────────────────────
                 if (_codeSentSuccess) _buildSuccessBanner(),
 
                 SizedBox(height: sectionGap * 0.8),
 
-                // ── Email Address (read-only) ──────────────────────────────
                 _buildLabel('Email Address'),
                 const SizedBox(height: 8),
                 _buildReadOnlyEmailField(),
 
                 SizedBox(height: sectionGap * 0.6),
 
-                // ── Passcode ──────────────────────────────────────────────
                 _buildLabel('Passcode'),
                 const SizedBox(height: 8),
                 AppTextField(
@@ -106,7 +102,6 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
 
                 SizedBox(height: sectionGap),
 
-                // ── Submit Code Button ────────────────────────────────────
                 AppPrimaryButton(
                   label: 'Submit Code',
                   onPressed: _onSubmitCode,
@@ -114,7 +109,6 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
 
                 SizedBox(height: sectionGap * 0.8),
 
-                // ── Resend Code ───────────────────────────────────────────
                 Center(
                   child: GestureDetector(
                     onTap: _onResendCode,
@@ -132,7 +126,6 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
 
                 SizedBox(height: sectionGap * 0.6),
 
-                // ── Back to Login ─────────────────────────────────────────
                 Center(
                   child: GestureDetector(
                     onTap: _onBackToLogin,
@@ -145,21 +138,16 @@ class _VerifyAccountScreenState extends State<VerifyAccountScreen> {
                     ),
                   ),
                 ),
+                SizedBox(height: sectionGap),
               ],
             ),
+          ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildLogoSection(double height) {
-    return SizedBox(
-      height: height,
-      width: MediaQuery.of(context).size.width,
-      child: Image.asset('assets/images/Logo.png', fit: BoxFit.fitWidth),
-    );
-  }
 
   Widget _buildHeadlineSection() {
     return Column(
