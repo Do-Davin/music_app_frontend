@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER 1 — DATA LAYER
-// Path: lib/features/profile/data/services/profile_model.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
 class ProfileModel {
   final String name;
   final String email;

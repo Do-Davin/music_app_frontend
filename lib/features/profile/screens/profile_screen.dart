@@ -1,14 +1,9 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER 3 — PRESENTATION LAYER
-// Path: lib/features/profile/presentation/screens/profile_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
-import 'package:music_app_frontend/features/profile/data/services/profile_model.dart';
-import 'package:music_app_frontend/features/profile/domain/providers/profile_provider.dart';
+import 'package:music_app_frontend/features/profile/models/profile_model.dart';
+import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -120,11 +115,7 @@ class _ProfileContent extends ConsumerWidget {
                 ? NetworkImage(profile.avatarUrl!)
                 : null,
             child: profile.avatarUrl == null
-                ? const Icon(
-                    Icons.person,
-                    size: 64,
-                    color: AppColors.primary,
-                  )
+                ? const Icon(Icons.person, size: 64, color: AppColors.primary)
                 : null,
           ),
         ),
@@ -261,8 +252,7 @@ class _ProfileContent extends ConsumerWidget {
             Expanded(
               child: Text(
                 playlist.title,
-                style:
-                    AppTextStyles.body.copyWith(color: AppColors.onSurface),
+                style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
               ),
             ),
           ],

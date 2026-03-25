@@ -1,9 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER 1 — DATA LAYER
-// Path: lib/features/profile/data/services/profile_service.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
-import 'package:music_app_frontend/features/profile/data/services/profile_model.dart';
+import 'package:music_app_frontend/features/profile/models/profile_model.dart';
 
 class ProfileService {
   /// Fetch user profile from API
@@ -20,7 +15,8 @@ class ProfileService {
       return const ProfileModel(
         name: 'Kheang Ann',
         email: 'kheangann@gmail.com',
-        avatarUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmXq1tnSCYbI-u3RouvLiSi23pAvpaSgtsOw&s',
+        avatarUrl:
+            'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmXq1tnSCYbI-u3RouvLiSi23pAvpaSgtsOw&s',
         followers: 1,
         following: 1,
         playlists: [
@@ -29,11 +25,7 @@ class ProfileService {
             title: 'playlist by Angsopheary',
             thumbnailUrl: null,
           ),
-          PlaylistItem(
-            id: '2',
-            title: 'playlist by Vvo',
-            thumbnailUrl: null,
-          ),
+          PlaylistItem(id: '2', title: 'playlist by Vvo', thumbnailUrl: null),
         ],
       );
     } catch (e) {

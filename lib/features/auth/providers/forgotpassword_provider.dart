@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER 2 — DOMAIN LAYER
-// Path: lib/features/auth/domain/providers/forgot_password_provider.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/features/auth/services/forgotpassword_service.dart';
 
