@@ -1,19 +1,26 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// TIER 3 — PRESENTATION LAYER
+// Path: lib/features/auth/presentation/screens/forgot_password/new_password_screen.dart
+// ─────────────────────────────────────────────────────────────────────────────
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+import 'package:music_app_frontend/features/auth/providers/forgotpassword_provider.dart';
+
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
-class CreateNewPasswordScreen extends StatefulWidget {
-  final String email;
-
-  const CreateNewPasswordScreen({super.key, required this.email});
+class CreateNewPasswordScreen extends ConsumerStatefulWidget {
+  const CreateNewPasswordScreen({super.key});
 
   @override
-  State<CreateNewPasswordScreen> createState() =>
+  ConsumerState<CreateNewPasswordScreen> createState() =>
       _CreateNewPasswordScreenState();
 }
 
-class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
+class _CreateNewPasswordScreenState
+    extends ConsumerState<CreateNewPasswordScreen> {
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
@@ -26,24 +33,43 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
     super.dispose();
   }
 
-  void _onResetPassword() {
-    // TODO: Call API to reset password, then navigate on success
-    debugPrint('Reset Password pressed');
-    debugPrint('Email           : ${widget.email}');
-    debugPrint('New Password    : ${_newPasswordController.text}');
-    debugPrint('Confirm Password: ${_confirmPasswordController.text}');
+  Future<void> _onResetPassword() async {
+    // ── Basic validation: check passwords match ────────────────────────────
+    if (_newPasswordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Passwords do not match!')));
+      return;
+    }
 
-    Navigator.popUntil(context, (route) => route.isFirst);
+    // ── Call Tier 2 provider ───────────────────────────────────────────────
+    await ref
+        .read(forgotPasswordProvider.notifier)
+        .resetPassword(_newPasswordController.text.trim());
+
+    // ── Check state after API call ────────────────────────────────────────
+    final state = ref.read(forgotPasswordProvider);
+
+    if (!mounted) return;
+
+    if (state.passwordReset) {
+      // ── Success: clear state + go all the way back to LoginScreen ────────
+      ref.read(forgotPasswordProvider.notifier).reset();
+      Navigator.popUntil(context, (route) => route.isFirst);
+    }
   }
 
   void _onBackToLogin() {
+    ref.read(forgotPasswordProvider.notifier).reset(); // clear state
     Navigator.popUntil(context, (route) => route.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
-    final double screenHeight = MediaQuery.of(context).size.height;
+    // ── Watch Tier 2 provider ──────────────────────────────────────────────
+    final forgotState = ref.watch(forgotPasswordProvider);
 
+    final double screenHeight = MediaQuery.of(context).size.height;
     final double sectionGap = screenHeight * 0.022;
 
     return Scaffold(
@@ -56,22 +82,24 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
 
                 const AuthLogo(),
 
-                SizedBox(height: 5),
+                const SizedBox(height: 5),
 
                 _buildHeadlineSection(),
 
                 SizedBox(height: sectionGap),
 
+                // ── Email label + read-only field ─────────────────────────
                 _buildLabel('Email Address'),
                 const SizedBox(height: 8),
-                _buildReadOnlyEmailField(),
+                _buildReadOnlyEmailField(forgotState.email),
 
                 SizedBox(height: sectionGap),
 
+                // ── New Password ──────────────────────────────────────────
                 _buildLabel('New Password'),
                 const SizedBox(height: 8),
                 AppPasswordField(
@@ -81,6 +109,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
 
                 SizedBox(height: sectionGap),
 
+                // ── Confirm New Password ──────────────────────────────────
                 _buildLabel('Confirm New Password'),
                 const SizedBox(height: 8),
                 AppPasswordField(
@@ -92,15 +121,33 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
 
                 _buildHintBox(),
 
+                // ── Error message from API ────────────────────────────────
+                if (forgotState.errorMessage != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    forgotState.errorMessage!,
+                    style: AppTextStyles.body.copyWith(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+
                 SizedBox(height: sectionGap * 1.2),
 
-                AppPrimaryButton(
-                  label: 'Reset Password',
-                  onPressed: _onResetPassword,
-                ),
+                // ── Reset Password Button ─────────────────────────────────
+                forgotState.isLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : AppPrimaryButton(
+                        label: 'Reset Password',
+                        onPressed: _onResetPassword,
+                      ),
 
                 SizedBox(height: sectionGap),
 
+                // ── Back to login ─────────────────────────────────────────
                 Center(
                   child: GestureDetector(
                     onTap: _onBackToLogin,
@@ -122,7 +169,6 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
       ),
     );
   }
-
 
   Widget _buildHeadlineSection() {
     return Column(
@@ -152,7 +198,8 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
     );
   }
 
-  Widget _buildReadOnlyEmailField() {
+  // ── Read-only email field (email comes from provider state now) ────────────
+  Widget _buildReadOnlyEmailField(String email) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
@@ -166,7 +213,7 @@ class _CreateNewPasswordScreenState extends State<CreateNewPasswordScreen> {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              widget.email,
+              email, // ← comes from provider state, not widget constructor
               style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
             ),
           ),
