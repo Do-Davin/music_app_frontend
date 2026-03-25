@@ -1,11 +1,6 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER 2 — DOMAIN LAYER
-// Path: lib/features/profile/domain/providers/profile_provider.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/features/profile/data/services/profile_model.dart';
-import 'package:music_app_frontend/features/profile/data/services/profile_service.dart';
+import 'package:music_app_frontend/features/profile/models/profile_model.dart';
+import 'package:music_app_frontend/features/profile/services/profile_service.dart';
 
 // ── Expose ProfileService to Riverpod ─────────────────────────────────────────
 final profileServiceProvider = Provider<ProfileService>(
@@ -46,7 +41,7 @@ class ProfileNotifier extends StateNotifier<AsyncValue<ProfileModel>> {
 // ── Expose ProfileNotifier to the widget tree ─────────────────────────────────
 final profileProvider =
     StateNotifierProvider<ProfileNotifier, AsyncValue<ProfileModel>>(
-  (ref) => ProfileNotifier(
-    ref.read(profileServiceProvider), // inject Tier 1 into Tier 2
-  ),
-);
+      (ref) => ProfileNotifier(
+        ref.read(profileServiceProvider), // inject Tier 1 into Tier 2
+      ),
+    );

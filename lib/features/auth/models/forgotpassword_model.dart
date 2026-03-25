@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER 1 — DATA LAYER
-// Path: lib/features/auth/data/services/forgot_password_model.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
 class ForgotPasswordModel {
   final String email;
   final bool codeSent;

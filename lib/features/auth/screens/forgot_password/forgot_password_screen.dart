@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// TIER 3 — PRESENTATION LAYER
-// Path: lib/features/auth/presentation/screens/forgot_password/forgot_password_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
