@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
-// Note: Ensure you import your AppColors if you have them defined
-// import 'package:music_app_frontend/core/constants/app_colors.dart';
+import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
-  // Theme Constants based on your Figma design
-  static const Color backgroundColor = AppColors.background; // Dark background
-  static const Color accentColor = AppColors.primary; // Orange accent
+  static const Color backgroundColor = AppColors.background;
+  static const Color accentColor = AppColors.primary;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
-      // SafeArea prevents UI from drawing under the phone's status bar/notch
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
@@ -33,16 +30,23 @@ class HomeScreen extends StatelessWidget {
               _buildFavoritesGrid(),
               const SizedBox(height: 32),
 
+              // --- DYNAMIC CATEGORY NAMES PASSED HERE ---
               _buildSectionTitle('Recently Played'),
-              _buildHorizontalSongList(MockData.recentlyPlayed),
+              _buildHorizontalSongList(
+                MockData.recentlyPlayed,
+                'RECENTLY PLAYED',
+              ),
               const SizedBox(height: 32),
 
               _buildSectionTitle('Recommended'),
-              _buildHorizontalSongList(MockData.recommended),
+              _buildHorizontalSongList(
+                MockData.recommended,
+                'RECOMMENDED FOR YOU',
+              ),
               const SizedBox(height: 32),
 
               _buildSectionTitle('Made for you'),
-              _buildHorizontalSongList(MockData.madeForYou),
+              _buildHorizontalSongList(MockData.madeForYou, 'MADE FOR YOU'),
               const SizedBox(height: 32),
 
               _buildSectionTitle('Browse by mood'),
@@ -51,7 +55,7 @@ class HomeScreen extends StatelessWidget {
 
               _buildSectionTitle('Popular Artists'),
               _buildPopularArtists(),
-              const SizedBox(height: 32), // Bottom padding
+              const SizedBox(height: 32),
             ],
           ),
         ),
@@ -59,7 +63,80 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- WIDGET BUILDERS ---
+  // --- UPDATED HELPER TO ACCEPT CATEGORY ---
+  Widget _buildHorizontalSongList(List<Song> songs, String categoryName) {
+    return SizedBox(
+      height: 200,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: songs.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 16),
+        itemBuilder: (context, index) {
+          final song = songs[index];
+
+          return GestureDetector(
+            onTap: () {
+              // Passing the specific category name to the player
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      SongPlayerScreen(song: song, category: categoryName),
+                ),
+              );
+            },
+            child: SizedBox(
+              width: 140,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      song.imageUrl,
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.cover,
+                      // Adding a placeholder for better UX
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 140,
+                        height: 140,
+                        color: Colors.grey[900],
+                        child: const Icon(
+                          Icons.music_note,
+                          color: Colors.white24,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    song.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    song.artist,
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // --- REST OF YOUR WIDGET BUILDERS ---
 
   Widget _buildHeader() {
     return Row(
@@ -110,7 +187,7 @@ class HomeScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF232323), // Slightly lighter than background
+        color: const Color(0xFF232323),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -118,7 +195,7 @@ class HomeScreen extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.network(
-              'https://picsum.photos/seed/starboy/100', // Starboy mock image
+              'https://picsum.photos/seed/starboy/100',
               width: 80,
               height: 80,
               fit: BoxFit.cover,
@@ -152,7 +229,7 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: LinearProgressIndicator(
-                        value: 0.4, // 40% complete
+                        value: 0.4,
                         backgroundColor: Colors.grey.shade800,
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           accentColor,
@@ -171,15 +248,13 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildFavoritesGrid() {
     return GridView.builder(
-      physics:
-          const NeverScrollableScrollPhysics(), // Prevent grid from scrolling independently
-      shrinkWrap:
-          true, // Allow grid to take up only needed space inside SingleChildScrollView
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 1.4, // Width vs Height ratio
+        childAspectRatio: 1.4,
       ),
       itemCount: MockData.favorites.length,
       itemBuilder: (context, index) {
@@ -236,55 +311,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHorizontalSongList(List<Song> songs) {
-    return SizedBox(
-      height: 200, // Fixed height for the horizontal list
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: songs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 16),
-        itemBuilder: (context, index) {
-          final song = songs[index];
-          return SizedBox(
-            width: 140, // Width of each item
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    song.imageUrl,
-                    width: 140,
-                    height: 140,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  song.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  song.artist,
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Widget _buildMoodGrid() {
     return GridView.builder(
       physics: const NeverScrollableScrollPhysics(),
@@ -293,7 +319,7 @@ class HomeScreen extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
-        childAspectRatio: 1.8, // Wide cards
+        childAspectRatio: 1.8,
       ),
       itemCount: MockData.moods.length,
       itemBuilder: (context, index) {
@@ -334,7 +360,7 @@ class HomeScreen extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: 24),
         itemBuilder: (context, index) {
           return CircleAvatar(
-            radius: 50, // 100x100 circle
+            radius: 50,
             backgroundImage: NetworkImage(MockData.popularArtistsUrls[index]),
           );
         },
