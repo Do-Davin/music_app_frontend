@@ -152,7 +152,7 @@ class SongPlayerScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: Colors.black.withValues(alpha: 0.5),
             blurRadius: 25,
             offset: const Offset(0, 10),
           ),
@@ -174,7 +174,7 @@ class SongPlayerScreen extends StatelessWidget {
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 0.0),
             overlayShape: SliderComponentShape.noOverlay,
             activeTrackColor: AppColors.primary,
-            inactiveTrackColor: Colors.white.withOpacity(0.1),
+            inactiveTrackColor: Colors.white.withValues(alpha: 0.1),
           ),
           child: Slider(value: 0.35, onChanged: (v) {}),
         ),
