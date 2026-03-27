@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/login/login_screen.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
@@ -27,14 +28,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _onCreateAccount() {
-    // TODO: Call API / auth service, then navigate to HomeScreen
-    debugPrint('Create Account pressed');
-    debugPrint('Email: ${_emailController.text}');
-    debugPrint('Password: ${_passwordController.text}');
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+    if (_formKey.currentState!.validate()) {
+      // TODO: Call API / auth service using Riverpod (e.g. ref.read(authProvider.notifier).register(...))
+      debugPrint('Create Account pressed');
+      debugPrint('Email: ${_emailController.text}');
+      debugPrint('Password: ${_passwordController.text}');
+
+      // For now it goes to LoginScreen (as in your original code)
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
   }
 
   void _onTermsTap() {
@@ -54,7 +59,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
-
     final double sectionGap = screenHeight * 0.03;
 
     return Scaffold(
@@ -64,40 +68,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(height: sectionGap),
-
-                const AuthLogo(),
-
-                SizedBox(height: sectionGap),
-
-                _buildHeadlineSection(),
-
-                SizedBox(height: sectionGap),
-
-                _buildFormSection(),
-
-                SizedBox(height: sectionGap),
-
-                _buildTermsSection(),
-
-                const SizedBox(height: 14),
-
-                _buildLoginRow(),
-
-                SizedBox(height: sectionGap),
-              ],
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(height: sectionGap),
+                  const AuthLogo(),
+                  SizedBox(height: sectionGap),
+                  _buildHeadlineSection(),
+                  SizedBox(height: sectionGap),
+                  _buildFormSection(),
+                  SizedBox(height: sectionGap),
+                  _buildTermsSection(),
+                  const SizedBox(height: 14),
+                  _buildLoginRow(),
+                  SizedBox(height: sectionGap),
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
     );
   }
-
 
   Widget _buildHeadlineSection() {
     return Column(
@@ -121,19 +114,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Email field
         AppTextField(
           controller: _emailController,
           hint: 'Email Address',
           prefixIcon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter your email';
+            }
+            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+              return 'Please enter a valid email';
+            }
+            return null;
+          },
         ),
-
         const SizedBox(height: 12),
 
-        AppPasswordField(controller: _passwordController, hint: 'Password'),
-
+        // Password field
+        AppPasswordField(
+          controller: _passwordController,
+          hint: 'Password',
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter a password';
+            }
+            if (value.length < 8) {
+              return 'Password must be at least 8 characters';
+            }
+            return null;
+          },
+        ),
         const SizedBox(height: 6),
-
         Padding(
           padding: const EdgeInsets.only(left: 4),
           child: Text(
@@ -144,17 +157,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
-
         const SizedBox(height: 12),
 
+        // Confirm Password field with match validation
         AppPasswordField(
           controller: _confirmPasswordController,
           hint: 'Confirm Password',
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please confirm your password';
+            }
+            if (value != _passwordController.text) {
+              return 'Passwords do not match';
+            }
+            return null;
+          },
         ),
-
         const SizedBox(height: 20),
 
-        AppPrimaryButton(label: 'Create Account', onPressed: _onCreateAccount),
+        AppPrimaryButton(
+          label: 'Create Account',
+          onPressed: _onCreateAccount,
+        ),
       ],
     );
   }
