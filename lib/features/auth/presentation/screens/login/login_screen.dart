@@ -15,13 +15,13 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _fullEmailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
-    _fullNameController.dispose();
+    _fullEmailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -82,8 +82,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 30),
 
                 AppTextField(
-                  controller: _fullNameController,
-                  hint: 'Full name',
+                  controller: _fullEmailController,
+                  hint: 'Email',
                   prefixIcon: Icons.person_outline,
                 ),
 
