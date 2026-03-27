@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
 class AuthLogo extends StatelessWidget {
-  const AuthLogo({super.key});
+  final double? height;
+
+  const AuthLogo({super.key, this.height});
 
   @override
   Widget build(BuildContext context) {
     return Image.asset(
       'assets/images/Logo.png',
-      height: 270,
+      height: height ?? 240, // default = 240
     );
   }
 }
