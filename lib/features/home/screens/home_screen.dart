@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart';
+import 'package:music_app_frontend/core/constants/app_colors.dart';
 // Note: Ensure you import your AppColors if you have them defined
 // import 'package:music_app_frontend/core/constants/app_colors.dart';
 
@@ -7,8 +8,8 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   // Theme Constants based on your Figma design
-  static const Color backgroundColor = Color(0xFF121212); // Dark background
-  static const Color accentColor = Color(0xFFFFA500); // Orange accent
+  static const Color backgroundColor = AppColors.background; // Dark background
+  static const Color accentColor = AppColors.primary; // Orange accent
 
   @override
   Widget build(BuildContext context) {
