@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
+import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 // Note: Ensure you import your AppColors if you have them defined
 // import 'package:music_app_frontend/core/constants/app_colors.dart';
 
@@ -238,46 +239,57 @@ class HomeScreen extends StatelessWidget {
 
   Widget _buildHorizontalSongList(List<Song> songs) {
     return SizedBox(
-      height: 200, // Fixed height for the horizontal list
+      height: 200,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: songs.length,
         separatorBuilder: (_, _) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final song = songs[index];
-          return SizedBox(
-            width: 140, // Width of each item
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    song.imageUrl,
-                    width: 140,
-                    height: 140,
-                    fit: BoxFit.cover,
+
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SongPlayerScreen(song: song),
+                ),
+              );
+            },
+            child: SizedBox(
+              width: 140,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      song.imageUrl,
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  song.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 8),
+                  Text(
+                    song.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  song.artist,
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    song.artist,
+                    style: const TextStyle(color: Colors.grey, fontSize: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           );
         },
