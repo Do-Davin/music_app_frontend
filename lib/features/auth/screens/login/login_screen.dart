@@ -60,112 +60,108 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Form(
-            key: _formKey,
-            child: Column(
-              children: [
-                const SizedBox(height: 10),
+              key: _formKey,
+              child: Column(
+                children: [
+                  const AuthLogo(),
 
-                const AuthLogo(),
-
-                const SizedBox(height: 20),
-
-                Text(
-                  'Start your music journey',
-                  style: AppTextStyles.header,
-                  textAlign: TextAlign.center,
-                ),
-
-                const SizedBox(height: 50),
-
-                Text('Sign in to continue', style: AppTextStyles.body),
-
-                const SizedBox(height: 30),
-
-                AppTextField(
-                  controller: _fullNameController,
-                  hint: 'Full name',
-                  prefixIcon: Icons.person_outline,
-                ),
-
-                const SizedBox(height: 20),
-
-                AppPasswordField(
-                  controller: _passwordController,
-                  hint: 'Password',
-                ),
-
-                const SizedBox(height: 20),
-
-                AppPrimaryButton(label: 'Sign In', onPressed: _onSignIn),
-
-                const SizedBox(height: 12),
-
-                GestureDetector(
-                  onTap: _onForgotPassword,
-                  child: Text(
-                    'Forgot Password?',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Text(
+                    'Start your music journey',
+                    style: AppTextStyles.subtitle,
+                    textAlign: TextAlign.center,
                   ),
-                ),
 
-                const SizedBox(height: 8),
+                  const SizedBox(height: 20),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("Don't have an account? "),
-                    GestureDetector(
-                      onTap: _onCreateAccount,
-                      child: Text(
-                        'Create account',
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                  Text('Sign in to continue', style: AppTextStyles.body),
+
+                  const SizedBox(height: 30),
+
+                  AppTextField(
+                    controller: _fullNameController,
+                    hint: 'Full name',
+                    prefixIcon: Icons.person_outline,
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  AppPasswordField(
+                    controller: _passwordController,
+                    hint: 'Password',
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  AppPrimaryButton(label: 'Sign In', onPressed: _onSignIn),
+
+                  const SizedBox(height: 12),
+
+                  GestureDetector(
+                    onTap: _onForgotPassword,
+                    child: Text(
+                      'Forgot Password?',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ],
-                ),
+                  ),
 
-                const SizedBox(height: 20),
+                  const SizedBox(height: 8),
 
-                Row(
-                  children: [
-                    const Expanded(child: Divider()),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('OR'),
-                    ),
-                    const Expanded(child: Divider()),
-                  ],
-                ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Don't have an account? "),
+                      GestureDetector(
+                        onTap: _onCreateAccount,
+                        child: Text(
+                          'Create account',
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                GestureDetector(
-                  onTap: _onGoogleSignIn,
-                  child: Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: AppColors.onSurface,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Image.asset('assets/images/Google.png'),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text('OR'),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  GestureDetector(
+                    onTap: _onGoogleSignIn,
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppColors.onSurface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Image.asset('assets/images/Google.png'),
+                      ),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 20),
-              ],
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ),
-        ),
         ),
       ),
     );

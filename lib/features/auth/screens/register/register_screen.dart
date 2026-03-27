@@ -64,40 +64,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                SizedBox(height: sectionGap),
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const AuthLogo(height: 210),
 
-                const AuthLogo(),
+                  _buildHeadlineSection(),
 
-                SizedBox(height: sectionGap),
+                  SizedBox(height: sectionGap),
 
-                _buildHeadlineSection(),
+                  _buildFormSection(),
 
-                SizedBox(height: sectionGap),
+                  SizedBox(height: sectionGap),
 
-                _buildFormSection(),
+                  _buildTermsSection(),
 
-                SizedBox(height: sectionGap),
+                  const SizedBox(height: 14),
 
-                _buildTermsSection(),
+                  _buildLoginRow(),
 
-                const SizedBox(height: 14),
-
-                _buildLoginRow(),
-
-                SizedBox(height: sectionGap),
-              ],
+                  SizedBox(height: sectionGap),
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
     );
   }
-
 
   Widget _buildHeadlineSection() {
     return Column(
