@@ -4,8 +4,13 @@ import 'package:music_app_frontend/core/constants/mock_data.dart';
 
 class SongPlayerScreen extends StatelessWidget {
   final Song song;
+  final String category;
 
-  const SongPlayerScreen({super.key, required this.song});
+  const SongPlayerScreen({
+    super.key,
+    required this.song,
+    required this.category,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,8 +27,8 @@ class SongPlayerScreen extends StatelessWidget {
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Liked Songs',
+        title: Text(
+          category,
           style: TextStyle(
             color: AppColors.primary,
             fontSize: 18,
