@@ -43,7 +43,7 @@ class ProfileService {
       // );
 
       // ── Simulated API response ─────────────────────────────────────────
-      await Future.delayed(const Duration(milliseconds: 400));
+      await Future.delayed(const Duration(seconds: 2));
       return updatedProfile;
     } catch (e) {
       throw Exception('Failed to update profile: $e');
