@@ -15,6 +15,6 @@ class UserService {
       throw Exception(result.exception.toString());
     }
 
-    return User.fromJson(result.data!['me']);
+    return User.fromJson(result.data!['mee']);
   }
 }
