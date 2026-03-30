@@ -359,8 +359,8 @@ class _HomeSkeletonLoaderState extends State<HomeSkeletonLoader>
         // NeverScrollableScrollPhysics so parent handles all scrolling
         physics: const NeverScrollableScrollPhysics(),
         itemCount: 3,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
-        itemBuilder: (_, __) => Column(
+        separatorBuilder: (a, b) => const SizedBox(width: 16),
+        itemBuilder: (context, index) => Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Album art square

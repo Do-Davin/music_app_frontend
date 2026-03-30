@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: songs.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        separatorBuilder: (a, b) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final song = songs[index];
           return GestureDetector(
@@ -127,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: 140,
                         height: 140,
-                        color: Colors.grey[900],
+                        color: AppColors.surface,
                         child: const Icon(
                           Icons.music_note,
                           color: Colors.white24,
@@ -211,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF232323),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -254,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: LinearProgressIndicator(
                         value: 0.4,
-                        backgroundColor: Colors.grey.shade800,
+                        backgroundColor: AppColors.surface,
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           accentColor,
                         ),
@@ -381,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: MockData.popularArtistsUrls.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 24),
+        separatorBuilder: (_, _) => const SizedBox(width: 24),
         itemBuilder: (context, index) {
           return CircleAvatar(
             radius: 50,
