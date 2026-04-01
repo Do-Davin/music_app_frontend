@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
+import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart';
 
 // Provider to manage the search query state
@@ -15,7 +16,7 @@ class SearchScreen extends ConsumerWidget {
     final isSearching = query.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121212), // Dark theme background
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -36,7 +37,6 @@ class SearchScreen extends ConsumerWidget {
     );
   }
 
-  // --- Header with Search Bar ---
   Widget _buildHeader(WidgetRef ref, String query) {
     return Column(
       children: [
@@ -47,57 +47,56 @@ class SearchScreen extends ConsumerWidget {
               onTap: () => ref.read(searchQueryProvider.notifier).state = "",
               child: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.white10,
+                decoration: BoxDecoration(
+                  // Fixed: AppColors.surface instead of Colors.white10
+                  color: AppColors.surface,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.arrow_back_ios_new,
                   size: 16,
-                  color: Colors.white,
+                  color: AppColors.onSurface,
                 ),
               ),
             ),
-            const Text(
+            Text(
               'Search',
-              style: TextStyle(
-                color: AppColors.navSelected, // Your orange/gold color
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
+              // Fixed: AppTextStyles instead of hardcoded TextStyle
+              style: AppTextStyles.subtitle.copyWith(color: AppColors.primary),
             ),
-            const SizedBox(width: 32), // Spacer for balance
+            const SizedBox(width: 32),
           ],
         ),
         const SizedBox(height: 20),
         TextField(
           onChanged: (val) =>
               ref.read(searchQueryProvider.notifier).state = val,
-          style: const TextStyle(color: Colors.white),
+          style: AppTextStyles.body,
           decoration: InputDecoration(
             hintText: "Artist, Lyrics, Song and more",
-            hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
-            prefixIcon: const Icon(Icons.search, color: AppColors.navSelected),
+            hintStyle: AppTextStyles.body.copyWith(
+              color: AppColors.hint,
+              fontSize: 14,
+            ),
+            prefixIcon: const Icon(Icons.search, color: AppColors.primary),
             suffixIcon: query.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
+                    icon: const Icon(Icons.close, color: AppColors.onSurface),
                     onPressed: () =>
                         ref.read(searchQueryProvider.notifier).state = "",
                   )
                 : null,
             contentPadding: const EdgeInsets.symmetric(vertical: 0),
             filled: true,
-            fillColor: Colors.black,
+            // Fixed: AppColors.surface instead of Colors.black
+            fillColor: AppColors.surface,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.navSelected),
+              borderSide: const BorderSide(color: AppColors.primary),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: AppColors.navSelected,
-                width: 2,
-              ),
+              borderSide: const BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
         ),
@@ -105,7 +104,6 @@ class SearchScreen extends ConsumerWidget {
     );
   }
 
-  // --- View 1: Recent, Trending, Browse ---
   Widget _buildInitialView() {
     return ListView(
       physics: const BouncingScrollPhysics(),
@@ -150,8 +148,7 @@ class SearchScreen extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Text(
                   song.title,
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: AppTextStyles.body.copyWith(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -160,7 +157,10 @@ class SearchScreen extends ConsumerWidget {
                 ),
                 Text(
                   song.artist,
-                  style: const TextStyle(color: Colors.white54, fontSize: 10),
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.hint,
+                    fontSize: 10,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -172,9 +172,7 @@ class SearchScreen extends ConsumerWidget {
     );
   }
 
-  // --- View 2: Search Results ---
   Widget _buildSearchResults(String query) {
-    // Combine mock lists to simulate a database search
     final allSongs = [
       ...MockData.recentlyPlayed,
       ...MockData.recommended,
@@ -184,12 +182,36 @@ class SearchScreen extends ConsumerWidget {
     final results = allSongs
         .where(
           (s) =>
+              // Fixed: removed s.lyricsSnippet — not in Song model
+              // only search by title and artist
               s.title.toLowerCase().contains(query.toLowerCase()) ||
-              s.artist.toLowerCase().contains(query.toLowerCase()) ||
-              s.lyricsSnippet.toLowerCase().contains(query.toLowerCase()),
+              s.artist.toLowerCase().contains(query.toLowerCase()),
         )
         .toSet()
-        .toList(); // toSet() removes duplicates if a song is in multiple lists
+        .toList();
+
+    // Show empty state when no results found
+    if (results.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.search_off, size: 64, color: AppColors.primary),
+            const SizedBox(height: 16),
+            Text('No results found', style: AppTextStyles.subtitle),
+            const SizedBox(height: 8),
+            Text(
+              'Try searching for a different song or artist',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.hint,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
 
     return ListView.builder(
       itemCount: results.length,
@@ -208,38 +230,40 @@ class SearchScreen extends ConsumerWidget {
           ),
           title: Text(
             song.title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
-            "Song • ${song.artist}",
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
+            'Song • ${song.artist}',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.hint,
+              fontSize: 13,
+            ),
           ),
-          trailing: const Icon(Icons.more_vert, color: Colors.white54),
+          trailing: const Icon(Icons.more_vert, color: AppColors.hint),
         );
       },
     );
   }
 
-  // --- Helpers ---
   Widget _buildSectionTitle(String title, {bool showAction = false}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           title,
-          style: const TextStyle(
-            color: AppColors.navSelected,
+          style: AppTextStyles.body.copyWith(
+            color: AppColors.primary,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
         if (showAction)
-          const Text(
-            "Clear",
-            style: TextStyle(color: Colors.white54, fontSize: 14),
+          Text(
+            'Clear',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.hint,
+              fontSize: 14,
+            ),
           ),
       ],
     );
@@ -254,12 +278,16 @@ class SearchScreen extends ConsumerWidget {
                 ListTile(
                   title: Text(
                     item,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: AppTextStyles.body.copyWith(fontSize: 14),
                   ),
                   contentPadding: EdgeInsets.zero,
                   dense: true,
                 ),
-                const Divider(color: Colors.white10, height: 1),
+                Divider(
+                  // Fixed: withValues() instead of Colors.white10
+                  color: Colors.white.withValues(alpha: 0.10),
+                  height: 1,
+                ),
               ],
             ),
           )

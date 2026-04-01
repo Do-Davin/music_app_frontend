@@ -217,7 +217,7 @@ class SongPlayerScreen extends StatelessWidget {
           width: 75,
           decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: Color(0xFF1E1E1E),
+            color: AppColors.surface,
           ),
           child: const Center(
             child: Icon(

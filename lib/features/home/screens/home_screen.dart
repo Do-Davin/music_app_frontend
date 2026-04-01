@@ -2,81 +2,108 @@ import 'package:flutter/material.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
+import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
-class HomeScreen extends StatelessWidget {
+// ── Changed from StatelessWidget to StatefulWidget ────────────────────────────
+// We need State so we can track _isLoading and call setState after the delay
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
   static const Color backgroundColor = AppColors.background;
   static const Color accentColor = AppColors.primary;
+
+  // Tracks whether we are still in the loading phase
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Simulate a 2-second API delay so the skeleton is visible
+    // TODO: Replace this with a real API call later
+    Future.delayed(const Duration(seconds: 2), () {
+      // mounted check prevents setState being called after widget is destroyed
+      if (mounted) setState(() => _isLoading = false);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 32),
+        // If still loading → show skeleton, otherwise → show real content
+        child: _isLoading
+            ? const HomeSkeletonLoader()
+            : SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 24.0,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 32),
 
-              _buildSectionTitle('Continue Listening'),
-              _buildContinueListeningCard(),
-              const SizedBox(height: 32),
+                    _buildSectionTitle('Continue Listening'),
+                    _buildContinueListeningCard(),
+                    const SizedBox(height: 32),
 
-              _buildSectionTitle('Your Favorites'),
-              _buildFavoritesGrid(),
-              const SizedBox(height: 32),
+                    _buildSectionTitle('Your Favorites'),
+                    _buildFavoritesGrid(),
+                    const SizedBox(height: 32),
 
-              // --- DYNAMIC CATEGORY NAMES PASSED HERE ---
-              _buildSectionTitle('Recently Played'),
-              _buildHorizontalSongList(
-                MockData.recentlyPlayed,
-                'RECENTLY PLAYED',
+                    _buildSectionTitle('Recently Played'),
+                    _buildHorizontalSongList(
+                      MockData.recentlyPlayed,
+                      'RECENTLY PLAYED',
+                    ),
+                    const SizedBox(height: 32),
+
+                    _buildSectionTitle('Recommended'),
+                    _buildHorizontalSongList(
+                      MockData.recommended,
+                      'RECOMMENDED FOR YOU',
+                    ),
+                    const SizedBox(height: 32),
+
+                    _buildSectionTitle('Made for you'),
+                    _buildHorizontalSongList(
+                      MockData.madeForYou,
+                      'MADE FOR YOU',
+                    ),
+                    const SizedBox(height: 32),
+
+                    _buildSectionTitle('Browse by mood'),
+                    _buildMoodGrid(),
+                    const SizedBox(height: 32),
+
+                    _buildSectionTitle('Popular Artists'),
+                    _buildPopularArtists(),
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
-              const SizedBox(height: 32),
-
-              _buildSectionTitle('Recommended'),
-              _buildHorizontalSongList(
-                MockData.recommended,
-                'RECOMMENDED FOR YOU',
-              ),
-              const SizedBox(height: 32),
-
-              _buildSectionTitle('Made for you'),
-              _buildHorizontalSongList(MockData.madeForYou, 'MADE FOR YOU'),
-              const SizedBox(height: 32),
-
-              _buildSectionTitle('Browse by mood'),
-              _buildMoodGrid(),
-              const SizedBox(height: 32),
-
-              _buildSectionTitle('Popular Artists'),
-              _buildPopularArtists(),
-              const SizedBox(height: 32),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  // --- UPDATED HELPER TO ACCEPT CATEGORY ---
   Widget _buildHorizontalSongList(List<Song> songs, String categoryName) {
     return SizedBox(
       height: 200,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: songs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 16),
+        separatorBuilder: (a, b) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final song = songs[index];
-
           return GestureDetector(
             onTap: () {
-              // Passing the specific category name to the player
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -97,11 +124,10 @@ class HomeScreen extends StatelessWidget {
                       width: 140,
                       height: 140,
                       fit: BoxFit.cover,
-                      // Adding a placeholder for better UX
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: 140,
                         height: 140,
-                        color: Colors.grey[900],
+                        color: AppColors.surface,
                         child: const Icon(
                           Icons.music_note,
                           color: Colors.white24,
@@ -135,8 +161,6 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-
-  // --- REST OF YOUR WIDGET BUILDERS ---
 
   Widget _buildHeader() {
     return Row(
@@ -187,7 +211,7 @@ class HomeScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF232323),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -230,7 +254,7 @@ class HomeScreen extends StatelessWidget {
                     Expanded(
                       child: LinearProgressIndicator(
                         value: 0.4,
-                        backgroundColor: Colors.grey.shade800,
+                        backgroundColor: AppColors.surface,
                         valueColor: const AlwaysStoppedAnimation<Color>(
                           accentColor,
                         ),

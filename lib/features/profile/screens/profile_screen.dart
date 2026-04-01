@@ -4,60 +4,30 @@ import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/features/profile/models/profile_model.dart';
 import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
+import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ── Watch Tier 2 provider ──────────────────────────────────────────────
     final profileState = ref.watch(profileProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: profileState.when(
-          // ── Loading ───────────────────────────────────────────────────────
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: AppColors.primary),
+          // ── LOADING: show spinner while API is running ─────────────────
+          loading: () => const ProfileSkeletonLoader(),
+
+          // ── ERROR: show error widget if API fails ──────────────────────
+          error: (error, _) => AppErrorWidget(
+            message: 'Failed to load profile. Please try again.',
+            retryButtonText: 'Retry',
+            onRetry: () => ref.read(profileProvider.notifier).fetchProfile(),
           ),
 
-          // ── Error ─────────────────────────────────────────────────────────
-          error: (error, _) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  color: AppColors.primary,
-                  size: 48,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Failed to load profile',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () =>
-                      ref.read(profileProvider.notifier).fetchProfile(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                  ),
-                  child: Text(
-                    'Retry',
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.background,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Data ──────────────────────────────────────────────────────────
+          // ── DATA: show profile content when loaded ─────────────────────
           data: (profile) => _ProfileContent(profile: profile),
         ),
       ),
@@ -65,12 +35,8 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _ProfileContent — rendered when data loaded successfully
-// ─────────────────────────────────────────────────────────────────────────────
 class _ProfileContent extends ConsumerWidget {
   final ProfileModel profile;
-
   const _ProfileContent({required this.profile});
 
   @override
@@ -81,32 +47,21 @@ class _ProfileContent extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 32),
-
-          // ── Avatar + Name + Email + Followers ────────────────────────────
           _buildProfileHeader(),
-
           const SizedBox(height: 20),
-
-          // ── Edit Profile Button ──────────────────────────────────────────
           _buildEditProfileButton(context),
-
           const SizedBox(height: 32),
-
-          // ── Playlists ────────────────────────────────────────────────────
-          _buildPlaylistsSection(context),
-
+          _buildPlaylistsSection(context, ref),
           const SizedBox(height: 32),
         ],
       ),
     );
   }
 
-  // ── Avatar + Name + Email + Followers ─────────────────────────────────────
   Widget _buildProfileHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Avatar
         Center(
           child: CircleAvatar(
             radius: 64,
@@ -119,19 +74,13 @@ class _ProfileContent extends ConsumerWidget {
                 : null,
           ),
         ),
-
         const SizedBox(height: 16),
-
-        // Name
         Text(
           profile.name,
           style: AppTextStyles.header.copyWith(color: AppColors.onSurface),
           textAlign: TextAlign.center,
         ),
-
         const SizedBox(height: 4),
-
-        // Email
         Text(
           profile.email,
           style: AppTextStyles.body.copyWith(
@@ -140,10 +89,7 @@ class _ProfileContent extends ConsumerWidget {
           ),
           textAlign: TextAlign.center,
         ),
-
         const SizedBox(height: 8),
-
-        // Followers / Following
         Text(
           '${profile.followers} Followers , ${profile.following} Following',
           style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
@@ -153,15 +99,11 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  // ── Edit Profile Button ────────────────────────────────────────────────────
   Widget _buildEditProfileButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
-        onPressed: () {
-          // TODO: Navigator.push to EditProfileScreen
-          debugPrint('Edit Profile pressed');
-        },
+        onPressed: () => debugPrint('Edit Profile pressed'),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: AppColors.primary, width: 1.5),
           shape: RoundedRectangleBorder(
@@ -180,8 +122,7 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  // ── Playlists Section ──────────────────────────────────────────────────────
-  Widget _buildPlaylistsSection(BuildContext context) {
+  Widget _buildPlaylistsSection(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -192,71 +133,97 @@ class _ProfileContent extends ConsumerWidget {
             fontSize: 20,
           ),
         ),
-
         const SizedBox(height: 16),
 
+        // ── EMPTY STATE: shown when playlist list is empty ───────────────
         if (profile.playlists.isEmpty)
-          Center(
-            child: Text(
-              'No playlists yet.',
-              style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
-            ),
+          AppEmptyStateWidget(
+            icon: Icons.queue_music,
+            title: 'No Playlists Yet',
+            subtitle: 'Create a playlist to organize your music',
+            buttonLabel: 'Create Playlist',
+            onButtonPressed: () => debugPrint('Create playlist tapped'),
           )
         else
           ...profile.playlists.map(
-            (playlist) => _buildPlaylistItem(context, playlist),
+            (playlist) => _buildPlaylistItem(context, ref, playlist),
           ),
       ],
     );
   }
 
-  // ── Single Playlist Row ────────────────────────────────────────────────────
-  Widget _buildPlaylistItem(BuildContext context, PlaylistItem playlist) {
+  Widget _buildPlaylistItem(
+    BuildContext context,
+    WidgetRef ref,
+    PlaylistItem playlist,
+  ) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: GestureDetector(
-        onTap: () {
-          // TODO: Navigate to PlaylistDetailScreen
-          debugPrint('Playlist tapped: ${playlist.title}');
-        },
-        child: Row(
-          children: [
-            // Thumbnail
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: playlist.thumbnailUrl != null
-                  ? Image.network(
-                      playlist.thumbnailUrl!,
-                      width: 60,
-                      height: 60,
-                      fit: BoxFit.cover,
-                    )
-                  : Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.music_note,
-                        color: AppColors.primary,
-                        size: 28,
-                      ),
+      child: Row(
+        children: [
+          // Thumbnail
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: playlist.thumbnailUrl != null
+                ? Image.network(
+                    playlist.thumbnailUrl!,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-            ),
+                    child: const Icon(
+                      Icons.music_note,
+                      color: AppColors.primary,
+                      size: 28,
+                    ),
+                  ),
+          ),
 
-            const SizedBox(width: 16),
+          const SizedBox(width: 16),
 
-            // Title
-            Expanded(
-              child: Text(
-                playlist.title,
-                style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
-              ),
+          // Title
+          Expanded(
+            child: Text(
+              playlist.title,
+              style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
             ),
-          ],
-        ),
+          ),
+
+          // ── DELETE button → triggers confirm dialog ────────────────────
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            onPressed: () async {
+              // Show confirm dialog before deleting
+              final confirmed = await showConfirmDialog(
+                context: context,
+                title: 'Delete Playlist',
+                message:
+                    'Are you sure you want to delete "${playlist.title}"? This cannot be undone.',
+                confirmText: 'Delete',
+                cancelText: 'Cancel',
+              );
+
+              if (confirmed) {
+                // Show success snackbar after delete
+                if (context.mounted) {
+                  showSuccessSnackbar(
+                    context,
+                    message: '"${playlist.title}" deleted successfully.',
+                    undoLabel: 'Undo',
+                    onUndo: () => debugPrint('Undo delete tapped'),
+                  );
+                }
+              }
+            },
+          ),
+        ],
       ),
     );
   }
