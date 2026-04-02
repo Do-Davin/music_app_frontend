@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+import 'package:music_app_frontend/features/auth/domain/models/auth_state.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/login/login_screen.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
@@ -27,17 +29,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  void _onCreateAccount() {
+  void _onCreateAccount() async {
     if (_formKey.currentState!.validate()) {
-      // TODO: Call API / auth service using Riverpod (e.g. ref.read(authProvider.notifier).register(...))
-      debugPrint('Create Account pressed');
-      debugPrint('Email: ${_emailController.text}');
-      debugPrint('Password: ${_passwordController.text}');
-
-      // For now it goes to LoginScreen (as in your original code)
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      await ref.read(authProvider.notifier).register(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
     }
   }
@@ -60,6 +56,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
     final double sectionGap = screenHeight * 0.03;
+    final authState = ref.watch(authProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -77,7 +74,29 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   SizedBox(height: sectionGap),
                   _buildHeadlineSection(),
                   SizedBox(height: sectionGap),
-                  _buildFormSection(),
+                  if (authState.errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              authState.errorMessage!,
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  _buildFormSection(authState),
                   SizedBox(height: sectionGap),
                   _buildTermsSection(),
                   const SizedBox(height: 14),
@@ -110,7 +129,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildFormSection() {
+  Widget _buildFormSection(AuthState authState) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -177,7 +196,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
         AppPrimaryButton(
           label: 'Create Account',
-          onPressed: _onCreateAccount,
+          isLoading: authState.isLoading,
+          onPressed: authState.isLoading ? null : _onCreateAccount,
         ),
       ],
     );

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/profile/data/services/profile_model.dart';
 import 'package:music_app_frontend/features/profile/domain/providers/profile_provider.dart';
 
@@ -101,7 +102,40 @@ class _ProfileContent extends ConsumerWidget {
           _buildPlaylistsSection(context),
 
           const SizedBox(height: 32),
+
+          // ── Logout Button ─────────────────────────────────────────────────
+          _buildLogoutButton(context, ref),
+
+          const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () {
+          ref.read(authProvider.notifier).logout();
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red.withOpacity(0.1),
+          foregroundColor: Colors.red,
+          elevation: 0,
+          side: const BorderSide(color: Colors.red, width: 1),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        child: const Text(
+          'Log out',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ),
       ),
     );
   }

@@ -9,8 +9,16 @@ class AuthWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isLoggedIn = ref.watch(authProvider);
+    final authState = ref.watch(authProvider);
 
-    return isLoggedIn ? const MainScreen() : const LoginScreen();
+    if (authState.isLoading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    return authState.isAuthenticated ? const MainScreen() : const LoginScreen();
   }
 }

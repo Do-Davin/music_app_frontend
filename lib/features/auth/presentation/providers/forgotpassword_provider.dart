@@ -21,6 +21,7 @@ class ForgotPasswordState {
   final bool codeVerified;    // true after Step 2 success
   final bool passwordReset;   // true after Step 3 success
   final String email;         // carried across all 3 steps
+  final String code;          // the code entered by user
 
   const ForgotPasswordState({
     this.isLoading = false,
@@ -29,6 +30,7 @@ class ForgotPasswordState {
     this.codeVerified = false,
     this.passwordReset = false,
     this.email = '',
+    this.code = '',
   });
 
   ForgotPasswordState copyWith({
@@ -38,6 +40,7 @@ class ForgotPasswordState {
     bool? codeVerified,
     bool? passwordReset,
     String? email,
+    String? code,
   }) {
     return ForgotPasswordState(
       isLoading: isLoading ?? this.isLoading,
@@ -46,6 +49,7 @@ class ForgotPasswordState {
       codeVerified: codeVerified ?? this.codeVerified,
       passwordReset: passwordReset ?? this.passwordReset,
       email: email ?? this.email,
+      code: code ?? this.code,
     );
   }
 }
@@ -78,7 +82,7 @@ class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
 
   /// Step 2: Verify passcode
   Future<void> verifyCode(String code) async {
-    state = state.copyWith(isLoading: true, errorMessage: null);
+    state = state.copyWith(isLoading: true, errorMessage: null, code: code);
     try {
       final result = await _service.verifyCode(state.email, code); // ← calls Tier 1
       state = state.copyWith(
@@ -97,7 +101,7 @@ class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
   Future<void> resetPassword(String newPassword) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      await _service.resetPassword(state.email, newPassword); // ← calls Tier 1
+      await _service.resetPassword(state.email, newPassword, state.code); // ← calls Tier 1
       state = state.copyWith(
         isLoading: false,
         passwordReset: true,

@@ -26,9 +26,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _onSignIn() {
+  void _onSignIn() async {
     if (_formKey.currentState!.validate()) {
-      ref.read(authProvider.notifier).state = true;
+      await ref.read(authProvider.notifier).login(
+        _fullEmailController.text.trim(),
+        _passwordController.text.trim(),
+      );
     }
   }
 
@@ -48,6 +51,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       resizeToAvoidBottomInset: true,
@@ -77,10 +82,37 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 const SizedBox(height: 30),
 
+                if (authState.errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            authState.errorMessage!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 AppTextField(
                   controller: _fullEmailController,
                   hint: 'Email',
                   prefixIcon: Icons.person_outline,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Email is required';
+                    return null;
+                  },
                 ),
 
                 const SizedBox(height: 20),
@@ -88,11 +120,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 AppPasswordField(
                   controller: _passwordController,
                   hint: 'Password',
+                  validator: (value) {
+                    if (value == null || value.isEmpty) return 'Password is required';
+                    return null;
+                  },
                 ),
 
                 const SizedBox(height: 20),
 
-                AppPrimaryButton(label: 'Sign In', onPressed: _onSignIn),
+                AppPrimaryButton(
+                  label: 'Sign In',
+                  isLoading: authState.isLoading,
+                  onPressed: authState.isLoading ? null : _onSignIn,
+                ),
 
                 const SizedBox(height: 12),
 
