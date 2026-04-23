@@ -8,7 +8,7 @@ final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
 class FirstLaunchNotifier extends Notifier<bool> {
   @override
   bool build() {
-    final prefs = ref.watch(sharedPreferencesProvider);
+    final prefs = ref.read(sharedPreferencesProvider);
     return prefs.getBool('isFirstLaunch') ?? true;
   }
 
@@ -19,5 +19,6 @@ class FirstLaunchNotifier extends Notifier<bool> {
   }
 }
 
-final isFirstLaunchProvider =
-    NotifierProvider<FirstLaunchNotifier, bool>(FirstLaunchNotifier.new);
+final isFirstLaunchProvider = NotifierProvider<FirstLaunchNotifier, bool>(
+  FirstLaunchNotifier.new,
+);

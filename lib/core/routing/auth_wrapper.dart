@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app_frontend/features/auth/presentation/screens/login/login_screen.dart';
 import 'package:music_app_frontend/features/auth/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/onboarding/providers/shared_prefs_provider.dart';
 import 'package:music_app_frontend/features/onboarding/providers/splash_provider.dart';
-import 'package:music_app_frontend/features/auth/screens/login/login_screen.dart';
+
 import 'package:music_app_frontend/features/home/screens/main_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/splash_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/onboarding_screen.dart';
