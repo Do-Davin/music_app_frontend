@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
-import 'package:music_app_frontend/features/auth/screens/login/login_screen.dart';
+import 'package:music_app_frontend/features/auth/presentation/screens/login/login_screen.dart';
+
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
