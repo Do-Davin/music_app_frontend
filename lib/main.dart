@@ -17,8 +17,6 @@ import 'package:music_app_frontend/core/theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final sharedPreferences = await SharedPreferences.getInstance();
-  await sharedPreferences
-      .clear(); // Temporarily for development REMOVE After launch App
 
   runApp(
     ProviderScope(

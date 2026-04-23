@@ -24,7 +24,7 @@ class AuthWrapper extends ConsumerWidget {
       return const OnboardingScreen();
     }
 
-    final isLoggedIn = ref.watch(authProvider);
-    return isLoggedIn ? const MainScreen() : const LoginScreen();
+    final authState = ref.watch(authProvider);
+    return authState.isAuthenticated ? const MainScreen() : const LoginScreen();
   }
 }
