@@ -30,7 +30,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     FocusScope.of(context).unfocus();
 
     if (_formKey.currentState!.validate()) {
-      ref.read(authProvider.notifier).state = true;
+      ref
+          .read(authProvider.notifier)
+          .login(
+            email: _fullEmailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
     }
   }
 
@@ -50,6 +55,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (!mounted) return;
+
+      final previousError = previous?.errorMessage;
+      final nextError = next.errorMessage;
+
+      if (nextError != null && nextError != previousError) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(nextError)));
+      }
+    });
+
+    final authState = ref.watch(authProvider);
     final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return GestureDetector(
@@ -182,6 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                               AppPrimaryButton(
                                 label: 'Sign In',
+                                isLoading: authState.isLoading,
                                 onPressed: _onSignIn,
                               ),
                             ],

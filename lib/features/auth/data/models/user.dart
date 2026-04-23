@@ -20,15 +20,18 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    final practiceGoals = json['practiceGoals'] as Map<String, dynamic>?;
+    final practiceStreak = json['practiceStreak'] as Map<String, dynamic>?;
+
     return User(
       id: json['_id'] as String,
       username: json['username'] as String,
       email: json['email'] as String,
       profileImageUrl: json['profileImageUrl'] as String?,
-      practiceGoalsDailyMinutes: json['practiceGoals_dailyMinutes'] as int?,
-      practiceGoalsWeeklyDays: json['practiceGoals_weeklyDays'] as int?,
-      practiceStreakCurrentStreak: json['practiceStreak_currentStreak'] as int?,
-      practiceStreakLongestStreak: json['practiceStreak_longestStreak'] as int?,
+      practiceGoalsDailyMinutes: practiceGoals?['dailyMinutes'] as int?,
+      practiceGoalsWeeklyDays: practiceGoals?['weeklyDays'] as int?,
+      practiceStreakCurrentStreak: practiceStreak?['currentStreak'] as int?,
+      practiceStreakLongestStreak: practiceStreak?['longestStreak'] as int?,
     );
   }
 }

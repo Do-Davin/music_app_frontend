@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
-import 'package:music_app_frontend/features/auth/presentation/screens/login/login_screen.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -31,14 +31,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     FocusScope.of(context).unfocus();
 
     if (_formKey.currentState!.validate()) {
-      debugPrint('Create Account pressed');
-      debugPrint('Email: ${_emailController.text}');
-      debugPrint('Password: ${_passwordController.text}');
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
+      ref
+          .read(authProvider.notifier)
+          .register(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
     }
   }
 
@@ -56,6 +54,26 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (previous, next) {
+      if (!mounted) return;
+
+      final previousError = previous?.errorMessage;
+      final nextError = next.errorMessage;
+      final becameAuthenticated =
+          next.isAuthenticated && !(previous?.isAuthenticated ?? false);
+
+      if (nextError != null && nextError != previousError) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(nextError)));
+      }
+
+      if (becameAuthenticated) {
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
+    });
+
+    final authState = ref.watch(authProvider);
     final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return GestureDetector(
@@ -218,6 +236,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                             AppPrimaryButton(
                               label: 'Create Account',
+                              isLoading: authState.isLoading,
                               onPressed: _onCreateAccount,
                             ),
                           ],

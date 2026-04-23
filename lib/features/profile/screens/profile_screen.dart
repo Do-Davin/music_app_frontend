@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+import 'package:music_app_frontend/core/routing/navigation_provider.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/profile/models/profile_model.dart';
 import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
@@ -49,7 +51,7 @@ class _ProfileContent extends ConsumerWidget {
           const SizedBox(height: 32),
           _buildProfileHeader(),
           const SizedBox(height: 20),
-          _buildEditProfileButton(context),
+          _buildProfileActions(context, ref),
           const SizedBox(height: 32),
           _buildPlaylistsSection(context, ref),
           const SizedBox(height: 32),
@@ -99,26 +101,64 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildEditProfileButton(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: () => debugPrint('Edit Profile pressed'),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.primary, width: 1.5),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+  Widget _buildProfileActions(BuildContext context, WidgetRef ref) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => debugPrint('Edit Profile pressed'),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.primary, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: Text(
+              'Edit profile',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 14),
         ),
-        child: Text(
-          'Edit profile',
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w600,
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () async {
+              final confirmed = await showConfirmDialog(
+                context: context,
+                title: 'Log Out',
+                message: 'Are you sure you want to log out of your account?',
+                confirmText: 'Log Out',
+                cancelText: 'Cancel',
+              );
+
+              if (!confirmed) return;
+
+              await ref.read(authProvider.notifier).logout();
+              ref.read(navigationIndexProvider.notifier).state = 0;
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.redAccent, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            child: Text(
+              'Log out',
+              style: AppTextStyles.body.copyWith(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 
