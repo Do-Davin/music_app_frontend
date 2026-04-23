@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/forgot_password_provider.dart';
-import 'package:music_app_frontend/features/auth/presentation/screens/forgot_password/verify_account_screen.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -38,10 +38,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (!mounted) return;
 
     if (state.codeSent) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const VerifyAccountScreen()),
-      );
+      Navigator.pushNamed(context, Routes.verifyAccount);
     }
   }
 
