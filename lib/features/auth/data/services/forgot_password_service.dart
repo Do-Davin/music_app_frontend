@@ -3,7 +3,7 @@
 // Path: lib/features/auth/data/services/forgot_password_service.dart
 // ─────────────────────────────────────────────────────────────────────────────
 
-import 'package:music_app_frontend/features/auth/models/forgotpassword_model.dart';
+import 'package:music_app_frontend/features/auth/data/models/forgot_password_model.dart';
 
 class ForgotPasswordService {
   /// Step 1: Send reset code to email

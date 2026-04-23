@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/features/auth/services/forgotpassword_service.dart';
+import 'package:music_app_frontend/features/auth/data/services/forgot_password_service.dart';
 
 // ── Expose ForgotPasswordService as a provider ────────────────────────────────
 final forgotPasswordServiceProvider = Provider<ForgotPasswordService>(
