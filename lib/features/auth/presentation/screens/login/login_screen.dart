@@ -62,18 +62,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     final authState = ref.watch(authProvider);
-    final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
+    
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: AppColors.background,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
-          child: AnimatedPadding(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.only(bottom: bottomInset),
+          child: SingleChildScrollView(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Padding(

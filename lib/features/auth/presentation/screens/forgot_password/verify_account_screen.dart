@@ -54,7 +54,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
   @override
   Widget build(BuildContext context) {
     final forgotState = ref.watch(forgotPasswordProvider);
-    final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    //final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -62,10 +62,10 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
         backgroundColor: AppColors.background,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
-          child: AnimatedPadding(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.only(bottom: bottomInset),
+          child: SingleChildScrollView(
+            // duration: const Duration(milliseconds: 200),
+            // curve: Curves.easeOut,
+            // padding: EdgeInsets.only(bottom: bottomInset),
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Padding(
