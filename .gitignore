@@ -53,4 +53,4 @@ app.*.map.json
 **/linux/flutter/generated_plugins.cmake
 
 # Ignore Android build outputs
-android/build/
+build/reports/problems/
