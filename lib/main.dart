@@ -18,6 +18,7 @@ import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:music_app_frontend/features/onboarding/providers/shared_prefs_provider.dart';
 import 'package:music_app_frontend/core/theme/app_theme.dart';
+import 'package:music_app_frontend/features/practice_session/screens/practice_session_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,6 +65,7 @@ class MyApp extends StatelessWidget {
         ),
         Routes.noPlaylists: (_) => const NoPlaylistsScreen(),
         Routes.noResults: (_) => const NoResultsScreen(),
+        Routes.practiceSession: (_) => const PracticeSessionScreen(),
       },
     );
   }

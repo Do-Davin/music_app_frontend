@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/routing/navigation_provider.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/profile/models/profile_model.dart';
 import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
@@ -121,6 +122,28 @@ class _ProfileContent extends ConsumerWidget {
                 color: AppColors.primary,
                 fontWeight: FontWeight.w600,
               ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => Navigator.pushNamed(context, Routes.practiceSession),
+            icon: const Icon(Icons.fitness_center, color: AppColors.primary),
+            label: Text(
+              'Practice sessions',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.primary, width: 1.5),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
         ),
