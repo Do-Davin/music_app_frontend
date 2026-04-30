@@ -7,6 +7,7 @@ import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/search/screens/search_screen.dart';
 import 'package:music_app_frontend/features/library/screens/library_screen.dart';
 import 'package:music_app_frontend/features/profile/screens/profile_screen.dart';
+import 'package:music_app_frontend/features/references/screens/reference_material_screen.dart';
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -21,6 +22,7 @@ class MainScreen extends ConsumerWidget {
     SearchScreen(),
     LibraryScreen(),
     ProfileScreen(),
+    ReferenceMaterialScreen(),
   ];
 
   @override
@@ -61,6 +63,11 @@ class MainScreen extends ConsumerWidget {
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
             label: 'Profile',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.menu_book_outlined),
+            activeIcon: Icon(Icons.menu_book),
+            label: 'References',
           ),
         ],
       ),
