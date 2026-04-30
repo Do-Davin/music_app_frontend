@@ -7,6 +7,7 @@ import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/search/screens/search_screen.dart';
 import 'package:music_app_frontend/features/library/screens/library_screen.dart';
 import 'package:music_app_frontend/features/profile/screens/profile_screen.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/screens/karaoke_home_screen.dart';
 
 class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
@@ -20,6 +21,7 @@ class MainScreen extends ConsumerWidget {
     HomeScreen(),
     SearchScreen(),
     LibraryScreen(),
+    KaraokeHomeScreen(),
     ProfileScreen(),
   ];
 
@@ -56,6 +58,11 @@ class MainScreen extends ConsumerWidget {
             icon: Icon(Icons.layers_outlined),
             activeIcon: Icon(Icons.layers),
             label: 'Library',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.mic_outlined),        // ← Karaoke icon
+            activeIcon: Icon(Icons.mic),          // ← Active karaoke icon
+            label: 'Karaoke',                      // ← Karaoke label
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

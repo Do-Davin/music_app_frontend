@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/features/auth/data/services/token_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GraphQLConfig {
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
@@ -16,7 +17,11 @@ class GraphQLConfig {
   /// - iOS simulator / macOS / Windows / Linux / Web → localhost
   static String get _host {
     if (kIsWeb) return 'localhost';
-    if (Platform.isAndroid) return '10.0.2.2';
+    if (Platform.isAndroid) {
+      // Pull the 'ip' key from your .env file
+      // Fallback to 10.0.2.2 if the .env key is missing
+      return dotenv.get('ip', fallback: '10.0.2.2');
+    }
     return 'localhost';
   }
 

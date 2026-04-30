@@ -18,10 +18,12 @@ import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:music_app_frontend/features/onboarding/providers/shared_prefs_provider.dart';
 import 'package:music_app_frontend/core/theme/app_theme.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final sharedPreferences = await SharedPreferences.getInstance();
+  await dotenv.load(fileName: ".env");
 
   runApp(
     ProviderScope(
