@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../controllers/karaoke_controller.dart';
 import 'song_list_screen.dart';
 import 'lyric_editor_screen.dart';
+import 'player_screen.dart';
 
 class KaraokeHomeScreen extends StatelessWidget {
   const KaraokeHomeScreen({super.key});
@@ -133,15 +134,33 @@ class KaraokeHomeScreen extends StatelessWidget {
               );
               Navigator.pop(ctx);
               if (song != null && context.mounted) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => LyricEditorScreen(
-                      song: song,
-                      controller: controller, // ← Pass controller
+                if (song.lyrics.isNotEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✅ Lyrics auto-fetched from YouTube!')),
+                  );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PlayerScreen(
+                        song: song,
+                        controller: controller,
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('ℹ️ No captions found on this video. Please add lyrics manually.')),
+                  );
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => LyricEditorScreen(
+                        song: song,
+                        controller: controller, // ← Pass controller
+                      ),
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(

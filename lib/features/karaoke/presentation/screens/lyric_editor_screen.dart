@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
+import 'dart:io';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
 import '../controllers/karaoke_controller.dart';
@@ -25,7 +27,28 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
   @override
   void initState() {
     super.initState();
-    _addLine();
+    if (widget.song.lyrics.isNotEmpty) {
+      for (var lyric in widget.song.lyrics) {
+        _lines.add(
+          LyricLineInput(
+            timeCtrl: TextEditingController(text: _formatTime(lyric.timestamp)),
+            textCtrl: TextEditingController(text: lyric.text),
+          ),
+        );
+      }
+    } else {
+      _addLine();
+    }
+  }
+
+  String _formatTime(Duration duration) {
+    final min = duration.inMinutes.toString().padLeft(2, '0');
+    final sec = (duration.inSeconds % 60).toString().padLeft(2, '0');
+    final centi = ((duration.inMilliseconds % 1000) ~/ 10).toString().padLeft(
+      2,
+      '0',
+    );
+    return '$min:$sec.$centi';
   }
 
   void _addLine() {
@@ -53,6 +76,153 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       _lines[index].dispose();
       _lines.removeAt(index);
     });
+  }
+
+  void _showPasteLyricsDialog() {
+    final textController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text(
+          'Paste All Lyrics',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Paste one lyric line per line.\nTimestamps will be set to 00:00.00',
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: textController,
+              minLines: 5,
+              maxLines: 10,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Line 1\nLine 2\nLine 3...',
+                hintStyle: TextStyle(color: Colors.grey[600]),
+                filled: true,
+                fillColor: const Color(0xFF2A2A2A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              final text = textController.text.trim();
+              if (text.isNotEmpty) {
+                _parseAndLoadLyrics(text);
+                Navigator.pop(context);
+              }
+            },
+            child: const Text(
+              'Load',
+              style: TextStyle(color: Color(0xFF7C4DFF)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importFromFile() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'lrc'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      String content;
+
+      // Try to read from path first (Android/iOS)
+      final filePath = result.files.single.path;
+      if (filePath != null) {
+        final file = File(filePath);
+        content = await file.readAsString();
+      } else {
+        // Fallback to bytes (web)
+        final bytes = result.files.single.bytes;
+        if (bytes == null) return;
+        content = String.fromCharCodes(bytes);
+      }
+
+      _parseAndLoadLyrics(content);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error importing file: $e')),
+      );
+    }
+  }
+
+  void _parseAndLoadLyrics(String content) {
+    final lines = content.split('\n');
+    final newLines = <LyricLineInput>[];
+
+    for (var line in lines) {
+      line = line.trim();
+      if (line.isEmpty) continue;
+
+      // Try to parse LRC format: [mm:ss.xx] Lyric text
+      final lrcMatch =
+          RegExp(r'\[(\d+):(\d+\.\d+)\]\s*(.*)').firstMatch(line);
+
+      if (lrcMatch != null) {
+        // LRC format detected
+        final min = lrcMatch.group(1)!;
+        final sec = lrcMatch.group(2)!;
+        final text = lrcMatch.group(3)!;
+
+        newLines.add(
+          LyricLineInput(
+            timeCtrl: TextEditingController(text: '$min:$sec'),
+            textCtrl: TextEditingController(text: text),
+          ),
+        );
+      } else {
+        // Plain text - add with default timestamp
+        newLines.add(
+          LyricLineInput(
+            timeCtrl: TextEditingController(text: '00:00.00'),
+            textCtrl: TextEditingController(text: line),
+          ),
+        );
+      }
+    }
+
+    if (newLines.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No valid lyrics found')),
+      );
+      return;
+    }
+
+    setState(() {
+      for (var line in _lines) {
+        line.dispose();
+      }
+      _lines.clear();
+      _lines.addAll(newLines);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Loaded ${newLines.length} lyric lines')),
+    );
   }
 
   Future<void> _saveLyrics() async {
@@ -164,19 +334,53 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           ),
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _addLine,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Line'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2A2A2A),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _addLine,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Line'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2A2A2A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _showPasteLyricsDialog,
+                        icon: const Icon(Icons.paste),
+                        label: const Text('Paste All Lyrics'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2A2A2A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _importFromFile,
+                        icon: const Icon(Icons.file_open),
+                        label: const Text('Import File'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2A2A2A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
