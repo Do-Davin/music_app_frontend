@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
-import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
+import 'package:music_app_frontend/core/routing/app_router.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 // ── Changed from StatelessWidget to StatefulWidget ────────────────────────────
@@ -104,12 +106,9 @@ class _HomeScreenState extends State<HomeScreen> {
           final song = songs[index];
           return GestureDetector(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      SongPlayerScreen(song: song, category: categoryName),
-                ),
+              context.push(
+                Routes.songById(song.title),
+                extra: SongPlayerRouteData(song: song, category: categoryName),
               );
             },
             child: SizedBox(

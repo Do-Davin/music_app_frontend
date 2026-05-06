@@ -1,6 +1,7 @@
 class Routes {
   Routes._();
 
+  static const root = '/';
   static const splash = '/splash';
   static const onboarding = '/onboarding';
   static const main = '/main';
@@ -12,4 +13,7 @@ class Routes {
   static const status = '/status';
   static const noPlaylists = '/no-playlists';
   static const noResults = '/no-results';
+  static const song = '/song/:id';
+
+  static String songById(String id) => '/song/${Uri.encodeComponent(id)}';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
@@ -38,13 +39,17 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (!mounted) return;
 
     if (state.codeSent) {
-      Navigator.pushNamed(context, Routes.verifyAccount);
+      context.push(Routes.verifyAccount);
     }
   }
 
   void _onBackToLogin() {
     ref.read(forgotPasswordProvider.notifier).reset();
-    Navigator.pop(context);
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go(Routes.root);
   }
 
   @override
