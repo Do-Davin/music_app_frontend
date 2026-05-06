@@ -4,6 +4,7 @@ import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/routing/navigation_provider.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/profile/models/profile_model.dart';
 import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
@@ -26,7 +27,10 @@ class ProfileScreen extends ConsumerWidget {
           error: (error, _) => AppErrorWidget(
             message: 'Failed to load profile. Please try again.',
             retryButtonText: 'Retry',
-            onRetry: () => ref.invalidate(profileProvider),
+            onRetry: () {
+              ref.invalidate(meProvider);
+              ref.invalidate(profileProvider);
+            },
           ),
 
           // ── DATA: show profile content when loaded ─────────────────────

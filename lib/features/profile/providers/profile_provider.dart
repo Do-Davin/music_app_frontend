@@ -17,12 +17,17 @@ final profileProvider = FutureProvider<ProfileModel>((ref) async {
 extension on User {
   ProfileModel toProfileModel() {
     return ProfileModel(
-      name: username,
-      email: email,
+      name: _fallback(username, 'No username'),
+      email: _fallback(email, 'No email'),
       avatarUrl: profileImageUrl,
       followers: 0,
       following: 0,
       playlists: const [],
     );
+  }
+
+  String _fallback(String value, String fallback) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? fallback : trimmed;
   }
 }
