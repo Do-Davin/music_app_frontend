@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/forgot_password_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
@@ -42,13 +44,13 @@ class _CreateNewPasswordScreenState
 
     if (state.passwordReset) {
       ref.read(forgotPasswordProvider.notifier).reset();
-      Navigator.popUntil(context, (route) => route.isFirst);
+      context.go(Routes.root);
     }
   }
 
   void _onBackToLogin() {
     ref.read(forgotPasswordProvider.notifier).reset();
-    Navigator.popUntil(context, (route) => route.isFirst);
+    context.go(Routes.root);
   }
 
   @override
