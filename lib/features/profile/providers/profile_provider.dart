@@ -1,47 +1,28 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app_frontend/features/auth/data/models/user.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/profile/models/profile_model.dart';
-import 'package:music_app_frontend/features/profile/services/profile_service.dart';
 
-// ── Expose ProfileService to Riverpod ─────────────────────────────────────────
-final profileServiceProvider = Provider<ProfileService>(
-  (ref) => ProfileService(),
-);
-
-// ── ProfileNotifier: manages state, calls Tier 1 ──────────────────────────────
-class ProfileNotifier extends StateNotifier<AsyncValue<ProfileModel>> {
-  final ProfileService _service;
-
-  ProfileNotifier(this._service) : super(const AsyncValue.loading()) {
-    fetchProfile(); // auto-fetch when provider is first created
+final profileProvider = FutureProvider<ProfileModel>((ref) async {
+  final authState = ref.watch(authProvider);
+  if (!authState.isAuthenticated) {
+    throw StateError('No authenticated user');
   }
 
-  /// Fetch profile → delegates to Tier 1 service
-  Future<void> fetchProfile() async {
-    state = const AsyncValue.loading();
-    try {
-      final profile = await _service.fetchProfile();
-      state = AsyncValue.data(profile);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
+  final user = await ref.watch(meProvider.future);
+  return user.toProfileModel();
+});
 
-  /// Update profile → delegates to Tier 1 service
-  Future<void> updateProfile(ProfileModel updatedProfile) async {
-    state = const AsyncValue.loading();
-    try {
-      final updated = await _service.updateProfile(updatedProfile);
-      state = AsyncValue.data(updated);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+extension on User {
+  ProfileModel toProfileModel() {
+    return ProfileModel(
+      name: username,
+      email: email,
+      avatarUrl: profileImageUrl,
+      followers: 0,
+      following: 0,
+      playlists: const [],
+    );
   }
 }
-
-// ── Expose ProfileNotifier to the widget tree ─────────────────────────────────
-final profileProvider =
-    StateNotifierProvider<ProfileNotifier, AsyncValue<ProfileModel>>(
-      (ref) => ProfileNotifier(
-        ref.read(profileServiceProvider), // inject Tier 1 into Tier 2
-      ),
-    );
