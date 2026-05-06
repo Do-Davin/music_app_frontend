@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 import 'create_library_screen.dart';
 
@@ -16,6 +17,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
   bool isGridView = false;
   String selectedFilter = 'All';
   String searchQuery = '';
+
+  void _handlePlaylistTap(BuildContext context, dynamic item) {
+    if (item.name == 'Liked Songs') {
+      Navigator.of(context).pushNamed(Routes.likedSongs);
+    }
+  }
 
   void _showCreateLibrarySheet(BuildContext context) {
     showModalBottomSheet(
@@ -237,6 +244,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(vertical: 6),
           leading: _buildImageTile(item, 64),
+          onTap: () => _handlePlaylistTap(context, item),
           title: Text(
             item.name,
             style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
@@ -266,27 +274,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
       itemCount: playlists.length,
       itemBuilder: (context, index) {
         final item = playlists[index];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _buildImageTile(item, double.infinity)),
-            const SizedBox(height: 8),
-            Text(
-              item.name,
-              style: AppTextStyles.body.copyWith(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+        return InkWell(
+          onTap: () => _handlePlaylistTap(context, item),
+          borderRadius: BorderRadius.circular(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _buildImageTile(item, double.infinity)),
+              const SizedBox(height: 8),
+              Text(
+                item.name,
+                style: AppTextStyles.body.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+                maxLines: 1,
               ),
-              maxLines: 1,
-            ),
-            Text(
-              'Playlist',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.hint,
-                fontSize: 11,
+              Text(
+                'Playlist',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.hint,
+                  fontSize: 11,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -310,7 +322,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
             : null,
       ),
       child: !hasImage && item.name == 'Liked Songs'
-          ? const Icon(Icons.favorite, color: AppColors.onSurface, size: 32)
+          ? const Icon(
+              Icons.favorite_rounded,
+              color: AppColors.primary,
+              size: 34,
+            )
           : null,
     );
   }

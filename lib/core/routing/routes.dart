@@ -12,5 +12,5 @@ class Routes {
   static const status = '/status';
   static const noPlaylists = '/no-playlists';
   static const noResults = '/no-results';
-  static const practiceSession = '/practice-session';
+  static const likedSongs = '/liked-songs';
 }

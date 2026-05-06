@@ -12,13 +12,13 @@ import 'package:music_app_frontend/features/auth/presentation/screens/register/r
 import 'package:music_app_frontend/features/home/screens/main_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/onboarding_screen.dart';
 import 'package:music_app_frontend/features/playlist/screens/no_playlists_screen.dart';
+import 'package:music_app_frontend/features/playlist/screens/liked_songs_screen.dart';
 import 'package:music_app_frontend/features/song/screens/no_results_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/splash_screen.dart';
 import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:music_app_frontend/features/onboarding/providers/shared_prefs_provider.dart';
 import 'package:music_app_frontend/core/theme/app_theme.dart';
-import 'package:music_app_frontend/features/practice_session/screens/practice_session_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,7 +65,7 @@ class MyApp extends StatelessWidget {
         ),
         Routes.noPlaylists: (_) => const NoPlaylistsScreen(),
         Routes.noResults: (_) => const NoResultsScreen(),
-        Routes.practiceSession: (_) => const PracticeSessionScreen(),
+        Routes.likedSongs: (_) => const LikedSongsScreen(),
       },
     );
   }
