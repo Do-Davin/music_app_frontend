@@ -26,7 +26,7 @@ class ProfileScreen extends ConsumerWidget {
           error: (error, _) => AppErrorWidget(
             message: 'Failed to load profile. Please try again.',
             retryButtonText: 'Retry',
-            onRetry: () => ref.read(profileProvider.notifier).fetchProfile(),
+            onRetry: () => ref.invalidate(profileProvider),
           ),
 
           // ── DATA: show profile content when loaded ─────────────────────
