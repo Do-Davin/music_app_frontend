@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import '../providers/reference_material_provider.dart';
@@ -312,6 +313,10 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
   late TextEditingController _topicController;
   String _selectedType = 'PDF';
   File? _selectedFile;
+  bool _isDragging = false;
+
+  final List<String> _allowedExtensions = ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'txt', 'jpg', 'png'];
+  final List<String> _materialTypes = ['PDF', 'PPT', 'Sheet Music', 'Note', 'Other'];
 
   @override
   void initState() {
@@ -319,7 +324,10 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
     _titleController = TextEditingController(text: widget.material?.title ?? '');
     _descriptionController = TextEditingController(text: widget.material?.description ?? '');
     _topicController = TextEditingController(text: widget.material?.topic ?? '');
-    _selectedType = widget.material?.type ?? 'PDF';
+    
+    // Ensure selected type is in the list of allowed types
+    final initialType = widget.material?.type ?? 'PDF';
+    _selectedType = _materialTypes.contains(initialType) ? initialType : 'Other';
   }
 
   @override
@@ -330,16 +338,29 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
     super.dispose();
   }
 
+  void _handleFileSelection(String? path) {
+    if (path == null) return;
+
+    final extension = path.split('.').last.toLowerCase();
+    if (_allowedExtensions.contains(extension)) {
+      setState(() {
+        _selectedFile = File(path);
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid file type. Allowed: ${_allowedExtensions.join(', ')}')),
+      );
+    }
+  }
+
   Future<void> _pickFile() async {
-    FilePickerResult? result = await FilePicker.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'txt', 'jpg', 'png'],
+      allowedExtensions: _allowedExtensions,
     );
 
     if (result != null && result.files.single.path != null) {
-      setState(() {
-        _selectedFile = File(result.files.single.path!);
-      });
+      _handleFileSelection(result.files.single.path);
     }
   }
 
@@ -381,58 +402,144 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.material == null ? 'Add Material' : 'Edit Material'),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Title'),
-                validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
+      content: DropTarget(
+        onDragDone: (detail) {
+          if (detail.files.isNotEmpty) {
+            _handleFileSelection(detail.files.first.path);
+          }
+        },
+        onDragEntered: (_) => setState(() => _isDragging = true),
+        onDragExited: (_) => setState(() => _isDragging = false),
+        child: Container(
+          width: 400, // Fixed width for better layout on desktop
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: _isDragging ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+            border: _isDragging ? Border.all(color: AppColors.primary, width: 2) : null,
+          ),
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: _titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      hintText: 'Enter material title',
+                    ),
+                    validator: (value) => value?.isEmpty ?? true ? 'Title is required' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: _selectedType,
+                    decoration: const InputDecoration(labelText: 'Type'),
+                    items: _materialTypes
+                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                        .toList(),
+                    onChanged: (value) => setState(() => _selectedType = value!),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'Optional description',
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _topicController,
+                    decoration: const InputDecoration(
+                      labelText: 'Topic',
+                      hintText: 'e.g., Music Theory, Practice Tips',
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Drop Zone
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: _pickFile,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: _isDragging ? AppColors.primary : Colors.grey.withValues(alpha: 0.3),
+                            style: BorderStyle.solid,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          color: _isDragging 
+                              ? AppColors.primary.withValues(alpha: 0.05) 
+                              : Colors.white.withValues(alpha: 0.02),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.cloud_upload_outlined, 
+                              size: 48, 
+                              color: _isDragging ? AppColors.primary : Colors.grey,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _selectedFile == null 
+                                  ? 'Drag and drop file here or click to browse'
+                                  : 'File selected (Click to change)',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _isDragging ? AppColors.primary : Colors.grey,
+                                fontWeight: _isDragging ? FontWeight.bold : FontWeight.normal,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Allowed: PDF, PPT, Word, Images',
+                              style: TextStyle(fontSize: 10, color: Colors.grey.withValues(alpha: 0.6)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  
+                  if (_selectedFile != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _selectedFile!.path.split(Platform.pathSeparator).last,
+                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else if (widget.material?.fileName != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Current file: ${widget.material!.fileName}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedType,
-                decoration: const InputDecoration(labelText: 'Type'),
-                items: ['PDF', 'PPT', 'Sheet Music', 'Note', 'Other']
-                    .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                    .toList(),
-                onChanged: (value) => setState(() => _selectedType = value!),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _topicController,
-                decoration: const InputDecoration(labelText: 'Topic'),
-              ),
-              const SizedBox(height: 16),
-              
-              ElevatedButton.icon(
-                onPressed: _pickFile,
-                icon: const Icon(Icons.attach_file),
-                label: Text(_selectedFile == null ? 'Pick File' : 'Change File'),
-              ),
-              if (_selectedFile != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Selected: ${_selectedFile!.path.split(Platform.pathSeparator).last}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ] else if (widget.material?.fileName != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Current: ${widget.material!.fileName}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ],
+            ),
           ),
         ),
       ),
@@ -443,7 +550,11 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
         ),
         ElevatedButton(
           onPressed: _submit,
-          child: Text(widget.material == null ? 'Create' : 'Update'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: Text(widget.material == null ? 'Create Material' : 'Update Material'),
         ),
       ],
     );
