@@ -3,17 +3,18 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
+import '../../domain/utils/lrc_parser.dart';
 import '../controllers/karaoke_controller.dart';
 import 'player_screen.dart';
 
 class LyricEditorScreen extends StatefulWidget {
   final KaraokeSong song;
-  final KaraokeController controller; // ← Add this
+  final KaraokeController controller;
 
   const LyricEditorScreen({
     super.key,
     required this.song,
-    required this.controller, // ← Required
+    required this.controller,
   });
 
   @override
@@ -94,7 +95,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Paste one lyric line per line.\nTimestamps will be set to 00:00.00',
+              'Paste one lyric line per line.\nSupports LRC format with timestamps.',
               style: TextStyle(color: Colors.grey[400], fontSize: 12),
             ),
             const SizedBox(height: 16),
@@ -164,9 +165,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
       _parseAndLoadLyrics(content);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error importing file: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error importing file: $e')),
+        );
+      }
     }
   }
 
@@ -178,24 +181,21 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       line = line.trim();
       if (line.isEmpty) continue;
 
-      // Try to parse LRC format: [mm:ss.xx] Lyric text
-      final lrcMatch =
-          RegExp(r'\[(\d+):(\d+\.\d+)\]\s*(.*)').firstMatch(line);
+      // Skip LRC metadata
+      if (RegExp(r'^\[(ti|ar|al|by|offset|re|ve):').hasMatch(line)) continue;
 
-      if (lrcMatch != null) {
-        // LRC format detected
-        final min = lrcMatch.group(1)!;
-        final sec = lrcMatch.group(2)!;
-        final text = lrcMatch.group(3)!;
-
+      // Try to parse as LRC (standard or enhanced)
+      try {
+        final parsed = LrcParser.parseLine(line);
         newLines.add(
           LyricLineInput(
-            timeCtrl: TextEditingController(text: '$min:$sec'),
-            textCtrl: TextEditingController(text: text),
+            timeCtrl: TextEditingController(
+                text: _formatTime(parsed.timestamp)),
+            textCtrl: TextEditingController(text: parsed.text),
           ),
         );
-      } else {
-        // Plain text - add with default timestamp
+      } catch (_) {
+        // Plain text — add with default timestamp
         newLines.add(
           LyricLineInput(
             timeCtrl: TextEditingController(text: '00:00.00'),
@@ -256,7 +256,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         MaterialPageRoute(
           builder: (_) => PlayerScreen(
             song: widget.song.copyWith(lyrics: lyrics),
-            controller: widget.controller, // Pass controller forward
+            controller: widget.controller,
           ),
         ),
       );

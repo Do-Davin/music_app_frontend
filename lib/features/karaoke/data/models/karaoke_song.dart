@@ -52,9 +52,7 @@ class KaraokeSong {
       'artist': artist,
       'source': source.name,
       'sourcePath': sourcePath,
-      'lyrics': lyrics
-          .map((l) => {'timestamp': l.timestamp.inMilliseconds, 'text': l.text})
-          .toList(),
+      'lyrics': lyrics.map((l) => l.toJson()).toList(),
       'duration': duration?.inMilliseconds,
       'createdAt': createdAt.toIso8601String(),
     };
@@ -68,12 +66,7 @@ class KaraokeSong {
       source: SongSource.values.byName(json['source']),
       sourcePath: json['sourcePath'],
       lyrics: (json['lyrics'] as List)
-          .map(
-            (l) => LrcLine(
-              timestamp: Duration(milliseconds: l['timestamp']),
-              text: l['text'],
-            ),
-          )
+          .map((l) => LrcLine.fromJson(l as Map<String, dynamic>))
           .toList(),
       duration: json['duration'] != null
           ? Duration(milliseconds: json['duration'])

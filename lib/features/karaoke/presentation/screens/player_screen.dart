@@ -3,47 +3,75 @@ import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
+import '../../domain/utils/word_timing_generator.dart';
 import '../controllers/karaoke_controller.dart';
 import '../widgets/lyric_line.dart';
 
-class PlayerScreen extends StatelessWidget {
+class PlayerScreen extends StatefulWidget {
   final KaraokeSong song;
   final KaraokeController controller;
 
-  const PlayerScreen({super.key, required this.song, required this.controller});
+  const PlayerScreen({
+    super.key,
+    required this.song,
+    required this.controller,
+  });
+
+  @override
+  State<PlayerScreen> createState() => _PlayerScreenState();
+}
+
+class _PlayerScreenState extends State<PlayerScreen> {
+  late List<LrcLine> _lyricsWithWords;
+  bool _isAdvancedMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-generate word timing from line timestamps
+    _lyricsWithWords =
+        WordTimingGenerator.generateWordTiming(widget.song.lyrics);
+
+    // Start playing when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.controller.currentSong?.id != widget.song.id) {
+        widget.controller.playSong(
+          widget.song.copyWith(lyrics: _lyricsWithWords),
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    // Start playing when screen builds
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.currentSong?.id != song.id) {
-        controller.playSong(song);
-      }
-    });
-
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       body: SafeArea(
         child: AnimatedBuilder(
-          animation: controller,
+          animation: widget.controller,
           builder: (context, _) {
             return Column(
               children: [
                 _buildHeader(context),
 
                 // Media player section
-                if (song.source == SongSource.youtube &&
-                    controller.youtubeController != null)
+                if (widget.song.source == SongSource.youtube &&
+                    widget.controller.youtubeController != null)
                   _buildYoutubePlayer()
-                else if (song.source == SongSource.local)
+                else if (widget.song.source == SongSource.local)
                   _buildLocalPlayerIndicator(),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
-                // Lyrics display - active line always centered
+                // Lead-time offset controls
+                _buildOffsetControls(),
+
+                const SizedBox(height: 8),
+
+                // Lyrics display with word-by-word highlighting
                 Expanded(child: _buildLyrics()),
 
-                // Controls
+                // Playback controls
                 _buildControls(),
               ],
             );
@@ -67,7 +95,7 @@ class PlayerScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  controller.currentSong?.title ?? song.title,
+                  widget.controller.currentSong?.title ?? widget.song.title,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -76,13 +104,35 @@ class PlayerScreen extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (controller.currentSong?.artist != null)
+                if (widget.controller.currentSong?.artist != null)
                   Text(
-                    controller.currentSong!.artist!,
+                    widget.controller.currentSong!.artist!,
                     style: TextStyle(color: Colors.grey[400], fontSize: 12),
                   ),
               ],
             ),
+          ),
+          IconButton(
+            icon: Icon(
+              _isAdvancedMode ? Icons.bolt : Icons.bolt_outlined,
+              color: _isAdvancedMode ? const Color(0xFF7C4DFF) : Colors.white,
+            ),
+            tooltip: 'Advanced Editing Mode',
+            onPressed: () {
+              setState(() {
+                _isAdvancedMode = !_isAdvancedMode;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    _isAdvancedMode
+                        ? 'Advanced Mode ON: Pause & Hold words to edit'
+                        : 'Advanced Mode OFF',
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -100,7 +150,7 @@ class PlayerScreen extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: YoutubePlayer(
-          controller: controller.youtubeController!,
+          controller: widget.controller.youtubeController!,
           showVideoProgressIndicator: true,
           progressIndicatorColor: const Color(0xFF7C4DFF),
           onReady: () {},
@@ -124,24 +174,8 @@ class PlayerScreen extends StatelessWidget {
             const Icon(Icons.music_note, size: 48, color: Color(0xFF7C4DFF)),
             const SizedBox(height: 8),
             Text(
-              controller.currentSong?.title ?? 'Playing...',
+              widget.controller.currentSong?.title ?? 'Playing...',
               style: const TextStyle(color: Colors.white),
-            ),
-            ValueListenableBuilder<bool>(
-              valueListenable: controller.isPlayingNotifier,
-              builder: (context, isPlaying, _) {
-                return isPlaying
-                    ? Container(
-                        margin: const EdgeInsets.only(top: 8),
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF7C4DFF),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      )
-                    : const SizedBox.shrink();
-              },
             ),
           ],
         ),
@@ -149,8 +183,73 @@ class PlayerScreen extends StatelessWidget {
     );
   }
 
+  // ==================== OFFSET CONTROLS ====================
+
+  Widget _buildOffsetControls() {
+    return ValueListenableBuilder<int>(
+      valueListenable: widget.controller.leadTimeMs,
+      builder: (context, currentMs, _) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer, color: Color(0xFF7C4DFF), size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Offset: ${currentMs}ms',
+                style: TextStyle(
+                  color: Colors.grey[300],
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const Spacer(),
+              _offsetBtn('0', 0, currentMs),
+              _offsetBtn('200', 200, currentMs),
+              _offsetBtn('300', 300, currentMs),
+              _offsetBtn('500', 500, currentMs),
+              _offsetBtn('800', 800, currentMs),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _offsetBtn(String label, int ms, int currentMs) {
+    final isActive = currentMs == ms;
+    return GestureDetector(
+      onTap: () => widget.controller.setLeadTime(ms),
+      child: Container(
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive
+              ? const Color(0xFF7C4DFF)
+              : const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.grey[500],
+            fontSize: 11,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==================== LYRICS ====================
+
   Widget _buildLyrics() {
-    final lyrics = controller.currentSong?.lyrics ?? song.lyrics;
+    final lyrics = _lyricsWithWords;
 
     if (lyrics.isEmpty) {
       return Center(
@@ -169,10 +268,16 @@ class PlayerScreen extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: _LyricScroller(controller: controller, lyrics: lyrics),
+        child: _LyricScroller(
+          controller: widget.controller,
+          lyrics: lyrics,
+          onWordLongPress: _isAdvancedMode ? _showWordEditDialog : null,
+        ),
       ),
     );
   }
+
+  // ==================== PLAYBACK CONTROLS ====================
 
   Widget _buildControls() {
     return Padding(
@@ -181,13 +286,13 @@ class PlayerScreen extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Progress bar for local audio
-          if (controller.audioPlayer != null)
+          if (widget.controller.audioPlayer != null)
             StreamBuilder<Duration>(
-              stream: controller.audioPlayer!.positionStream,
+              stream: widget.controller.audioPlayer!.positionStream,
               builder: (context, snapshot) {
                 final position = snapshot.data ?? Duration.zero;
                 final duration =
-                    controller.audioPlayer!.duration ?? Duration.zero;
+                    widget.controller.audioPlayer!.duration ?? Duration.zero;
 
                 return Column(
                   children: [
@@ -203,9 +308,8 @@ class PlayerScreen extends StatelessWidget {
                         activeTrackColor: const Color(0xFF7C4DFF),
                         inactiveTrackColor: Colors.grey[800],
                         thumbColor: const Color(0xFF7C4DFF),
-                        overlayColor: const Color(
-                          0xFF7C4DFF,
-                        ).withValues(alpha: 0.2),
+                        overlayColor:
+                            const Color(0xFF7C4DFF).withValues(alpha: 0.2),
                       ),
                       child: Slider(
                         min: 0,
@@ -213,7 +317,7 @@ class PlayerScreen extends StatelessWidget {
                         value: position.inMilliseconds
                             .clamp(0, duration.inMilliseconds)
                             .toDouble(),
-                        onChanged: (value) => controller.seek(
+                        onChanged: (value) => widget.controller.seek(
                           Duration(milliseconds: value.toInt()),
                         ),
                       ),
@@ -249,33 +353,50 @@ class PlayerScreen extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // Play/Pause button — uses ValueListenableBuilder to avoid stale state
+          // Play/Pause button
           ValueListenableBuilder<bool>(
-            valueListenable: controller.isPlayingNotifier,
+            valueListenable: widget.controller.isPlayingNotifier,
             builder: (context, isPlaying, _) {
-              return GestureDetector(
-                onTap: controller.togglePlay,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFF7C4DFF),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF7C4DFF).withValues(alpha: 0.4),
-                        blurRadius: 20,
-                        spreadRadius: 2,
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.fast_rewind_rounded, color: Colors.white, size: 36),
+                    tooltip: 'Back 2s',
+                    onPressed: () => widget.controller.skip(const Duration(seconds: -2)),
+                  ),
+                  const SizedBox(width: 20),
+                  GestureDetector(
+                    onTap: widget.controller.togglePlay,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF7C4DFF),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF7C4DFF).withValues(alpha: 0.4),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: Icon(
+                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        size: 40,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    size: 40,
-                    color: Colors.white,
+                  const SizedBox(width: 20),
+                  IconButton(
+                    icon: const Icon(Icons.fast_forward_rounded, color: Colors.white, size: 36),
+                    tooltip: 'Forward 2s',
+                    onPressed: () => widget.controller.skip(const Duration(seconds: 2)),
                   ),
-                ),
+                ],
               );
             },
           ),
@@ -291,16 +412,136 @@ class PlayerScreen extends StatelessWidget {
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$m:$s';
   }
+
+  void _showWordEditDialog(int lineIndex, int wordIndex) {
+    if (widget.controller.isPlaying) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pause the song first to edit timing')),
+      );
+      return;
+    }
+
+    final line = _lyricsWithWords[lineIndex];
+    final word = line.words![wordIndex];
+    final textController = TextEditingController(text: word.text);
+    Duration currentTimestamp = word.timestamp;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            title: const Text('Edit Word Timing', style: TextStyle(color: Colors.white)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: textController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Word Text',
+                    labelStyle: TextStyle(color: Colors.grey),
+                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF7C4DFF))),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Timestamp: ${_formatTimeWithMs(currentTimestamp)}',
+                  style: const TextStyle(color: Color(0xFF7C4DFF), fontFamily: 'monospace', fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _adjustBtn(setDialogState, -100, '-100ms', () {
+                      setDialogState(() => currentTimestamp -= const Duration(milliseconds: 100));
+                    }),
+                    _adjustBtn(setDialogState, -10, '-10ms', () {
+                      setDialogState(() => currentTimestamp -= const Duration(milliseconds: 10));
+                    }),
+                    _adjustBtn(setDialogState, 10, '+10ms', () {
+                      setDialogState(() => currentTimestamp += const Duration(milliseconds: 10));
+                    }),
+                    _adjustBtn(setDialogState, 100, '+100ms', () {
+                      setDialogState(() => currentTimestamp += const Duration(milliseconds: 100));
+                    }),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  _updateWord(lineIndex, wordIndex, textController.text, currentTimestamp);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C4DFF)),
+                child: const Text('Save Change', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _adjustBtn(StateSetter setDialogState, int ms, String label, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF2A2A2A),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        minimumSize: const Size(60, 36),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 11)),
+    );
+  }
+
+  void _updateWord(int lineIdx, int wordIdx, String newText, Duration newTime) {
+    setState(() {
+      final line = _lyricsWithWords[lineIdx];
+      final words = List<LrcWord>.from(line.words!);
+      words[wordIdx] = LrcWord(timestamp: newTime, text: newText);
+      _lyricsWithWords[lineIdx] = line.copyWith(words: words);
+    });
+
+    widget.controller.saveLyrics(widget.song.id, _lyricsWithWords);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Word updated and saved!'), duration: Duration(seconds: 1)),
+    );
+  }
+
+  String _formatTimeWithMs(Duration d) {
+    final min = d.inMinutes.toString().padLeft(2, '0');
+    final sec = (d.inSeconds % 60).toString().padLeft(2, '0');
+    final ms = (d.inMilliseconds % 1000).toString().padLeft(3, '0');
+    return '$min:$sec.$ms';
+  }
 }
 
 // ============================================
 // Lyric scroller: active line always centered
+// with word-by-word highlighting
 // ============================================
 class _LyricScroller extends StatefulWidget {
   final KaraokeController controller;
   final List<LrcLine> lyrics;
+  final void Function(int lineIndex, int wordIndex)? onWordLongPress;
 
-  const _LyricScroller({required this.controller, required this.lyrics});
+  const _LyricScroller({
+    required this.controller,
+    required this.lyrics,
+    this.onWordLongPress,
+  });
 
   @override
   State<_LyricScroller> createState() => _LyricScrollerState();
@@ -309,12 +550,9 @@ class _LyricScroller extends StatefulWidget {
 class _LyricScrollerState extends State<_LyricScroller> {
   final ScrollController _scrollController = ScrollController();
 
-  // Active line height is bigger (26px font, height factor 1.4 → ~36px) + padding
-  // We fix a stable item height for scroll math:
   static const double _inactiveHeight = 52.0;
   static const double _activeHeight = 72.0;
 
-  // Cache heights so we can compute exact offsets
   late List<double> _itemHeights;
   double _viewportHeight = 0;
 
@@ -324,7 +562,6 @@ class _LyricScrollerState extends State<_LyricScroller> {
     _rebuildHeights(0);
     widget.controller.currentLineNotifier.addListener(_onLineChanged);
 
-    // Schedule initial scroll to center first lyric after build completes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final currentLine = widget.controller.currentLineNotifier.value;
       _scrollToActiveLine(currentLine);
@@ -344,23 +581,15 @@ class _LyricScrollerState extends State<_LyricScroller> {
     _scrollToActiveLine(index);
   }
 
-  /// Compute the scroll offset so that the center of item [index] aligns
-  /// with the vertical center of the viewport.
   void _scrollToActiveLine(int index) {
     if (!_scrollController.hasClients || _viewportHeight == 0) return;
 
-    // Sum heights of all items before [index]
     double offsetToTop = 0;
     for (int i = 0; i < index; i++) {
       offsetToTop += _itemHeights[i];
     }
 
-    // Center of this item
     final itemCenter = offsetToTop + _itemHeights[index] / 2;
-
-    // We want itemCenter to be at viewportCenter. The list has topPadding =
-    // viewportHeight/2 - activeHeight/2 so the very first item starts centered.
-    // The raw scroll offset = itemCenter - viewportHeight/2
     final targetOffset = itemCenter - _viewportHeight / 2;
 
     final clamped = targetOffset.clamp(
@@ -381,43 +610,48 @@ class _LyricScrollerState extends State<_LyricScroller> {
       builder: (context, constraints) {
         _viewportHeight = constraints.maxHeight;
 
-        // Top padding = half viewport so first item starts centered.
-        // Bottom padding mirrors so last item can also be centered.
         final halfViewport = _viewportHeight / 2;
-        final verticalPadding = math.max(0.0, halfViewport - _activeHeight / 2);
+        final verticalPadding =
+            math.max(0.0, halfViewport - _activeHeight / 2);
 
         return ValueListenableBuilder<int>(
           valueListenable: widget.controller.currentLineNotifier,
           builder: (context, currentLine, _) {
             _rebuildHeights(currentLine);
 
-            return ListView.builder(
-              controller: _scrollController,
-              // top padding = half viewport - half of the FIRST item's height
-              // so item 0 starts centered
-              padding: EdgeInsets.only(
-                top: verticalPadding,
-                bottom: verticalPadding,
-              ),
-              itemCount: widget.lyrics.length,
-              itemBuilder: (context, index) {
-                final isActive = index == currentLine;
-                final distance = (index - currentLine).abs();
-                // Lines far away fade more
-                final opacity = isActive
-                    ? 1.0
-                    : (1.0 - (distance * 0.25)).clamp(0.1, 0.55);
-
-                return SizedBox(
-                  height: _itemHeights[index],
-                  child: Opacity(
-                    opacity: opacity,
-                    child: LyricLine(
-                      text: widget.lyrics[index].text,
-                      isActive: isActive,
-                      height: _itemHeights[index],
-                    ),
+            return ValueListenableBuilder<Duration>(
+              valueListenable: widget.controller.positionNotifier,
+              builder: (context, currentPosition, _) {
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: EdgeInsets.only(
+                    top: verticalPadding,
+                    bottom: verticalPadding,
                   ),
+                  itemCount: widget.lyrics.length,
+                  itemBuilder: (context, index) {
+                    final isActive = index == currentLine;
+                    final distance = (index - currentLine).abs();
+                    final opacity = isActive
+                        ? 1.0
+                        : (1.0 - (distance * 0.25)).clamp(0.1, 0.55);
+
+                    return SizedBox(
+                      height: _itemHeights[index],
+                      child: Opacity(
+                        opacity: opacity,
+                        child: LyricLine(
+                          text: widget.lyrics[index].text,
+                          isActive: isActive,
+                          height: _itemHeights[index],
+                          words: widget.lyrics[index].words,
+                          currentPosition: currentPosition,
+                          onWordLongPress: (wordIdx) =>
+                              widget.onWordLongPress?.call(index, wordIdx),
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             );
