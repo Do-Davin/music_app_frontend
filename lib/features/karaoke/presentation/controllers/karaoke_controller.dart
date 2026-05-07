@@ -49,6 +49,21 @@ class KaraokeController extends ChangeNotifier {
   Timer? _syncTimer;
   final ValueNotifier<int> currentLineNotifier = ValueNotifier<int>(0);
   final ValueNotifier<bool> isPlayingNotifier = ValueNotifier<bool>(false);
+  /// Emits the current playback position (with lead-time offset applied).
+  /// Used by LyricLine widgets for word-by-word highlight timing.
+  final ValueNotifier<Duration> positionNotifier =
+      ValueNotifier<Duration>(Duration.zero);
+
+  /// Adjustable lead-time offset: lyrics highlight ahead of audio
+  /// so singers can read ahead. Default 0ms, user can adjust.
+  final ValueNotifier<int> leadTimeMs = ValueNotifier<int>(0);
+
+  Duration get leadTimeOffset => Duration(milliseconds: leadTimeMs.value);
+
+  void setLeadTime(int ms) {
+    leadTimeMs.value = ms;
+    notifyListeners();
+  }
 
   // ==================== SONG LIST ====================
 
@@ -534,7 +549,7 @@ class KaraokeController extends ChangeNotifier {
       return;
     }
 
-    _syncTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+    _syncTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       Duration? position;
 
       if (_audioPlayer != null) {
@@ -548,7 +563,13 @@ class KaraokeController extends ChangeNotifier {
         return;
       }
 
-      final newIndex = _findCurrentLineIndex(position);
+      // Apply lead-time offset so lyrics appear slightly ahead of audio
+      final adjustedPosition = position + leadTimeOffset;
+
+      // Update position notifier for word-level sync
+      positionNotifier.value = adjustedPosition;
+
+      final newIndex = _findCurrentLineIndex(adjustedPosition);
       if (newIndex != _currentLineIndex) {
         debugPrint(
           '🎵 Line changed: $_currentLineIndex -> $newIndex at ${position.inSeconds}s',
@@ -597,6 +618,18 @@ class KaraokeController extends ChangeNotifier {
     _youtubeController?.seekTo(position);
   }
 
+  void skip(Duration delta) {
+    Duration current = Duration.zero;
+    if (_audioPlayer != null) {
+      current = _audioPlayer!.position;
+    } else if (_youtubeController != null) {
+      current = _youtubeController!.value.position;
+    }
+
+    final target = current + delta;
+    seek(target.isNegative ? Duration.zero : target);
+  }
+
   void _disposePlayers() {
     _audioPlayer?.dispose();
     _audioPlayer = null;
@@ -620,6 +653,8 @@ class KaraokeController extends ChangeNotifier {
     _disposePlayers();
     currentLineNotifier.dispose();
     isPlayingNotifier.dispose();
+    positionNotifier.dispose();
+    leadTimeMs.dispose();
     super.dispose();
   }
 }

@@ -4,7 +4,9 @@ import '../controllers/karaoke_controller.dart';
 import 'lyric_line.dart';
 
 class LyricBox extends StatelessWidget {
-  const LyricBox({super.key});
+  final void Function(int lineIndex, int wordIndex)? onWordLongPress;
+
+  const LyricBox({super.key, this.onWordLongPress});
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +86,10 @@ class LyricBox extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: _LyricList(controller: controller),
+        child: _LyricList(
+          controller: controller,
+          onWordLongPress: onWordLongPress,
+        ),
       ),
     );
   }
@@ -92,8 +97,12 @@ class LyricBox extends StatelessWidget {
 
 class _LyricList extends StatefulWidget {
   final KaraokeController controller;
+  final void Function(int lineIndex, int wordIndex)? onWordLongPress;
 
-  const _LyricList({required this.controller});
+  const _LyricList({
+    required this.controller,
+    this.onWordLongPress,
+  });
 
   @override
   State<_LyricList> createState() => _LyricListState();
@@ -150,28 +159,38 @@ class _LyricListState extends State<_LyricList> {
         final topPadding = (viewportHeight / 2) - (_itemHeight / 2);
         final bottomPadding = topPadding;
 
-        return ListView.builder(
-          controller: _scrollController,
-          padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
-          itemCount: lyrics.length,
-          itemBuilder: (context, index) {
-            // Use ValueListenableBuilder to rebuild only when line changes
-            return ValueListenableBuilder<int>(
-              valueListenable: widget.controller.currentLineNotifier,
-              builder: (context, currentLine, _) {
-                final isActive = index == currentLine;
-                final distance = (index - currentLine).abs();
-                final opacity = isActive
-                    ? 1.0
-                    : (1.0 - (distance * 0.3)).clamp(0.1, 0.5);
+        // Use ValueListenableBuilder for both line index and position
+        return ValueListenableBuilder<int>(
+          valueListenable: widget.controller.currentLineNotifier,
+          builder: (context, currentLine, _) {
+            return ValueListenableBuilder<Duration>(
+              valueListenable: widget.controller.positionNotifier,
+              builder: (context, currentPosition, _) {
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding:
+                      EdgeInsets.only(top: topPadding, bottom: bottomPadding),
+                  itemCount: lyrics.length,
+                  itemBuilder: (context, index) {
+                    final isActive = index == currentLine;
+                    final distance = (index - currentLine).abs();
+                    final opacity = isActive
+                        ? 1.0
+                        : (1.0 - (distance * 0.3)).clamp(0.1, 0.5);
 
-                return Opacity(
-                  opacity: opacity,
-                  child: LyricLine(
-                    text: lyrics[index].text,
-                    isActive: isActive,
-                    height: _itemHeight,
-                  ),
+                    return Opacity(
+                      opacity: opacity,
+                      child: LyricLine(
+                        text: lyrics[index].text,
+                        isActive: isActive,
+                        height: _itemHeight,
+                        words: lyrics[index].words,
+                        currentPosition: currentPosition,
+                        onWordLongPress: (wordIdx) =>
+                            widget.onWordLongPress?.call(index, wordIdx),
+                      ),
+                    );
+                  },
                 );
               },
             );
