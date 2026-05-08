@@ -1,24 +1,29 @@
 import 'package:flutter/material.dart';
-import 'package:music_app_frontend/core/constants/mock_data.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app_frontend/core/constants/mock_data.dart' hide Song;
 import 'package:music_app_frontend/core/constants/app_colors.dart';
-import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
+import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
+import 'package:music_app_frontend/features/song/models/song.dart';
+import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 // ── Changed from StatelessWidget to StatefulWidget ────────────────────────────
 // We need State so we can track _isLoading and call setState after the delay
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const Color backgroundColor = AppColors.background;
   static const Color accentColor = AppColors.primary;
 
   // Tracks whether we are still in the loading phase
   bool _isLoading = true;
+  final Set<String> _likedSongIds = <String>{};
+  bool _isLoadingLikedSongs = true;
 
   @override
   void initState() {
@@ -29,10 +34,63 @@ class _HomeScreenState extends State<HomeScreen> {
       // mounted check prevents setState being called after widget is destroyed
       if (mounted) setState(() => _isLoading = false);
     });
+
+    _loadLikedSongs();
+  }
+
+  Future<void> _loadLikedSongs() async {
+    try {
+      final likedSongs = await LikedSongsService().fetchLikedSongs();
+      if (!mounted) return;
+      setState(() {
+        _likedSongIds
+          ..clear()
+          ..addAll(likedSongs.map((s) => s.id));
+        _isLoadingLikedSongs = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingLikedSongs = false);
+    }
+  }
+
+  Future<void> _toggleLike(Song song) async {
+    final alreadyLiked = _likedSongIds.contains(song.id);
+
+    setState(() {
+      if (alreadyLiked) {
+        _likedSongIds.remove(song.id);
+      } else {
+        _likedSongIds.add(song.id);
+      }
+    });
+
+    try {
+      await LikedSongsService().toggleLikeSong(song.id);
+    } catch (e) {
+      if (!mounted) return;
+      // revert optimistic update
+      setState(() {
+        if (alreadyLiked) {
+          _likedSongIds.add(song.id);
+        } else {
+          _likedSongIds.remove(song.id);
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not update like: $e'),
+          backgroundColor: AppColors.surface,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final songsAsync = ref.watch(songsProvider);
+
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
@@ -59,23 +117,42 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Recently Played'),
-                    _buildHorizontalSongList(
-                      MockData.recentlyPlayed,
-                      'RECENTLY PLAYED',
+                    songsAsync.when(
+                      data: (songs) => _buildHorizontalSongList(
+                        songs.take(8).toList(),
+                        'RECENTLY PLAYED',
+                      ),
+                      loading: () => const SizedBox(
+                        height: 200,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      error: (_, __) => const SizedBox.shrink(),
                     ),
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Recommended'),
-                    _buildHorizontalSongList(
-                      MockData.recommended,
-                      'RECOMMENDED FOR YOU',
+                    songsAsync.when(
+                      data: (songs) => _buildHorizontalSongList(
+                        songs.skip(8).take(8).toList(),
+                        'RECOMMENDED FOR YOU',
+                      ),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
                     ),
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Made for you'),
-                    _buildHorizontalSongList(
-                      MockData.madeForYou,
-                      'MADE FOR YOU',
+                    songsAsync.when(
+                      data: (songs) => _buildHorizontalSongList(
+                        songs.skip(16).take(8).toList(),
+                        'MADE FOR YOU',
+                      ),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
                     ),
                     const SizedBox(height: 32),
 
@@ -102,38 +179,66 @@ class _HomeScreenState extends State<HomeScreen> {
         separatorBuilder: (a, b) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final song = songs[index];
+          final isLiked = _likedSongIds.contains(song.id);
+
           return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      SongPlayerScreen(song: song, category: categoryName),
-                ),
-              );
-            },
+            onTap: () {},
             child: SizedBox(
               width: 140,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      song.imageUrl,
-                      width: 140,
-                      height: 140,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 140,
-                        height: 140,
-                        color: AppColors.surface,
-                        child: const Icon(
-                          Icons.music_note,
-                          color: Colors.white24,
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          song.coverImageUrl ?? '',
+                          width: 140,
+                          height: 140,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                            width: 140,
+                            height: 140,
+                            color: AppColors.surface,
+                            child: const Icon(
+                              Icons.music_note,
+                              color: Colors.white24,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            visualDensity: VisualDensity.compact,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minHeight: 36,
+                              minWidth: 36,
+                            ),
+                            onPressed: _isLoadingLikedSongs
+                                ? null
+                                : () => _toggleLike(song),
+                            icon: Icon(
+                              isLiked
+                                  ? Icons.favorite_rounded
+                                  : Icons.favorite_border_rounded,
+                              color:
+                                  isLiked ? AppColors.primary : Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(

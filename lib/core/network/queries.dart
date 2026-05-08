@@ -93,6 +93,39 @@ class UserQueries {
       }
     }
   ''';
+
+  static const String likedSongs = '''
+    query LikedSongs {
+      likedSongs {
+        _id
+        title
+        artist
+        albumName
+        duration
+        key
+        tempo
+        difficulty
+        tags
+        fileUrl
+        videoUrl
+        coverImageUrl
+        lyrics
+        chordNotationStyle
+        isPublic
+        playCount
+      }
+    }
+  ''';
+}
+
+class UserMutations {
+  static const String toggleLikeSong = '''
+    mutation ToggleLikeSong(\$songId: ID!) {
+      toggleLikeSong(songId: \$songId) {
+        _id
+      }
+    }
+  ''';
 }
 
 class AuthMutations {
