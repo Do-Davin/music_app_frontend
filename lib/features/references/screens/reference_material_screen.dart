@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
+import 'package:music_app_frontend/features/references/widgets/file_preview_bottom_sheet.dart';
 import '../providers/reference_material_provider.dart';
 import '../models/reference_material.dart';
 
@@ -181,116 +182,125 @@ class _MaterialCard extends StatelessWidget {
     required this.onDelete,
   });
 
+  void _showPreview(BuildContext context) {
+    if (material.fileUrl == null && material.fileName == null) return;
+
+    final previewFile = PreviewFile(
+      name: material.fileName ?? material.title,
+      type: material.type,
+      remoteUrl: material.fileUrl,
+    );
+
+    showFilePreview(context, file: previewFile);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
       color: AppColors.surface,
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    material.title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+      child: InkWell(  // Makes whole card slightly tappable
+        onTap: material.fileUrl != null ? () => _showPreview(context) : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      material.title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.white70),
+                        onPressed: onEdit,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        onPressed: onDelete,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  material.type,
+                  style: TextStyle(color: AppColors.primary, fontSize: 12),
+                ),
+              ),
+              if (material.topic != null) ...[
+                const SizedBox(height: 8),
+                Text('Topic: ${material.topic}', style: const TextStyle(color: Colors.white60)),
+              ],
+              if (material.description != null) ...[
+                const SizedBox(height: 8),
+                Text(material.description!, style: const TextStyle(color: Colors.white70)),
+              ],
+
+              // === FILE PREVIEW SECTION (Clickable) ===
+              if (material.fileName != null) ...[
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () => _showPreview(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.attach_file, size: 20, color: Colors.white70),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                material.fileName!,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                '${material.formattedFileSize} • ${material.mimeType ?? 'Unknown'}',
+                                style: const TextStyle(fontSize: 12, color: Colors.white60),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.visibility, color: Colors.white70),
+                      ],
                     ),
                   ),
                 ),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.white70),
-                      onPressed: onEdit,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.redAccent),
-                      onPressed: onDelete,
-                    ),
-                  ],
-                ),
               ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                material.type,
-                style: TextStyle(color: AppColors.primary, fontSize: 12),
-              ),
-            ),
-            if (material.topic != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Topic: ${material.topic}',
-                style: const TextStyle(color: Colors.white60),
-              ),
             ],
-            if (material.description != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                material.description!,
-                style: const TextStyle(color: Colors.white70),
-              ),
-            ],
-            
-            if (material.fileName != null) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white10),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.attach_file, size: 20, color: Colors.white70),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            material.fileName!,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            '${material.formattedFileSize} • ${material.mimeType ?? 'Unknown'}',
-                            style: const TextStyle(fontSize: 12, color: Colors.white60),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (material.fileUrl != null)
-                      IconButton(
-                        icon: const Icon(Icons.download, color: Colors.white70),
-                        onPressed: () {
-                          // TODO: Implement file download/open
-                        },
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -434,7 +444,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedType,
+                    initialValue: _selectedType,
                     decoration: const InputDecoration(labelText: 'Type'),
                     items: _materialTypes
                         .map((type) => DropdownMenuItem(value: type, child: Text(type)))

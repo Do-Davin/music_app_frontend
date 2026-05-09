@@ -270,11 +270,11 @@ class ReferenceMaterialService {
       'variables': {
         'id': id,
         'input': {
-          if (title != null) 'title': title,
-          if (type != null) 'type': type,
-          if (description != null) 'description': description,
-          if (songId != null) 'songId': songId,
-          if (topic != null) 'topic': topic,
+          'title':? title,
+          'type':? type,
+          'description':? description,
+          'songId':? songId,
+          'topic':? topic,
           'file': null,
         },
       },
@@ -340,11 +340,11 @@ class ReferenceMaterialService {
         variables: {
           'id': id,
           'input': {
-            if (title != null) 'title': title,
-            if (type != null) 'type': type,
-            if (description != null) 'description': description,
-            if (songId != null) 'songId': songId,
-            if (topic != null) 'topic': topic,
+            'title':? title,
+            'type':? type,
+            'description':? description,
+            'songId':? songId,
+            'topic':? topic,
           },
         },
       ),
