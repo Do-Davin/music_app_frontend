@@ -14,6 +14,8 @@ class Routes {
   static const noPlaylists = '/no-playlists';
   static const noResults = '/no-results';
   static const song = '/song/:id';
+  static const playlistDetail = '/playlist/:id';
 
   static String songById(String id) => '/song/${Uri.encodeComponent(id)}';
+  static String playlistById(String id) => '/playlist/${Uri.encodeComponent(id)}';
 }

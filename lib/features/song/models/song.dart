@@ -3,11 +3,15 @@ class Song {
   final String title;
   final String artist;
   final String? albumName;
-  final int duration;
+  final int? duration;
   final String? key;
   final int? tempo;
   final String? difficulty;
   final List<String>? tags;
+  /// Source type: 'mp3' or 'youtube'
+  final String? source;
+  /// File path (mp3) or YouTube URL
+  final String? sourcePath;
   final String? fileUrl;
   final String? videoUrl;
   final String? coverImageUrl;
@@ -21,11 +25,13 @@ class Song {
     required this.title,
     required this.artist,
     this.albumName,
-    required this.duration,
+    this.duration,
     this.key,
     this.tempo,
     this.difficulty,
     this.tags,
+    this.source,
+    this.sourcePath,
     this.fileUrl,
     this.videoUrl,
     this.coverImageUrl,
@@ -41,11 +47,13 @@ class Song {
       title: json['title'] as String,
       artist: json['artist'] as String,
       albumName: json['albumName'] as String?,
-      duration: json['duration'] as int,
+      duration: json['duration'] as int?,
       key: json['key'] as String?,
       tempo: json['tempo'] as int?,
       difficulty: json['difficulty'] as String?,
       tags: (json['tags'] as List<dynamic>?)?.cast<String>(),
+      source: json['source'] as String?,
+      sourcePath: json['sourcePath'] as String?,
       fileUrl: json['fileUrl'] as String?,
       videoUrl: json['videoUrl'] as String?,
       coverImageUrl: json['coverImageUrl'] as String?,
@@ -55,4 +63,10 @@ class Song {
       playCount: json['playCount'] as int? ?? 0,
     );
   }
+
+  /// Returns the best playback URL: sourcePath first, then videoUrl/fileUrl as fallback.
+  String? get audioUrl => sourcePath ?? videoUrl ?? fileUrl;
+
+  /// Whether this song is played via YouTube.
+  bool get isYoutube => source == 'youtube';
 }

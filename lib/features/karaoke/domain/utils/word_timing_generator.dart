@@ -17,7 +17,7 @@ class WordTimingGenerator {
     final result = <LrcLine>[];
 
     for (int i = 0; i < lyrics.length; i++) {
-      final line = lyrics[i];
+      final line = lyrics[i]; 
 
       // Skip if already has word timing or text is empty
       if (line.hasWordTiming || line.text.trim().isEmpty) {
