@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:music_app_frontend/core/constants/mock_data.dart';
+import 'package:music_app_frontend/core/constants/mock_data.dart' as mock;
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/routing/app_router.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
+import 'package:music_app_frontend/features/song/models/song.dart' as real_song;
 
 // ── Changed from StatelessWidget to StatefulWidget ────────────────────────────
 // We need State so we can track _isLoading and call setState after the delay
@@ -62,21 +63,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     _buildSectionTitle('Recently Played'),
                     _buildHorizontalSongList(
-                      MockData.recentlyPlayed,
+                      mock.MockData.recentlyPlayed,
                       'RECENTLY PLAYED',
                     ),
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Recommended'),
                     _buildHorizontalSongList(
-                      MockData.recommended,
+                      mock.MockData.recommended,
                       'RECOMMENDED FOR YOU',
                     ),
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Made for you'),
                     _buildHorizontalSongList(
-                      MockData.madeForYou,
+                      mock.MockData.madeForYou,
                       'MADE FOR YOU',
                     ),
                     const SizedBox(height: 32),
@@ -95,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHorizontalSongList(List<Song> songs, String categoryName) {
+  Widget _buildHorizontalSongList(List<mock.Song> songs, String categoryName) {
     return SizedBox(
       height: 200,
       child: ListView.separated(
@@ -106,9 +107,18 @@ class _HomeScreenState extends State<HomeScreen> {
           final song = songs[index];
           return GestureDetector(
             onTap: () {
+              // Convert mock song to real song model for the player
+              final realSong = real_song.Song(
+                id: song.title,
+                title: song.title,
+                artist: song.artist,
+                coverImageUrl: song.imageUrl,
+                duration: 180, // dummy duration
+                lyrics: song.lyricsSnippet,
+              );
               context.push(
                 Routes.songById(song.title),
-                extra: SongPlayerRouteData(song: song, category: categoryName),
+                extra: SongPlayerRouteData(song: realSong, category: categoryName),
               );
             },
             child: SizedBox(
@@ -279,9 +289,9 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisSpacing: 16,
         childAspectRatio: 1.4,
       ),
-      itemCount: MockData.favorites.length,
+      itemCount: mock.MockData.favorites.length,
       itemBuilder: (context, index) {
-        final playlist = MockData.favorites[index];
+        final playlist = mock.MockData.favorites[index];
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -344,9 +354,9 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisSpacing: 16,
         childAspectRatio: 1.8,
       ),
-      itemCount: MockData.moods.length,
+      itemCount: mock.MockData.moods.length,
       itemBuilder: (context, index) {
-        final mood = MockData.moods[index];
+        final mood = mock.MockData.moods[index];
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -379,12 +389,12 @@ class _HomeScreenState extends State<HomeScreen> {
       height: 100,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: MockData.popularArtistsUrls.length,
+        itemCount: mock.MockData.popularArtistsUrls.length,
         separatorBuilder: (_, _) => const SizedBox(width: 24),
         itemBuilder: (context, index) {
           return CircleAvatar(
             radius: 50,
-            backgroundImage: NetworkImage(MockData.popularArtistsUrls[index]),
+            backgroundImage: NetworkImage(mock.MockData.popularArtistsUrls[index]),
           );
         },
       ),

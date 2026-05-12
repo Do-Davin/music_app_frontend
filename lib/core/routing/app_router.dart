@@ -12,15 +12,17 @@ import 'package:music_app_frontend/features/home/screens/main_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/onboarding_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/splash_screen.dart';
 import 'package:music_app_frontend/features/playlist/screens/no_playlists_screen.dart';
+import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/song/screens/no_results_screen.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart' as mock_data;
 import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
+import 'package:music_app_frontend/features/song/models/song.dart' as real_song;
 
 class SongPlayerRouteData {
   const SongPlayerRouteData({required this.song, required this.category});
 
-  final mock_data.Song song;
+  final real_song.Song song;
   final String category;
 }
 
@@ -76,6 +78,13 @@ final appRouter = GoRouter(
     GoRoute(
       path: Routes.noPlaylists,
       builder: (context, state) => const NoPlaylistsScreen(),
+    ),
+    GoRoute(
+      path: Routes.playlistDetail,
+      builder: (context, state) {
+        final id = state.pathParameters['id']!;
+        return PlaylistDetailScreen(playlistId: id);
+      },
     ),
     GoRoute(
       path: Routes.noResults,
