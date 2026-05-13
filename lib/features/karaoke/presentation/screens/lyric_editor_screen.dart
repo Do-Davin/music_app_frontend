@@ -142,7 +142,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   Future<void> _importFromFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['txt', 'lrc'],
       );

@@ -449,7 +449,7 @@ class KaraokeController extends ChangeNotifier {
 
   Future<KaraokeSong?> createSongFromLocal(String title, String? artist) async {
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['mp3', 'wav', 'm4a', 'flac'],
         allowMultiple: false,
