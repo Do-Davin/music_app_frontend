@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
 import '../../domain/utils/lrc_parser.dart';
 import '../controllers/karaoke_controller.dart';
 import 'player_screen.dart';
+import '../../../references/screens/reference_material_screen.dart';
 
 class LyricEditorScreen extends StatefulWidget {
   final KaraokeSong song;
@@ -138,39 +137,6 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         ],
       ),
     );
-  }
-
-  Future<void> _importFromFile() async {
-    try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['txt', 'lrc'],
-      );
-
-      if (result == null || result.files.isEmpty) return;
-
-      String content;
-
-      // Try to read from path first (Android/iOS)
-      final filePath = result.files.single.path;
-      if (filePath != null) {
-        final file = File(filePath);
-        content = await file.readAsString();
-      } else {
-        // Fallback to bytes (web)
-        final bytes = result.files.single.bytes;
-        if (bytes == null) return;
-        content = String.fromCharCodes(bytes);
-      }
-
-      _parseAndLoadLyrics(content);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error importing file: $e')),
-        );
-      }
-    }
   }
 
   void _parseAndLoadLyrics(String content) {
@@ -370,7 +336,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _importFromFile,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ReferenceMaterialScreen(),
+                            ),
+                          );
+                        },
                         icon: const Icon(Icons.file_open),
                         label: const Text('Import File'),
                         style: ElevatedButton.styleFrom(
