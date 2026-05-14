@@ -340,7 +340,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ReferenceMaterialScreen(),
+                              builder: (context) => ReferenceMaterialScreen(songId: widget.song.id),
                             ),
                           );
                         },

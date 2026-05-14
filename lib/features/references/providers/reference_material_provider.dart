@@ -42,11 +42,17 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
 
   ReferenceMaterialNotifier(this._service) : super(const ReferenceMaterialState());
 
-  Future<void> fetchMaterials({String? type}) async {
+  Future<void> fetchMaterials({String? type, String? songId}) async {
     state = state.copyWith(isLoading: true, error: null, currentFilter: type);
 
     try {
-      final materials = await _service.fetchAll(type: type);
+      var materials = await _service.fetchAll(type: type);
+      
+      // Client-side filtering because backend doesn't support songId argument yet
+      if (songId != null) {
+        materials = materials.where((m) => m.songId == songId).toList();
+      }
+      
       state = state.copyWith(materials: materials, isLoading: false);
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
