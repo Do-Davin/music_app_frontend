@@ -4,7 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
-import 'package:music_app_frontend/features/references/widgets/file_preview_bottom_sheet.dart';
+import 'package:music_app_frontend/shared/widgets/file_preview_bottom_sheet.dart';
 import '../providers/reference_material_provider.dart';
 import '../models/reference_material.dart';
 
