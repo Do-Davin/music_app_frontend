@@ -98,7 +98,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                       Text(
                         'Enter the 6-digit code sent to your email',
                         style: AppTextStyles.body.copyWith(
-                          color: Colors.white.withOpacity(0.72),
+                          color: Colors.white.withValues(alpha: 0.72),
                           fontSize: 15,
                           height: 1.5,
                         ),
@@ -111,14 +111,14 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.04),
+                          color: Colors.white.withValues(alpha: 0.04),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.08),
+                            color: Colors.white.withValues(alpha: 0.08),
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.18),
+                              color: Colors.black.withValues(alpha: 0.18),
                               blurRadius: 24,
                               offset: const Offset(0, 10),
                             ),
@@ -141,7 +141,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                             Text(
                               'Check your inbox and enter the code below',
                               style: AppTextStyles.body.copyWith(
-                                color: Colors.white.withOpacity(0.65),
+                                color: Colors.white.withValues(alpha: 0.65),
                                 fontSize: 14,
                               ),
                             ),
@@ -155,10 +155,10 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                                   vertical: 12,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.green.withOpacity(0.10),
+                                  color: Colors.green.withValues(alpha: 0.10),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: Colors.green.withOpacity(0.30),
+                                    color: Colors.green.withValues(alpha: 0.30),
                                   ),
                                 ),
                                 child: Text(
@@ -176,7 +176,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                             Text(
                               'Email Address',
                               style: AppTextStyles.body.copyWith(
-                                color: Colors.white.withOpacity(0.78),
+                                color: Colors.white.withValues(alpha: 0.78),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -190,7 +190,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                             Text(
                               'Passcode',
                               style: AppTextStyles.body.copyWith(
-                                color: Colors.white.withOpacity(0.78),
+                                color: Colors.white.withValues(alpha: 0.78),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -274,7 +274,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                       Text(
                         'Practice smarter. Play better.',
                         style: AppTextStyles.body.copyWith(
-                          color: Colors.white.withOpacity(0.45),
+                          color: Colors.white.withValues(alpha: 0.45),
                           fontSize: 13,
                         ),
                         textAlign: TextAlign.center,
@@ -297,9 +297,9 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Row(
         children: [
@@ -309,7 +309,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
             child: Text(
               email.isEmpty ? 'No email found' : email,
               style: AppTextStyles.body.copyWith(
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
               ),
             ),
           ),

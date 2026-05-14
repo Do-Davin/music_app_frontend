@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
-import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/shared/widgets/app_empty_state_widget.dart';
 
 class LikedSongsScreen extends StatelessWidget {
@@ -10,7 +9,7 @@ class LikedSongsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final future = LikedSongsService().fetchLikedSongs();
+    final future = LikedSongsService().fetchLikedSongsPlaylist();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -23,7 +22,7 @@ class LikedSongsScreen extends StatelessWidget {
           style: AppTextStyles.subtitle.copyWith(color: AppColors.primary),
         ),
       ),
-      body: FutureBuilder<List<Song>>(
+      body: FutureBuilder<LikedSongsPlaylistResponse>(
         future: future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -41,7 +40,7 @@ class LikedSongsScreen extends StatelessWidget {
             );
           }
 
-          final songs = snapshot.data ?? [];
+          final songs = snapshot.data?.songs ?? [];
           if (songs.isEmpty) {
             return AppEmptyStateWidget(
               icon: Icons.favorite_border_rounded,
@@ -54,7 +53,7 @@ class LikedSongsScreen extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             itemCount: songs.length,
-            separatorBuilder: (_, __) => Divider(
+            separatorBuilder: (_, _) => Divider(
               color: Colors.white.withValues(alpha: 0.10),
               height: 1,
             ),
@@ -69,7 +68,7 @@ class LikedSongsScreen extends StatelessWidget {
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (_, _, _) => Container(
                       width: 56,
                       height: 56,
                       color: AppColors.surface,

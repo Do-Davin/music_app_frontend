@@ -72,6 +72,37 @@ class PlaylistQueries {
       }
     }
   ''';
+
+  static const String likedSongsPlaylist = '''
+    query LikedSongsPlaylist {
+      likedSongsPlaylist {
+        _id
+        name
+        description
+        coverImageUrl
+        songIds
+        isPublic
+        songs {
+          _id
+          title
+          artist
+          albumName
+          duration
+          key
+          tempo
+          difficulty
+          tags
+          fileUrl
+          videoUrl
+          coverImageUrl
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+        }
+      }
+    }
+  ''';
 }
 
 class UserQueries {

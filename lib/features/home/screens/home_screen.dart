@@ -29,7 +29,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     // Simulate a 2-second API delay so the skeleton is visible
-    // TODO: Replace this with a real API call later
+    // Note: temporary delay to show skeleton loader.
     Future.delayed(const Duration(seconds: 2), () {
       // mounted check prevents setState being called after widget is destroyed
       if (mounted) setState(() => _isLoading = false);
@@ -130,7 +130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         ),
                       ),
-                      error: (_, __) => const SizedBox.shrink(),
+                      error: (_, _) => const SizedBox.shrink(),
                     ),
                     const SizedBox(height: 32),
 
@@ -141,7 +141,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'RECOMMENDED FOR YOU',
                       ),
                       loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
+                      error: (_, _) => const SizedBox.shrink(),
                     ),
                     const SizedBox(height: 32),
 
@@ -152,7 +152,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         'MADE FOR YOU',
                       ),
                       loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
+                      error: (_, _) => const SizedBox.shrink(),
                     ),
                     const SizedBox(height: 32),
 
