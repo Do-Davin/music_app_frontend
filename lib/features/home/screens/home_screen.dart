@@ -1,22 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart' as mock;
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/routing/app_router.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 import 'package:music_app_frontend/features/song/models/song.dart' as real_song;
 
 // ── Changed from StatelessWidget to StatefulWidget ────────────────────────────
 // We need State so we can track _isLoading and call setState after the delay
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const Color backgroundColor = AppColors.background;
   static const Color accentColor = AppColors.primary;
 
@@ -36,6 +38,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final meState = ref.watch(meProvider);
+    final username = meState.maybeWhen(
+      data: (user) => _displayName(user.username, user.email),
+      orElse: () => 'there',
+    );
+
     return Scaffold(
       backgroundColor: backgroundColor,
       body: SafeArea(
@@ -50,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeader(),
+                    _buildHeader(username),
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Continue Listening'),
@@ -118,7 +126,10 @@ class _HomeScreenState extends State<HomeScreen> {
               );
               context.push(
                 Routes.songById(song.title),
-                extra: SongPlayerRouteData(song: realSong, category: categoryName),
+                extra: SongPlayerRouteData(
+                  song: realSong,
+                  category: categoryName,
+                ),
               );
             },
             child: SizedBox(
@@ -171,35 +182,58 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String username) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        RichText(
-          text: const TextSpan(
-            text: 'Hello, ',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-            children: [
-              TextSpan(
-                text: 'Rith!',
-                style: TextStyle(color: accentColor),
+        Expanded(
+          child: RichText(
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
+              text: 'Hello, ',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
               ),
-            ],
+              children: [
+                TextSpan(
+                  text: '$username!',
+                  style: const TextStyle(color: accentColor),
+                ),
+              ],
+            ),
           ),
         ),
-        const Row(
+        Row(
           children: [
-            Icon(Icons.notifications_none, color: Colors.grey, size: 28),
-            SizedBox(width: 16),
-            Icon(Icons.settings_outlined, color: Colors.grey, size: 28),
+            const Icon(Icons.notifications_none, color: Colors.grey, size: 28),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Friends',
+              onPressed: () => context.push(Routes.friends),
+              icon: const Icon(
+                Icons.person_add,
+                color: AppColors.primary,
+                size: 36,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.settings_outlined, color: Colors.grey, size: 28),
           ],
         ),
       ],
     );
+  }
+
+  String _displayName(String username, String email) {
+    final trimmedUsername = username.trim();
+    if (trimmedUsername.isNotEmpty) return trimmedUsername;
+
+    final trimmedEmail = email.trim();
+    if (trimmedEmail.isEmpty) return 'there';
+
+    return trimmedEmail.split('@').first;
   }
 
   Widget _buildSectionTitle(String title) {
@@ -394,7 +428,9 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           return CircleAvatar(
             radius: 50,
-            backgroundImage: NetworkImage(mock.MockData.popularArtistsUrls[index]),
+            backgroundImage: NetworkImage(
+              mock.MockData.popularArtistsUrls[index],
+            ),
           );
         },
       ),
