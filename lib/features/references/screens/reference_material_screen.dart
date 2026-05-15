@@ -4,12 +4,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
-import 'package:music_app_frontend/features/references/widgets/file_preview_bottom_sheet.dart';
+import 'package:music_app_frontend/shared/widgets/file_preview_bottom_sheet.dart';
 import '../providers/reference_material_provider.dart';
 import '../models/reference_material.dart';
 
 class ReferenceMaterialScreen extends ConsumerStatefulWidget {
-  const ReferenceMaterialScreen({super.key});
+  final String? songId;
+  const ReferenceMaterialScreen({super.key, this.songId});
 
   @override
   ConsumerState<ReferenceMaterialScreen> createState() => _ReferenceMaterialScreenState();
@@ -22,21 +23,21 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(referenceMaterialProvider.notifier).fetchMaterials();
+      ref.read(referenceMaterialProvider.notifier).fetchMaterials(songId: widget.songId);
     });
   }
 
   void _showCreateDialog() {
     showDialog(
       context: context,
-      builder: (context) => const _MaterialFormDialog(),
+      builder: (context) => _MaterialFormDialog(songId: widget.songId),
     );
   }
 
   void _showEditDialog(ReferenceMaterial material) {
     showDialog(
       context: context,
-      builder: (context) => _MaterialFormDialog(material: material),
+      builder: (context) => _MaterialFormDialog(material: material, songId: widget.songId),
     );
   }
 
@@ -44,7 +45,7 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     setState(() {
       _selectedFilter = filter;
     });
-    ref.read(referenceMaterialProvider.notifier).fetchMaterials(type: filter);
+    ref.read(referenceMaterialProvider.notifier).fetchMaterials(type: filter, songId: widget.songId);
   }
 
   @override
@@ -83,6 +84,7 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'referenceMaterialFAB', // Fixes "Multiple heroes share the same tag"
         onPressed: _showCreateDialog,
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add),
@@ -97,15 +99,25 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
 
     if (state.error != null && state.materials.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Error: ${state.error}'),
-            ElevatedButton(
-              onPressed: () => ref.read(referenceMaterialProvider.notifier).fetchMaterials(type: _selectedFilter),
-              child: const Text('Retry'),
-            ),
-          ],
+        child: SingleChildScrollView( // Fixes overflow if error message is long
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'Error: ${state.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => ref.read(referenceMaterialProvider.notifier).fetchMaterials(type: _selectedFilter, songId: widget.songId),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -309,8 +321,9 @@ class _MaterialCard extends StatelessWidget {
 
 class _MaterialFormDialog extends ConsumerStatefulWidget {
   final ReferenceMaterial? material;
+  final String? songId;
 
-  const _MaterialFormDialog({this.material});
+  const _MaterialFormDialog({this.material, this.songId});
 
   @override
   ConsumerState<_MaterialFormDialog> createState() => _MaterialFormDialogState();
@@ -386,6 +399,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
           type: _selectedType,
           description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
           file: _selectedFile,
+          songId: widget.songId,
           topic: _topicController.text.isEmpty ? null : _topicController.text,
         );
       } else {
@@ -395,6 +409,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
           type: _selectedType,
           description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
           file: _selectedFile,
+          songId: widget.songId,
           topic: _topicController.text.isEmpty ? null : _topicController.text,
         );
       }

@@ -71,11 +71,6 @@ class MainScreen extends ConsumerWidget {
             activeIcon: Icon(Icons.person),
             label: 'Profile',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_outlined),
-            activeIcon: Icon(Icons.menu_book),
-            label: 'References',
-          ),
         ],
       ),
     );
