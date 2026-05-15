@@ -8,6 +8,7 @@ import 'package:music_app_frontend/features/auth/presentation/screens/forgot_pas
 import 'package:music_app_frontend/features/auth/presentation/screens/forgot_password/verify_account_screen.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/login/login_screen.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/register/register_screen.dart';
+import 'package:music_app_frontend/features/friends/screens/friends_screen.dart';
 import 'package:music_app_frontend/features/home/screens/main_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/onboarding_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/splash_screen.dart';
@@ -15,7 +16,6 @@ import 'package:music_app_frontend/features/playlist/screens/no_playlists_screen
 import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/song/screens/no_results_screen.dart';
-import 'package:music_app_frontend/core/constants/mock_data.dart' as mock_data;
 import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
 import 'package:music_app_frontend/features/song/models/song.dart' as real_song;
 
@@ -42,6 +42,10 @@ final appRouter = GoRouter(
       builder: (context, state) => const OnboardingScreen(),
     ),
     GoRoute(path: Routes.main, builder: (context, state) => const MainScreen()),
+    GoRoute(
+      path: Routes.friends,
+      builder: (context, state) => const FriendsScreen(),
+    ),
     GoRoute(
       path: Routes.login,
       builder: (context, state) => const LoginScreen(),
