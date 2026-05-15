@@ -1,6 +1,7 @@
 class Routes {
   Routes._();
 
+  static const root = '/';
   static const splash = '/splash';
   static const onboarding = '/onboarding';
   static const main = '/main';
@@ -10,7 +11,13 @@ class Routes {
   static const verifyAccount = '/verify-account';
   static const newPassword = '/new-password';
   static const status = '/status';
+  static const friends = '/friends';
   static const noPlaylists = '/no-playlists';
   static const noResults = '/no-results';
-  static const likedSongs = '/liked-songs';
+  static const song = '/song/:id';
+  static const playlistDetail = '/playlist/:id';
+
+  static String songById(String id) => '/song/${Uri.encodeComponent(id)}';
+  static String playlistById(String id) =>
+      '/playlist/${Uri.encodeComponent(id)}';
 }

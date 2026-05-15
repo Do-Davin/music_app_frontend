@@ -1,0 +1,670 @@
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import '../../data/models/karaoke_song.dart';
+import '../../data/models/lrc_line.dart';
+import '../../domain/utils/word_timing_generator.dart';
+import '../controllers/karaoke_controller.dart';
+import '../widgets/lyric_line.dart';
+
+class PlayerScreen extends StatefulWidget {
+  final KaraokeSong song;
+  final KaraokeController controller;
+
+  const PlayerScreen({
+    super.key,
+    required this.song,
+    required this.controller,
+  });
+
+  @override
+  State<PlayerScreen> createState() => _PlayerScreenState();
+}
+
+class _PlayerScreenState extends State<PlayerScreen> {
+  late List<LrcLine> _lyricsWithWords;
+  bool _isAdvancedMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-generate word timing from line timestamps
+    _lyricsWithWords =
+        WordTimingGenerator.generateWordTiming(widget.song.lyrics);
+
+    // Start playing when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.controller.currentSong?.id != widget.song.id) {
+        widget.controller.playSong(
+          widget.song.copyWith(lyrics: _lyricsWithWords),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      body: SafeArea(
+        child: AnimatedBuilder(
+          animation: widget.controller,
+          builder: (context, _) {
+            return Column(
+              children: [
+                _buildHeader(context),
+
+                // Media player section
+                if (widget.song.source == SongSource.youtube &&
+                    widget.controller.youtubeController != null)
+                  _buildYoutubePlayer()
+                else if (widget.song.source == SongSource.local)
+                  _buildLocalPlayerIndicator(),
+
+                const SizedBox(height: 8),
+
+                // Lead-time offset controls
+                _buildOffsetControls(),
+
+                const SizedBox(height: 8),
+
+                // Lyrics display with word-by-word highlighting
+                Expanded(child: _buildLyrics()),
+
+                // Playback controls
+                _buildControls(),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.controller.currentSong?.title ?? widget.song.title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (widget.controller.currentSong?.artist != null)
+                  Text(
+                    widget.controller.currentSong!.artist!,
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(
+              _isAdvancedMode ? Icons.bolt : Icons.bolt_outlined,
+              color: _isAdvancedMode ? const Color(0xFF7C4DFF) : Colors.white,
+            ),
+            tooltip: 'Advanced Editing Mode',
+            onPressed: () {
+              setState(() {
+                _isAdvancedMode = !_isAdvancedMode;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    _isAdvancedMode
+                        ? 'Advanced Mode ON: Pause & Hold words to edit'
+                        : 'Advanced Mode OFF',
+                  ),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildYoutubePlayer() {
+    return Container(
+      height: 200,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.black,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: YoutubePlayer(
+          controller: widget.controller.youtubeController!,
+          showVideoProgressIndicator: true,
+          progressIndicatorColor: const Color(0xFF7C4DFF),
+          onReady: () {},
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLocalPlayerIndicator() {
+    return Container(
+      height: 120,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFF1E1E1E),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.music_note, size: 48, color: Color(0xFF7C4DFF)),
+            const SizedBox(height: 8),
+            Text(
+              widget.controller.currentSong?.title ?? 'Playing...',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ==================== OFFSET CONTROLS ====================
+
+  Widget _buildOffsetControls() {
+    return ValueListenableBuilder<int>(
+      valueListenable: widget.controller.leadTimeMs,
+      builder: (context, currentMs, _) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.timer, color: Color(0xFF7C4DFF), size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Offset: ${currentMs}ms',
+                style: TextStyle(
+                  color: Colors.grey[300],
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              const Spacer(),
+              _offsetBtn('0', 0, currentMs),
+              _offsetBtn('200', 200, currentMs),
+              _offsetBtn('300', 300, currentMs),
+              _offsetBtn('500', 500, currentMs),
+              _offsetBtn('800', 800, currentMs),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _offsetBtn(String label, int ms, int currentMs) {
+    final isActive = currentMs == ms;
+    return GestureDetector(
+      onTap: () => widget.controller.setLeadTime(ms),
+      child: Container(
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: isActive
+              ? const Color(0xFF7C4DFF)
+              : const Color(0xFF2A2A2A),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.grey[500],
+            fontSize: 11,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ==================== LYRICS ====================
+
+  Widget _buildLyrics() {
+    final lyrics = _lyricsWithWords;
+
+    if (lyrics.isEmpty) {
+      return Center(
+        child: Text(
+          'No lyrics available',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: _LyricScroller(
+          controller: widget.controller,
+          lyrics: lyrics,
+          onWordLongPress: _isAdvancedMode ? _showWordEditDialog : null,
+        ),
+      ),
+    );
+  }
+
+  // ==================== PLAYBACK CONTROLS ====================
+
+  Widget _buildControls() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Progress bar for local audio
+          if (widget.controller.audioPlayer != null)
+            StreamBuilder<Duration>(
+              stream: widget.controller.audioPlayer!.positionStream,
+              builder: (context, snapshot) {
+                final position = snapshot.data ?? Duration.zero;
+                final duration =
+                    widget.controller.audioPlayer!.duration ?? Duration.zero;
+
+                return Column(
+                  children: [
+                    SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 4,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 6,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 14,
+                        ),
+                        activeTrackColor: const Color(0xFF7C4DFF),
+                        inactiveTrackColor: Colors.grey[800],
+                        thumbColor: const Color(0xFF7C4DFF),
+                        overlayColor:
+                            const Color(0xFF7C4DFF).withValues(alpha: 0.2),
+                      ),
+                      child: Slider(
+                        min: 0,
+                        max: duration.inMilliseconds.toDouble(),
+                        value: position.inMilliseconds
+                            .clamp(0, duration.inMilliseconds)
+                            .toDouble(),
+                        onChanged: (value) => widget.controller.seek(
+                          Duration(milliseconds: value.toInt()),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _formatTime(position),
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                          Text(
+                            _formatTime(duration),
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 12,
+                              fontFamily: 'monospace',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+
+          const SizedBox(height: 8),
+
+          // Play/Pause button
+          ValueListenableBuilder<bool>(
+            valueListenable: widget.controller.isPlayingNotifier,
+            builder: (context, isPlaying, _) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.fast_rewind_rounded, color: Colors.white, size: 36),
+                    tooltip: 'Back 2s',
+                    onPressed: () => widget.controller.skip(const Duration(seconds: -2)),
+                  ),
+                  const SizedBox(width: 20),
+                  GestureDetector(
+                    onTap: widget.controller.togglePlay,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF7C4DFF),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF7C4DFF).withValues(alpha: 0.4),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        size: 40,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  IconButton(
+                    icon: const Icon(Icons.fast_forward_rounded, color: Colors.white, size: 36),
+                    tooltip: 'Forward 2s',
+                    onPressed: () => widget.controller.skip(const Duration(seconds: 2)),
+                  ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(Duration d) {
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  void _showWordEditDialog(int lineIndex, int wordIndex) {
+    if (widget.controller.isPlaying) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pause the song first to edit timing')),
+      );
+      return;
+    }
+
+    final line = _lyricsWithWords[lineIndex];
+    final word = line.words![wordIndex];
+    final textController = TextEditingController(text: word.text);
+    Duration currentTimestamp = word.timestamp;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E1E1E),
+            title: const Text('Edit Word Timing', style: TextStyle(color: Colors.white)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: textController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: const InputDecoration(
+                    labelText: 'Word Text',
+                    labelStyle: TextStyle(color: Colors.grey),
+                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF7C4DFF))),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Timestamp: ${_formatTimeWithMs(currentTimestamp)}',
+                  style: const TextStyle(color: Color(0xFF7C4DFF), fontFamily: 'monospace', fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    _adjustBtn(setDialogState, -100, '-100ms', () {
+                      setDialogState(() => currentTimestamp -= const Duration(milliseconds: 100));
+                    }),
+                    _adjustBtn(setDialogState, -10, '-10ms', () {
+                      setDialogState(() => currentTimestamp -= const Duration(milliseconds: 10));
+                    }),
+                    _adjustBtn(setDialogState, 10, '+10ms', () {
+                      setDialogState(() => currentTimestamp += const Duration(milliseconds: 10));
+                    }),
+                    _adjustBtn(setDialogState, 100, '+100ms', () {
+                      setDialogState(() => currentTimestamp += const Duration(milliseconds: 100));
+                    }),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  _updateWord(lineIndex, wordIndex, textController.text, currentTimestamp);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C4DFF)),
+                child: const Text('Save Change', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _adjustBtn(StateSetter setDialogState, int ms, String label, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF2A2A2A),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        minimumSize: const Size(60, 36),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 11)),
+    );
+  }
+
+  void _updateWord(int lineIdx, int wordIdx, String newText, Duration newTime) {
+    setState(() {
+      final line = _lyricsWithWords[lineIdx];
+      final words = List<LrcWord>.from(line.words!);
+      words[wordIdx] = LrcWord(timestamp: newTime, text: newText);
+      _lyricsWithWords[lineIdx] = line.copyWith(words: words);
+    });
+
+    widget.controller.saveLyrics(widget.song.id, _lyricsWithWords);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Word updated and saved!'), duration: Duration(seconds: 1)),
+    );
+  }
+
+  String _formatTimeWithMs(Duration d) {
+    final min = d.inMinutes.toString().padLeft(2, '0');
+    final sec = (d.inSeconds % 60).toString().padLeft(2, '0');
+    final ms = (d.inMilliseconds % 1000).toString().padLeft(3, '0');
+    return '$min:$sec.$ms';
+  }
+}
+
+// ============================================
+// Lyric scroller: active line always centered
+// with word-by-word highlighting
+// ============================================
+class _LyricScroller extends StatefulWidget {
+  final KaraokeController controller;
+  final List<LrcLine> lyrics;
+  final void Function(int lineIndex, int wordIndex)? onWordLongPress;
+
+  const _LyricScroller({
+    required this.controller,
+    required this.lyrics,
+    this.onWordLongPress,
+  });
+
+  @override
+  State<_LyricScroller> createState() => _LyricScrollerState();
+}
+
+class _LyricScrollerState extends State<_LyricScroller> {
+  final ScrollController _scrollController = ScrollController();
+
+  static const double _inactiveHeight = 52.0;
+  static const double _activeHeight = 72.0;
+
+  late List<double> _itemHeights;
+  double _viewportHeight = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _rebuildHeights(0);
+    widget.controller.currentLineNotifier.addListener(_onLineChanged);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final currentLine = widget.controller.currentLineNotifier.value;
+      _scrollToActiveLine(currentLine);
+    });
+  }
+
+  void _rebuildHeights(int activeLine) {
+    _itemHeights = List.generate(
+      widget.lyrics.length,
+      (i) => i == activeLine ? _activeHeight : _inactiveHeight,
+    );
+  }
+
+  void _onLineChanged() {
+    final index = widget.controller.currentLineNotifier.value;
+    _rebuildHeights(index);
+    _scrollToActiveLine(index);
+  }
+
+  void _scrollToActiveLine(int index) {
+    if (!_scrollController.hasClients || _viewportHeight == 0) return;
+
+    double offsetToTop = 0;
+    for (int i = 0; i < index; i++) {
+      offsetToTop += _itemHeights[i];
+    }
+
+    final itemCenter = offsetToTop + _itemHeights[index] / 2;
+    final targetOffset = itemCenter - _viewportHeight / 2;
+
+    final clamped = targetOffset.clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+
+    _scrollController.animateTo(
+      clamped,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _viewportHeight = constraints.maxHeight;
+
+        final halfViewport = _viewportHeight / 2;
+        final verticalPadding =
+            math.max(0.0, halfViewport - _activeHeight / 2);
+
+        return ValueListenableBuilder<int>(
+          valueListenable: widget.controller.currentLineNotifier,
+          builder: (context, currentLine, _) {
+            _rebuildHeights(currentLine);
+
+            return ValueListenableBuilder<Duration>(
+              valueListenable: widget.controller.positionNotifier,
+              builder: (context, currentPosition, _) {
+                return ListView.builder(
+                  controller: _scrollController,
+                  padding: EdgeInsets.only(
+                    top: verticalPadding,
+                    bottom: verticalPadding,
+                  ),
+                  itemCount: widget.lyrics.length,
+                  itemBuilder: (context, index) {
+                    final isActive = index == currentLine;
+                    final distance = (index - currentLine).abs();
+                    final opacity = isActive
+                        ? 1.0
+                        : (1.0 - (distance * 0.25)).clamp(0.1, 0.55);
+
+                    return SizedBox(
+                      height: _itemHeights[index],
+                      child: Opacity(
+                        opacity: opacity,
+                        child: LyricLine(
+                          text: widget.lyrics[index].text,
+                          isActive: isActive,
+                          height: _itemHeights[index],
+                          words: widget.lyrics[index].words,
+                          currentPosition: currentPosition,
+                          onWordLongPress: (wordIdx) =>
+                              widget.onWordLongPress?.call(index, wordIdx),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    widget.controller.currentLineNotifier.removeListener(_onLineChanged);
+    _scrollController.dispose();
+    super.dispose();
+  }
+}

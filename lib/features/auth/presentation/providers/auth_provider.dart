@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/features/auth/data/models/user.dart';
 import 'package:music_app_frontend/features/auth/data/services/auth_service.dart';
 import 'package:music_app_frontend/features/auth/data/services/token_storage_service.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
+import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
@@ -12,57 +13,74 @@ final tokenStorageServiceProvider = Provider<TokenStorageService>(
 
 class AuthState {
   final bool isAuthenticated;
+  final bool isValidatingSession;
   final bool isLoading;
   final bool isSuccess;
   final String? errorMessage;
-  final User? user;
 
   const AuthState({
     this.isAuthenticated = false,
+    this.isValidatingSession = true,
     this.isLoading = false,
     this.isSuccess = false,
     this.errorMessage,
-    this.user,
   });
 
   AuthState copyWith({
     bool? isAuthenticated,
+    bool? isValidatingSession,
     bool? isLoading,
     bool? isSuccess,
     String? errorMessage,
-    User? user,
   }) {
     return AuthState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      isValidatingSession: isValidatingSession ?? this.isValidatingSession,
       isLoading: isLoading ?? this.isLoading,
       isSuccess: isSuccess ?? this.isSuccess,
       errorMessage: errorMessage,
-      user: user ?? this.user,
     );
   }
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier(this._service, this._tokenStorage) : super(const AuthState()) {
-    _restoreSession();
+  AuthNotifier(this._ref, this._service, this._tokenStorage)
+    : super(const AuthState()) {
+    _validateStoredSession();
   }
 
+  final Ref _ref;
   final AuthService _service;
   final TokenStorageService _tokenStorage;
 
-  Future<void> _restoreSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-
-    if (state.isAuthenticated == isLoggedIn) {
+  Future<void> _validateStoredSession() async {
+    final accessToken = await _tokenStorage.readAccessToken();
+    if (accessToken == null || accessToken.isEmpty) {
+      await _clearStoredSession();
+      _resetUserScopedProviders();
+      state = const AuthState(isValidatingSession: false);
       return;
     }
 
-    state = state.copyWith(isAuthenticated: isLoggedIn);
+    try {
+      await _ref.read(meProvider.future);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isLoggedIn', true);
+      state = state.copyWith(
+        isAuthenticated: true,
+        isValidatingSession: false,
+        errorMessage: null,
+      );
+    } catch (_) {
+      await _clearStoredSession();
+      _resetUserScopedProviders();
+      state = const AuthState(isValidatingSession: false);
+    }
   }
 
   Future<void> login({required String email, required String password}) async {
     state = state.copyWith(
+      isAuthenticated: false,
       isLoading: true,
       isSuccess: false,
       errorMessage: null,
@@ -74,13 +92,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       );
+      _resetUserScopedProviders();
+      await _ref.read(meProvider.future);
 
       state = state.copyWith(
         isAuthenticated: true,
+        isValidatingSession: false,
         isLoading: false,
         isSuccess: true,
         errorMessage: null,
-        user: session.user,
       );
     } catch (error) {
       state = state.copyWith(
@@ -96,6 +116,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     state = state.copyWith(
+      isAuthenticated: false,
       isLoading: true,
       isSuccess: false,
       errorMessage: null,
@@ -111,13 +132,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       );
+      _resetUserScopedProviders();
+      await _ref.read(meProvider.future);
 
       state = state.copyWith(
         isAuthenticated: true,
+        isValidatingSession: false,
         isLoading: false,
         isSuccess: true,
         errorMessage: null,
-        user: session.user,
       );
     } catch (error) {
       state = state.copyWith(
@@ -129,18 +152,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await _tokenStorage.clearTokens();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', false);
-    state = const AuthState();
+    await _clearStoredSession();
+    state = const AuthState(isValidatingSession: false);
+    _resetUserScopedProviders();
   }
 
   void clearFeedback() {
     state = state.copyWith(
       isSuccess: false,
       errorMessage: null,
-      user: state.user,
       isAuthenticated: state.isAuthenticated,
+      isValidatingSession: state.isValidatingSession,
       isLoading: state.isLoading,
     );
   }
@@ -155,6 +177,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', true);
+  }
+
+  Future<void> _clearStoredSession() async {
+    await _tokenStorage.clearTokens();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
+  }
+
+  void _resetUserScopedProviders() {
+    _ref.invalidate(userServiceProvider);
+    _ref.invalidate(friendServiceProvider);
+    _ref.invalidate(meProvider);
+    _ref.invalidate(usernameUpdateProvider);
+    _ref.invalidate(myFriendsProvider);
+    _ref.invalidate(incomingFriendRequestsProvider);
+    _ref.invalidate(outgoingFriendRequestsProvider);
+    _ref.invalidate(userSearchProvider);
+    _ref.invalidate(friendSearchQueryProvider);
+    _ref.invalidate(friendActionsProvider);
   }
 
   String _normalizeError(Object error) {
@@ -177,6 +218,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
   (ref) => AuthNotifier(
+    ref,
     ref.read(authServiceProvider),
     ref.read(tokenStorageServiceProvider),
   ),

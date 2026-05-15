@@ -7,20 +7,44 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/features/auth/data/services/token_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GraphQLConfig {
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static const String _dartDefineGraphqlUrl = String.fromEnvironment(
+    'GRAPHQL_URL',
+  );
 
   /// Auto-detects the correct host based on platform:
   /// - Android emulator → 10.0.2.2 (maps to host machine's localhost)
-  /// - iOS simulator / macOS / Windows / Linux / Web → localhost
+  /// - iOS real device / simulator → .env ip, not localhost
+  /// - macOS / Windows / Linux / Web → .env ip or localhost
   static String get _host {
+    final envHost = dotenv.maybeGet('ip');
+    if (envHost != null && envHost.isNotEmpty) return envHost;
+
     if (kIsWeb) return 'localhost';
-    if (Platform.isAndroid) return '10.0.2.2';
+    if (Platform.isIOS) {
+      throw StateError(
+        'Missing .env ip for iOS GraphQL endpoint. Add ip=<your Mac LAN IP> to .env.',
+      );
+    }
+    if (Platform.isAndroid) {
+      return '10.0.2.2';
+    }
     return 'localhost';
   }
 
-  static String get httpEndpoint => 'http://$_host:3000/graphql';
+  static String get httpEndpoint {
+    if (_dartDefineGraphqlUrl.isNotEmpty) return _dartDefineGraphqlUrl;
+
+    final envGraphqlUrl = dotenv.maybeGet('GRAPHQL_URL');
+    if (envGraphqlUrl != null && envGraphqlUrl.isNotEmpty) {
+      return envGraphqlUrl;
+    }
+
+    return 'http://$_host:3000/graphql';
+  }
 
   static Link _buildLink({bool authenticated = false}) {
     final httpLink = HttpLink(httpEndpoint);
@@ -57,6 +81,7 @@ class GraphQLConfig {
       GraphQLClient(
         link: _buildLink(),
         cache: GraphQLCache(store: InMemoryStore()),
+        defaultPolicies: _defaultPolicies(),
       ),
     );
   }
@@ -65,6 +90,18 @@ class GraphQLConfig {
     return GraphQLClient(
       link: _buildLink(authenticated: authenticated),
       cache: GraphQLCache(store: InMemoryStore()),
+      defaultPolicies: _defaultPolicies(authenticated: authenticated),
+    );
+  }
+
+  static DefaultPolicies _defaultPolicies({bool authenticated = false}) {
+    if (!authenticated) {
+      return DefaultPolicies();
+    }
+
+    return DefaultPolicies(
+      query: Policies(fetch: FetchPolicy.noCache),
+      watchQuery: Policies(fetch: FetchPolicy.noCache),
     );
   }
 }

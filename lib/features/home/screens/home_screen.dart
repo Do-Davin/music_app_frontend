@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/core/constants/mock_data.dart' hide Song;
+import 'package:go_router/go_router.dart';
+import 'package:music_app_frontend/core/constants/mock_data.dart' as mock;
 import 'package:music_app_frontend/core/constants/app_colors.dart';
-import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
-import 'package:music_app_frontend/features/song/models/song.dart';
-import 'package:music_app_frontend/features/song/providers/song_provider.dart';
+import 'package:music_app_frontend/core/routing/app_router.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
+import 'package:music_app_frontend/features/song/models/song.dart' as real_song;
 
 // ── Changed from StatelessWidget to StatefulWidget ────────────────────────────
 // We need State so we can track _isLoading and call setState after the delay
@@ -22,74 +24,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   // Tracks whether we are still in the loading phase
   bool _isLoading = true;
-  final Set<String> _likedSongIds = <String>{};
-  bool _isLoadingLikedSongs = true;
 
   @override
   void initState() {
     super.initState();
     // Simulate a 2-second API delay so the skeleton is visible
-    // Note: temporary delay to show skeleton loader.
+    // TODO: Replace this with a real API call later
     Future.delayed(const Duration(seconds: 2), () {
       // mounted check prevents setState being called after widget is destroyed
       if (mounted) setState(() => _isLoading = false);
     });
-
-    _loadLikedSongs();
-  }
-
-  Future<void> _loadLikedSongs() async {
-    try {
-      final likedSongs = await LikedSongsService().fetchLikedSongs();
-      if (!mounted) return;
-      setState(() {
-        _likedSongIds
-          ..clear()
-          ..addAll(likedSongs.map((s) => s.id));
-        _isLoadingLikedSongs = false;
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isLoadingLikedSongs = false);
-    }
-  }
-
-  Future<void> _toggleLike(Song song) async {
-    final alreadyLiked = _likedSongIds.contains(song.id);
-
-    setState(() {
-      if (alreadyLiked) {
-        _likedSongIds.remove(song.id);
-      } else {
-        _likedSongIds.add(song.id);
-      }
-    });
-
-    try {
-      await LikedSongsService().toggleLikeSong(song.id);
-    } catch (e) {
-      if (!mounted) return;
-      // revert optimistic update
-      setState(() {
-        if (alreadyLiked) {
-          _likedSongIds.add(song.id);
-        } else {
-          _likedSongIds.remove(song.id);
-        }
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not update like: $e'),
-          backgroundColor: AppColors.surface,
-        ),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final songsAsync = ref.watch(songsProvider);
+    final meState = ref.watch(meProvider);
+    final username = meState.maybeWhen(
+      data: (user) => _displayName(user.username, user.email),
+      orElse: () => 'there',
+    );
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -105,7 +58,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildHeader(),
+                    _buildHeader(username),
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Continue Listening'),
@@ -117,42 +70,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Recently Played'),
-                    songsAsync.when(
-                      data: (songs) => _buildHorizontalSongList(
-                        songs.take(8).toList(),
-                        'RECENTLY PLAYED',
-                      ),
-                      loading: () => const SizedBox(
-                        height: 200,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      error: (_, _) => const SizedBox.shrink(),
+                    _buildHorizontalSongList(
+                      mock.MockData.recentlyPlayed,
+                      'RECENTLY PLAYED',
                     ),
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Recommended'),
-                    songsAsync.when(
-                      data: (songs) => _buildHorizontalSongList(
-                        songs.skip(8).take(8).toList(),
-                        'RECOMMENDED FOR YOU',
-                      ),
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, _) => const SizedBox.shrink(),
+                    _buildHorizontalSongList(
+                      mock.MockData.recommended,
+                      'RECOMMENDED FOR YOU',
                     ),
                     const SizedBox(height: 32),
 
                     _buildSectionTitle('Made for you'),
-                    songsAsync.when(
-                      data: (songs) => _buildHorizontalSongList(
-                        songs.skip(16).take(8).toList(),
-                        'MADE FOR YOU',
-                      ),
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, _) => const SizedBox.shrink(),
+                    _buildHorizontalSongList(
+                      mock.MockData.madeForYou,
+                      'MADE FOR YOU',
                     ),
                     const SizedBox(height: 32),
 
@@ -170,7 +104,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildHorizontalSongList(List<Song> songs, String categoryName) {
+  Widget _buildHorizontalSongList(List<mock.Song> songs, String categoryName) {
     return SizedBox(
       height: 200,
       child: ListView.separated(
@@ -179,66 +113,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         separatorBuilder: (a, b) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final song = songs[index];
-          final isLiked = _likedSongIds.contains(song.id);
-
           return GestureDetector(
-            onTap: () {},
+            onTap: () {
+              // Convert mock song to real song model for the player
+              final realSong = real_song.Song(
+                id: song.title,
+                title: song.title,
+                artist: song.artist,
+                coverImageUrl: song.imageUrl,
+                duration: 180, // dummy duration
+                lyrics: song.lyricsSnippet,
+              );
+              context.push(
+                Routes.songById(song.title),
+                extra: SongPlayerRouteData(
+                  song: realSong,
+                  category: categoryName,
+                ),
+              );
+            },
             child: SizedBox(
               width: 140,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          song.coverImageUrl ?? '',
-                          width: 140,
-                          height: 140,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                            width: 140,
-                            height: 140,
-                            color: AppColors.surface,
-                            child: const Icon(
-                              Icons.music_note,
-                              color: Colors.white24,
-                            ),
-                          ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      song.imageUrl,
+                      width: 140,
+                      height: 140,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 140,
+                        height: 140,
+                        color: AppColors.surface,
+                        child: const Icon(
+                          Icons.music_note,
+                          color: Colors.white24,
                         ),
                       ),
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.35),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minHeight: 36,
-                              minWidth: 36,
-                            ),
-                            onPressed: _isLoadingLikedSongs
-                                ? null
-                                : () => _toggleLike(song),
-                            icon: Icon(
-                              isLiked
-                                  ? Icons.favorite_rounded
-                                  : Icons.favorite_border_rounded,
-                              color:
-                                  isLiked ? AppColors.primary : Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -267,35 +182,58 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String username) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        RichText(
-          text: const TextSpan(
-            text: 'Hello, ',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-            children: [
-              TextSpan(
-                text: 'Rith!',
-                style: TextStyle(color: accentColor),
+        Expanded(
+          child: RichText(
+            overflow: TextOverflow.ellipsis,
+            text: TextSpan(
+              text: 'Hello, ',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
               ),
-            ],
+              children: [
+                TextSpan(
+                  text: '$username!',
+                  style: const TextStyle(color: accentColor),
+                ),
+              ],
+            ),
           ),
         ),
-        const Row(
+        Row(
           children: [
-            Icon(Icons.notifications_none, color: Colors.grey, size: 28),
-            SizedBox(width: 16),
-            Icon(Icons.settings_outlined, color: Colors.grey, size: 28),
+            const Icon(Icons.notifications_none, color: Colors.grey, size: 28),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Friends',
+              onPressed: () => context.push(Routes.friends),
+              icon: const Icon(
+                Icons.person_add,
+                color: AppColors.primary,
+                size: 36,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.settings_outlined, color: Colors.grey, size: 28),
           ],
         ),
       ],
     );
+  }
+
+  String _displayName(String username, String email) {
+    final trimmedUsername = username.trim();
+    if (trimmedUsername.isNotEmpty) return trimmedUsername;
+
+    final trimmedEmail = email.trim();
+    if (trimmedEmail.isEmpty) return 'there';
+
+    return trimmedEmail.split('@').first;
   }
 
   Widget _buildSectionTitle(String title) {
@@ -385,9 +323,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         mainAxisSpacing: 16,
         childAspectRatio: 1.4,
       ),
-      itemCount: MockData.favorites.length,
+      itemCount: mock.MockData.favorites.length,
       itemBuilder: (context, index) {
-        final playlist = MockData.favorites[index];
+        final playlist = mock.MockData.favorites[index];
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -450,9 +388,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         mainAxisSpacing: 16,
         childAspectRatio: 1.8,
       ),
-      itemCount: MockData.moods.length,
+      itemCount: mock.MockData.moods.length,
       itemBuilder: (context, index) {
-        final mood = MockData.moods[index];
+        final mood = mock.MockData.moods[index];
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
@@ -485,12 +423,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       height: 100,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: MockData.popularArtistsUrls.length,
+        itemCount: mock.MockData.popularArtistsUrls.length,
         separatorBuilder: (_, _) => const SizedBox(width: 24),
         itemBuilder: (context, index) {
           return CircleAvatar(
             radius: 50,
-            backgroundImage: NetworkImage(MockData.popularArtistsUrls[index]),
+            backgroundImage: NetworkImage(
+              mock.MockData.popularArtistsUrls[index],
+            ),
           );
         },
       ),

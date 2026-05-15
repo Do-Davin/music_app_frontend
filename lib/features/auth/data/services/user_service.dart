@@ -11,7 +11,10 @@ class UserService {
 
   Future<User> fetchMe() async {
     final result = await _client.query(
-      QueryOptions(document: gql(UserQueries.getMe)),
+      QueryOptions(
+        document: gql(UserQueries.getMe),
+        fetchPolicy: FetchPolicy.noCache,
+      ),
     );
 
     if (result.hasException) {
@@ -19,5 +22,49 @@ class UserService {
     }
 
     return User.fromJson(result.data!['me'] as Map<String, dynamic>);
+  }
+
+  Future<bool> isUsernameAvailable({
+    required String username,
+    required String currentUserId,
+  }) async {
+    final result = await _client.query(
+      QueryOptions(
+        document: gql(UserQueries.searchUsers),
+        variables: {'search': username},
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(parseGraphQlException(result.exception!));
+    }
+
+    final users = result.data?['searchUsers'] as List<dynamic>? ?? [];
+    final normalizedUsername = username.trim().toLowerCase();
+
+    return users.every((json) {
+      final user = User.fromJson(json as Map<String, dynamic>);
+      final isSameUsername =
+          user.username.trim().toLowerCase() == normalizedUsername;
+      return !isSameUsername || user.id == currentUserId;
+    });
+  }
+
+  Future<User> updateUsername(String username) async {
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(UserMutations.updateUsername),
+        variables: {'username': username},
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(parseGraphQlException(result.exception!));
+    }
+
+    return User.fromJson(
+      result.data!['updateUsername'] as Map<String, dynamic>,
+    );
   }
 }

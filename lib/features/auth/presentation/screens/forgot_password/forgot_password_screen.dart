@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
@@ -38,19 +39,22 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     if (!mounted) return;
 
     if (state.codeSent) {
-      Navigator.pushNamed(context, Routes.verifyAccount);
+      context.push(Routes.verifyAccount);
     }
   }
 
   void _onBackToLogin() {
     ref.read(forgotPasswordProvider.notifier).reset();
-    Navigator.pop(context);
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
+    context.go(Routes.root);
   }
 
   @override
   Widget build(BuildContext context) {
     final forgotState = ref.watch(forgotPasswordProvider);
-    final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -58,10 +62,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         backgroundColor: AppColors.background,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
-          child: AnimatedPadding(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.only(bottom: bottomInset),
+          child: SingleChildScrollView(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Padding(

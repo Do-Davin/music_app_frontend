@@ -72,37 +72,6 @@ class PlaylistQueries {
       }
     }
   ''';
-
-  static const String likedSongsPlaylist = '''
-    query LikedSongsPlaylist {
-      likedSongsPlaylist {
-        _id
-        name
-        description
-        coverImageUrl
-        songIds
-        isPublic
-        songs {
-          _id
-          title
-          artist
-          albumName
-          duration
-          key
-          tempo
-          difficulty
-          tags
-          fileUrl
-          videoUrl
-          coverImageUrl
-          lyrics
-          chordNotationStyle
-          isPublic
-          playCount
-        }
-      }
-    }
-  ''';
 }
 
 class UserQueries {
@@ -125,36 +94,99 @@ class UserQueries {
     }
   ''';
 
-  static const String likedSongs = '''
-    query LikedSongs {
-      likedSongs {
+  static const String searchUsers = '''
+    query SearchUsersForUsername(\$search: String!) {
+      searchUsers(search: \$search) {
         _id
-        title
-        artist
-        albumName
-        duration
-        key
-        tempo
-        difficulty
-        tags
-        fileUrl
-        videoUrl
-        coverImageUrl
-        lyrics
-        chordNotationStyle
-        isPublic
-        playCount
+        username
+        email
+        profileImageUrl
       }
     }
   ''';
 }
 
 class UserMutations {
-  static const String toggleLikeSong = '''
-    mutation ToggleLikeSong(\$songId: ID!) {
-      toggleLikeSong(songId: \$songId) {
+  static const String updateUsername = '''
+    mutation UpdateUsername(\$username: String!) {
+      updateUsername(username: \$username) {
         _id
+        username
+        email
+        profileImageUrl
+        practiceGoals {
+          dailyMinutes
+          weeklyDays
+        }
+        practiceStreak {
+          currentStreak
+          longestStreak
+        }
       }
+    }
+  ''';
+}
+
+class FriendQueries {
+  static const String searchUsers = '''
+    query SearchUsers(\$search: String!) {
+      searchUsers(search: \$search) {
+        _id
+        username
+        email
+        profileImageUrl
+      }
+    }
+  ''';
+
+  static const String myFriends = '''
+    query MyFriends(\$limit: Int, \$offset: Int) {
+      myFriends(limit: \$limit, offset: \$offset) {
+        _id
+        username
+        email
+        profileImageUrl
+      }
+    }
+  ''';
+
+  static const String incomingFriendRequests = '''
+    query IncomingFriendRequests(\$limit: Int, \$offset: Int) {
+      incomingFriendRequests(limit: \$limit, offset: \$offset) {
+        _id
+        username
+        email
+        profileImageUrl
+      }
+    }
+  ''';
+
+  static const String outgoingFriendRequests = '''
+    query OutgoingFriendRequests(\$limit: Int, \$offset: Int) {
+      outgoingFriendRequests(limit: \$limit, offset: \$offset) {
+        _id
+        username
+        email
+        profileImageUrl
+      }
+    }
+  ''';
+
+  static const String sendFriendRequest = '''
+    mutation SendFriendRequest(\$userId: ID!) {
+      sendFriendRequest(userId: \$userId)
+    }
+  ''';
+
+  static const String acceptFriendRequest = '''
+    mutation AcceptFriendRequest(\$userId: ID!) {
+      acceptFriendRequest(userId: \$userId)
+    }
+  ''';
+
+  static const String rejectFriendRequest = '''
+    mutation RejectFriendRequest(\$userId: ID!) {
+      rejectFriendRequest(userId: \$userId)
     }
   ''';
 }

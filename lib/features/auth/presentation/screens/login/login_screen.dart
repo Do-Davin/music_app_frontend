@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
@@ -39,11 +40,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _onForgotPassword() {
-    Navigator.pushNamed(context, Routes.forgotPassword);
+    context.push(Routes.forgotPassword);
   }
 
   void _onCreateAccount() {
-    Navigator.pushNamed(context, Routes.register);
+    context.push(Routes.register);
   }
 
   @override
@@ -62,7 +63,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     final authState = ref.watch(authProvider);
-    final double bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
@@ -70,10 +70,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         backgroundColor: AppColors.background,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
-          child: AnimatedPadding(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.only(bottom: bottomInset),
+          child: SingleChildScrollView(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Padding(
