@@ -11,7 +11,10 @@ class UserService {
 
   Future<User> fetchMe() async {
     final result = await _client.query(
-      QueryOptions(document: gql(UserQueries.getMe)),
+      QueryOptions(
+        document: gql(UserQueries.getMe),
+        fetchPolicy: FetchPolicy.noCache,
+      ),
     );
 
     if (result.hasException) {

@@ -94,25 +94,40 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
               trailingBuilder: (user) => Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    tooltip: 'Accept',
+                  ElevatedButton(
                     onPressed: actionState.isLoading
                         ? null
                         : () => ref
                               .read(friendActionsProvider.notifier)
                               .acceptFriendRequest(user.id),
-                    icon: const Icon(Icons.check_circle_outline),
-                    color: AppColors.primary,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('Confirm'),
                   ),
-                  IconButton(
-                    tooltip: 'Reject',
+                  const SizedBox(width: 8),
+                  OutlinedButton(
                     onPressed: actionState.isLoading
                         ? null
                         : () => ref
                               .read(friendActionsProvider.notifier)
                               .rejectFriendRequest(user.id),
-                    icon: const Icon(Icons.cancel_outlined),
-                    color: AppColors.error,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(0, 36),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('Delete'),
                   ),
                 ],
               ),
@@ -208,6 +223,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     }
 
     return searchState.when(
+      skipLoadingOnRefresh: false,
       data: (users) {
         final visibleUsers = users
             .where((user) => user.id != currentUserId)
@@ -267,6 +283,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     required VoidCallback onRetry,
   }) {
     return state.when(
+      skipLoadingOnRefresh: false,
       data: (users) {
         if (users.isEmpty) {
           return _compactEmptyState(

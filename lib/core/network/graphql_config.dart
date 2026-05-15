@@ -81,6 +81,7 @@ class GraphQLConfig {
       GraphQLClient(
         link: _buildLink(),
         cache: GraphQLCache(store: InMemoryStore()),
+        defaultPolicies: _defaultPolicies(),
       ),
     );
   }
@@ -89,6 +90,18 @@ class GraphQLConfig {
     return GraphQLClient(
       link: _buildLink(authenticated: authenticated),
       cache: GraphQLCache(store: InMemoryStore()),
+      defaultPolicies: _defaultPolicies(authenticated: authenticated),
+    );
+  }
+
+  static DefaultPolicies _defaultPolicies({bool authenticated = false}) {
+    if (!authenticated) {
+      return DefaultPolicies();
+    }
+
+    return DefaultPolicies(
+      query: Policies(fetch: FetchPolicy.noCache),
+      watchQuery: Policies(fetch: FetchPolicy.noCache),
     );
   }
 }
