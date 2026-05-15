@@ -22,6 +22,7 @@ class ProfileScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: profileState.when(
+          skipLoadingOnRefresh: false,
           // ── LOADING: show spinner while API is running ─────────────────
           loading: () => const ProfileSkeletonLoader(),
 
@@ -113,6 +114,7 @@ class _ProfileContent extends ConsumerWidget {
     AsyncValue<List<User>> friendsState,
   ) {
     return friendsState.when(
+      skipLoadingOnRefresh: false,
       data: (friends) => Text(
         '${friends.length} ${friends.length == 1 ? 'Friend' : 'Friends'}',
         style: AppTextStyles.body.copyWith(color: AppColors.onSurface),

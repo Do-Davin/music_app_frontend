@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/features/auth/data/services/auth_service.dart';
 import 'package:music_app_frontend/features/auth/data/services/token_storage_service.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
+import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
@@ -56,6 +57,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final accessToken = await _tokenStorage.readAccessToken();
     if (accessToken == null || accessToken.isEmpty) {
       await _clearStoredSession();
+      _resetUserScopedProviders();
       state = const AuthState(isValidatingSession: false);
       return;
     }
@@ -71,13 +73,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     } catch (_) {
       await _clearStoredSession();
+      _resetUserScopedProviders();
       state = const AuthState(isValidatingSession: false);
-      _ref.invalidate(meProvider);
     }
   }
 
   Future<void> login({required String email, required String password}) async {
     state = state.copyWith(
+      isAuthenticated: false,
       isLoading: true,
       isSuccess: false,
       errorMessage: null,
@@ -89,7 +92,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       );
-      _ref.invalidate(meProvider);
+      _resetUserScopedProviders();
+      await _ref.read(meProvider.future);
 
       state = state.copyWith(
         isAuthenticated: true,
@@ -112,6 +116,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     state = state.copyWith(
+      isAuthenticated: false,
       isLoading: true,
       isSuccess: false,
       errorMessage: null,
@@ -127,7 +132,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       );
-      _ref.invalidate(meProvider);
+      _resetUserScopedProviders();
+      await _ref.read(meProvider.future);
 
       state = state.copyWith(
         isAuthenticated: true,
@@ -148,7 +154,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _clearStoredSession();
     state = const AuthState(isValidatingSession: false);
-    _ref.invalidate(meProvider);
+    _resetUserScopedProviders();
   }
 
   void clearFeedback() {
@@ -177,6 +183,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _tokenStorage.clearTokens();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('isLoggedIn', false);
+  }
+
+  void _resetUserScopedProviders() {
+    _ref.invalidate(userServiceProvider);
+    _ref.invalidate(friendServiceProvider);
+    _ref.invalidate(meProvider);
+    _ref.invalidate(usernameUpdateProvider);
+    _ref.invalidate(myFriendsProvider);
+    _ref.invalidate(incomingFriendRequestsProvider);
+    _ref.invalidate(outgoingFriendRequestsProvider);
+    _ref.invalidate(userSearchProvider);
+    _ref.invalidate(friendSearchQueryProvider);
+    _ref.invalidate(friendActionsProvider);
   }
 
   String _normalizeError(Object error) {

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/features/auth/data/models/user.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/services/friend_service.dart';
 
 final friendServiceProvider = Provider<FriendService>((ref) => FriendService());
@@ -9,6 +10,8 @@ final friendSearchQueryProvider = StateProvider.autoDispose<String>(
 );
 
 final userSearchProvider = FutureProvider.autoDispose<List<User>>((ref) async {
+  await ref.watch(meProvider.future);
+
   final search = ref.watch(friendSearchQueryProvider).trim();
   if (search.isEmpty) return const [];
 
@@ -17,16 +20,22 @@ final userSearchProvider = FutureProvider.autoDispose<List<User>>((ref) async {
 });
 
 final myFriendsProvider = FutureProvider<List<User>>((ref) async {
+  await ref.watch(meProvider.future);
+
   final service = ref.watch(friendServiceProvider);
   return service.fetchMyFriends(limit: 50);
 });
 
 final incomingFriendRequestsProvider = FutureProvider<List<User>>((ref) async {
+  await ref.watch(meProvider.future);
+
   final service = ref.watch(friendServiceProvider);
   return service.fetchIncomingRequests();
 });
 
 final outgoingFriendRequestsProvider = FutureProvider<List<User>>((ref) async {
+  await ref.watch(meProvider.future);
+
   final service = ref.watch(friendServiceProvider);
   return service.fetchOutgoingRequests();
 });
