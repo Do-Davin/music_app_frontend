@@ -72,6 +72,40 @@ class PlaylistQueries {
       }
     }
   ''';
+
+  static const String likedSongsPlaylist = '''
+    query GetLikedSongsPlaylist {
+      likedSongsPlaylist {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        songIds
+        isPublic
+        createdAt
+        updatedAt
+        songs {
+          _id
+          title
+          artist
+          albumName
+          duration
+          key
+          tempo
+          difficulty
+          tags
+          fileUrl
+          videoUrl
+          coverImageUrl
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+        }
+      }
+    }
+  ''';
 }
 
 class UserQueries {
@@ -90,6 +124,29 @@ class UserQueries {
           currentStreak
           longestStreak
         }
+      }
+    }
+  ''';
+
+  static const String likedSongs = '''
+    query GetLikedSongs {
+      likedSongs {
+        _id
+        title
+        artist
+        albumName
+        duration
+        key
+        tempo
+        difficulty
+        tags
+        fileUrl
+        videoUrl
+        coverImageUrl
+        lyrics
+        chordNotationStyle
+        isPublic
+        playCount
       }
     }
   ''';
@@ -123,6 +180,12 @@ class UserMutations {
           longestStreak
         }
       }
+    }
+  ''';
+
+  static const String toggleLikeSong = '''
+    mutation ToggleLikeSong(\$songId: ID!) {
+      toggleLikeSong(songId: \$songId)
     }
   ''';
 }

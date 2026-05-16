@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../controllers/karaoke_controller.dart';
 import 'song_list_screen.dart';
 import 'lyric_editor_screen.dart';
+import 'lyric_chord_builder_screen.dart';
 import 'player_screen.dart';
 
 class KaraokeHomeScreen extends StatelessWidget {
@@ -18,6 +19,20 @@ class KaraokeHomeScreen extends StatelessWidget {
           backgroundColor: const Color(0xFF121212),
           title: const Text('Karaoke', style: TextStyle(color: Colors.white)),
           centerTitle: true,
+          actions: [
+            IconButton(
+              tooltip: 'Open Builder',
+              icon: const Icon(Icons.create, color: Colors.white),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LyricChordBuilderScreen(),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
         body: const SongListScreen(),
         floatingActionButton: Builder(
@@ -127,32 +142,39 @@ class KaraokeHomeScreen extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
+              final localContext = context;
               final song = await controller.createSongFromYoutube(
                 urlCtrl.text.trim(),
                 titleCtrl.text.trim(),
                 artistCtrl.text.trim().isEmpty ? null : artistCtrl.text.trim(),
               );
-              Navigator.pop(ctx);
-              if (song != null && context.mounted) {
+              // ignore: use_build_context_synchronously
+              if (!localContext.mounted) return;
+              Navigator.pop(localContext);
+              if (song != null) {
                 if (song.lyrics.isNotEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ Lyrics auto-fetched from YouTube!')),
+                  ScaffoldMessenger.of(localContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('✅ Lyrics auto-fetched from YouTube!'),
+                    ),
                   );
                   Navigator.push(
-                    context,
+                    localContext,
                     MaterialPageRoute(
-                      builder: (_) => PlayerScreen(
-                        song: song,
-                        controller: controller,
-                      ),
+                      builder: (_) =>
+                          PlayerScreen(song: song, controller: controller),
                     ),
                   );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('ℹ️ No captions found on this video. Please add lyrics manually.')),
+                  ScaffoldMessenger.of(localContext).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'ℹ️ No captions found on this video. Please add lyrics manually.',
+                      ),
+                    ),
                   );
                   Navigator.push(
-                    context,
+                    localContext,
                     MaterialPageRoute(
                       builder: (_) => LyricEditorScreen(
                         song: song,
@@ -197,14 +219,17 @@ class KaraokeHomeScreen extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
+              final localContext = context;
               final song = await controller.createSongFromLocal(
                 titleCtrl.text.trim(),
                 artistCtrl.text.trim().isEmpty ? null : artistCtrl.text.trim(),
               );
-              Navigator.pop(ctx);
-              if (song != null && context.mounted) {
+              // ignore: use_build_context_synchronously
+              if (!localContext.mounted) return;
+              Navigator.pop(localContext);
+              if (song != null) {
                 Navigator.push(
-                  context,
+                  localContext,
                   MaterialPageRoute(
                     builder: (_) => LyricEditorScreen(
                       song: song,
