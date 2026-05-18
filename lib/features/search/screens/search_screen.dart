@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
-import 'package:music_app_frontend/core/constants/mock_data.dart';
+import 'package:music_app_frontend/core/constants/mock_data.dart' hide Song;
+import 'package:music_app_frontend/features/song/providers/song_provider.dart';
+import 'package:music_app_frontend/features/song/models/song.dart';
+import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
+import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
 
 // Provider to manage the search query state
 final searchQueryProvider = StateProvider<String>((ref) => "");
@@ -27,8 +31,8 @@ class SearchScreen extends ConsumerWidget {
               const SizedBox(height: 20),
               Expanded(
                 child: isSearching
-                    ? _buildSearchResults(query)
-                    : _buildInitialView(),
+                    ? _buildSearchResults(context, ref, query)
+                    : _buildInitialView(context, ref),
               ),
             ],
           ),
@@ -47,8 +51,7 @@ class SearchScreen extends ConsumerWidget {
               onTap: () => ref.read(searchQueryProvider.notifier).state = "",
               child: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  // Fixed: AppColors.surface instead of Colors.white10
+                decoration: const BoxDecoration(
                   color: AppColors.surface,
                   shape: BoxShape.circle,
                 ),
@@ -61,7 +64,6 @@ class SearchScreen extends ConsumerWidget {
             ),
             Text(
               'Search',
-              // Fixed: AppTextStyles instead of hardcoded TextStyle
               style: AppTextStyles.subtitle.copyWith(color: AppColors.primary),
             ),
             const SizedBox(width: 32),
@@ -88,7 +90,6 @@ class SearchScreen extends ConsumerWidget {
                 : null,
             contentPadding: const EdgeInsets.symmetric(vertical: 0),
             filled: true,
-            // Fixed: AppColors.surface instead of Colors.black
             fillColor: AppColors.surface,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -104,17 +105,21 @@ class SearchScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildInitialView() {
+  Widget _buildInitialView(BuildContext context, WidgetRef ref) {
+    final recentSongs = ref.watch(recentSongsProvider);
+
     return ListView(
       physics: const BouncingScrollPhysics(),
       children: [
-        _buildSectionTitle("Recent", showAction: true),
-        _buildSimpleList([
-          "Bek oun bong jes smos",
-          "Sl ke tae mnek eg",
-          "Hort mes jivit",
-        ]),
-        const SizedBox(height: 30),
+        if (recentSongs.isNotEmpty) ...[
+          _buildSectionTitle(
+            "Recent",
+            showAction: true,
+            onActionTap: () => ref.read(recentSongsProvider.notifier).clear(),
+          ),
+          _buildSongList(context, ref, recentSongs),
+          const SizedBox(height: 30),
+        ],
         _buildSectionTitle("Trending"),
         _buildSimpleList([
           "Die with a smile",
@@ -172,80 +177,107 @@ class SearchScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSearchResults(String query) {
-    final allSongs = [
-      ...MockData.recentlyPlayed,
-      ...MockData.recommended,
-      ...MockData.madeForYou,
-    ];
+  Widget _buildSearchResults(BuildContext context, WidgetRef ref, String query) {
+    final searchResults = ref.watch(searchSongsProvider(query));
 
-    final results = allSongs
-        .where(
-          (s) =>
-              // Fixed: removed s.lyricsSnippet — not in Song model
-              // only search by title and artist
-              s.title.toLowerCase().contains(query.toLowerCase()) ||
-              s.artist.toLowerCase().contains(query.toLowerCase()),
-        )
-        .toSet()
-        .toList();
+    return searchResults.when(
+      data: (results) {
+        if (results.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.search_off, size: 64, color: AppColors.primary),
+                const SizedBox(height: 16),
+                Text('No results found', style: AppTextStyles.subtitle),
+                const SizedBox(height: 8),
+                Text(
+                  'Try searching for a different song or artist',
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.hint,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
 
-    // Show empty state when no results found
-    if (results.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.search_off, size: 64, color: AppColors.primary),
-            const SizedBox(height: 16),
-            Text('No results found', style: AppTextStyles.subtitle),
-            const SizedBox(height: 8),
-            Text(
-              'Try searching for a different song or artist',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.hint,
-                fontSize: 14,
+        return ListView.builder(
+          itemCount: results.length,
+          itemBuilder: (context, index) {
+            final song = results[index];
+            return ListTile(
+              contentPadding: const EdgeInsets.symmetric(vertical: 4),
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: song.coverImageUrl != null
+                    ? Image.network(
+                        song.coverImageUrl!,
+                        width: 52,
+                        height: 52,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 52,
+                          height: 52,
+                          color: AppColors.surface,
+                          child: const Icon(Icons.music_note,
+                              color: AppColors.primary),
+                        ),
+                      )
+                    : Container(
+                        width: 52,
+                        height: 52,
+                        color: AppColors.surface,
+                        child: const Icon(Icons.music_note,
+                            color: AppColors.primary),
+                      ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
+              title: Text(
+                song.title,
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text(
+                'Song • ${song.artist}',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.hint,
+                  fontSize: 13,
+                ),
+              ),
+              trailing: const Icon(Icons.more_vert, color: AppColors.hint),
+              onTap: () {
+                // Add to recent
+                ref.read(recentSongsProvider.notifier).addSong(song);
 
-    return ListView.builder(
-      itemCount: results.length,
-      itemBuilder: (context, index) {
-        final song = results[index];
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(vertical: 4),
-          leading: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: Image.network(
-              song.imageUrl,
-              width: 52,
-              height: 52,
-              fit: BoxFit.cover,
-            ),
-          ),
-          title: Text(
-            song.title,
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            'Song • ${song.artist}',
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.hint,
-              fontSize: 13,
-            ),
-          ),
-          trailing: const Icon(Icons.more_vert, color: AppColors.hint),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SongPlayerScreen(
+                      song: song,
+                      category: 'Search Result',
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         );
       },
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+      error: (error, stack) => Center(
+        child: Text(
+          'Error: $error',
+          style: AppTextStyles.body.copyWith(color: Colors.red),
+        ),
+      ),
     );
   }
 
-  Widget _buildSectionTitle(String title, {bool showAction = false}) {
+  Widget _buildSectionTitle(String title,
+      {bool showAction = false, VoidCallback? onActionTap}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -258,14 +290,60 @@ class SearchScreen extends ConsumerWidget {
           ),
         ),
         if (showAction)
-          Text(
-            'Clear',
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.hint,
-              fontSize: 14,
+          GestureDetector(
+            onTap: onActionTap,
+            child: Text(
+              'Clear',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.hint,
+                fontSize: 14,
+              ),
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildSongList(BuildContext context, WidgetRef ref, List<Song> songs) {
+    return Column(
+      children: songs
+          .map(
+            (song) => Column(
+              children: [
+                ListTile(
+                  title: Text(
+                    song.title,
+                    style: AppTextStyles.body.copyWith(fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    song.artist,
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.hint,
+                      fontSize: 12,
+                    ),
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SongPlayerScreen(
+                          song: song,
+                          category: 'Recent',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                Divider(
+                  color: Colors.white.withValues(alpha: 0.10),
+                  height: 1,
+                ),
+              ],
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -284,7 +362,6 @@ class SearchScreen extends ConsumerWidget {
                   dense: true,
                 ),
                 Divider(
-                  // Fixed: withValues() instead of Colors.white10
                   color: Colors.white.withValues(alpha: 0.10),
                   height: 1,
                 ),

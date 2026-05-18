@@ -69,4 +69,27 @@ class Song {
 
   /// Whether this song is played via YouTube.
   bool get isYoutube => source == 'youtube';
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'title': title,
+      'artist': artist,
+      'albumName': albumName,
+      'duration': duration,
+      'key': key,
+      'tempo': tempo,
+      'difficulty': difficulty,
+      'tags': tags,
+      'source': source,
+      'sourcePath': sourcePath,
+      'fileUrl': fileUrl,
+      'videoUrl': videoUrl,
+      'coverImageUrl': coverImageUrl,
+      'lyrics': lyrics,
+      'chordNotationStyle': chordNotationStyle,
+      'isPublic': isPublic,
+      'playCount': playCount,
+    };
+  }
 }

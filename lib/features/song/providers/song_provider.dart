@@ -13,3 +13,10 @@ final songByIdProvider = FutureProvider.family<Song, String>((ref, id) async {
   final service = ref.watch(songServiceProvider);
   return service.fetchSongById(id);
 });
+
+final searchSongsProvider =
+    FutureProvider.family<List<Song>, String>((ref, query) async {
+  if (query.isEmpty) return [];
+  final service = ref.watch(songServiceProvider);
+  return service.searchSongs(query);
+});

@@ -19,7 +19,7 @@ class SongPlayerScreen extends StatefulWidget {
 }
 
 class _SongPlayerScreenState extends State<SongPlayerScreen> {
-  late AudioPlayer _audioPlayer;
+  AudioPlayer? _audioPlayer;
   YoutubePlayerController? _youtubeController;
   bool _isPlaying = false;
   Duration _duration = Duration.zero;
@@ -32,15 +32,22 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
   }
 
   void _initPlayer() async {
+    final url = widget.song.audioUrl;
+    if (url == null || url.isEmpty) {
+      debugPrint("No playback URL found for song: ${widget.song.title}");
+      return;
+    }
+
     if (widget.song.isYoutube) {
-      final videoId = YoutubePlayer.convertUrlToId(widget.song.sourcePath ?? '');
+      final videoId = YoutubePlayer.convertUrlToId(url);
       if (videoId != null) {
         _youtubeController = YoutubePlayerController(
           initialVideoId: videoId,
           flags: const YoutubePlayerFlags(
             autoPlay: true,
             mute: false,
-            hideControls: true, // We use our own controls
+            hideControls: true,
+            disableDragSeek: true,
           ),
         )..addListener(() {
             if (mounted) {
@@ -51,19 +58,19 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
               });
             }
           });
+      } else {
+        debugPrint("Could not extract YouTube ID from URL: $url");
       }
     } else {
       _audioPlayer = AudioPlayer();
       try {
-        if (widget.song.sourcePath != null) {
-          await _audioPlayer.setUrl(widget.song.sourcePath!);
-          _audioPlayer.play();
-        }
+        await _audioPlayer!.setUrl(url);
+        _audioPlayer!.play();
       } catch (e) {
         debugPrint("Error loading audio: $e");
       }
 
-      _audioPlayer.playerStateStream.listen((state) {
+      _audioPlayer!.playerStateStream.listen((state) {
         if (mounted) {
           setState(() {
             _isPlaying = state.playing;
@@ -71,11 +78,11 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
         }
       });
 
-      _audioPlayer.positionStream.listen((pos) {
+      _audioPlayer!.positionStream.listen((pos) {
         if (mounted) setState(() => _position = pos);
       });
 
-      _audioPlayer.durationStream.listen((dur) {
+      _audioPlayer!.durationStream.listen((dur) {
         if (mounted) setState(() => _duration = dur ?? Duration.zero);
       });
     }
@@ -83,11 +90,8 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
 
   @override
   void dispose() {
-    if (!widget.song.isYoutube) {
-      _audioPlayer.dispose();
-    } else {
-      _youtubeController?.dispose();
-    }
+    _audioPlayer?.dispose();
+    _youtubeController?.dispose();
     super.dispose();
   }
 
@@ -100,9 +104,9 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
       }
     } else {
       if (_isPlaying) {
-        _audioPlayer.pause();
+        _audioPlayer?.pause();
       } else {
-        _audioPlayer.play();
+        _audioPlayer?.play();
       }
     }
   }
@@ -116,18 +120,40 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // If it's a YouTube song, we wrap the body in the player builder
+    if (widget.song.isYoutube && _youtubeController != null) {
+      return YoutubePlayerBuilder(
+        player: YoutubePlayer(
+          controller: _youtubeController!,
+          onReady: () {
+            debugPrint('YouTube Player is ready.');
+          },
+        ),
+        builder: (context, player) {
+          return _buildScaffold(context, player);
+        },
+      );
+    }
+    return _buildScaffold(context, null);
+  }
+
+  Widget _buildScaffold(BuildContext context, Widget? youtubePlayer) {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 32),
+          icon: const Icon(Icons.keyboard_arrow_down,
+              color: Colors.white, size: 32),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.category,
-          style: const TextStyle(color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -137,11 +163,14 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
           child: Column(
             children: [
               const SizedBox(height: 20),
-              _buildAlbumArt(context),
+              _buildAlbumArt(context, youtubePlayer),
               const SizedBox(height: 40),
               Text(
                 widget.song.lyrics ?? "Enjoy the music!",
-                style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -156,13 +185,17 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
                       children: [
                         Text(
                           widget.song.title,
-                          style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           widget.song.artist,
-                          style: const TextStyle(color: Colors.grey, fontSize: 18),
+                          style:
+                              const TextStyle(color: Colors.grey, fontSize: 18),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -184,28 +217,41 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
     );
   }
 
-  Widget _buildAlbumArt(BuildContext context) {
+  Widget _buildAlbumArt(BuildContext context, Widget? youtubePlayer) {
     return Container(
       height: MediaQuery.of(context).size.width * 0.85,
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 25, offset: const Offset(0, 10)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 25,
+              offset: const Offset(0, 10)),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: Stack(
           children: [
-            if (widget.song.coverImageUrl != null && widget.song.coverImageUrl!.isNotEmpty)
-              Image.network(widget.song.coverImageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+            if (widget.song.coverImageUrl != null &&
+                widget.song.coverImageUrl!.isNotEmpty)
+              Image.network(widget.song.coverImageUrl!,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity)
             else
-              Container(color: AppColors.surface, child: const Center(child: Icon(Icons.music_note, color: Colors.white24, size: 80))),
-            if (widget.song.isYoutube && _youtubeController != null)
-              Opacity(
-                opacity: 0, // Keep video hidden but running
-                child: YoutubePlayer(controller: _youtubeController!),
+              Container(
+                  color: AppColors.surface,
+                  child: const Center(
+                      child: Icon(Icons.music_note,
+                          color: Colors.white24, size: 80))),
+            if (youtubePlayer != null)
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.01, // Near invisible but still rendered
+                  child: youtubePlayer,
+                ),
               ),
           ],
         ),
@@ -230,11 +276,12 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
           child: Slider(
             value: value.clamp(0.0, 1.0),
             onChanged: (v) {
-              final newPos = Duration(milliseconds: (v * _duration.inMilliseconds).toInt());
+              final newPos = Duration(
+                  milliseconds: (v * _duration.inMilliseconds).toInt());
               if (widget.song.isYoutube) {
                 _youtubeController?.seekTo(newPos);
               } else {
-                _audioPlayer.seek(newPos);
+                _audioPlayer?.seek(newPos);
               }
             },
           ),
@@ -243,8 +290,16 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(_formatDuration(_position), style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
-            Text(_formatDuration(_duration), style: const TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold)),
+            Text(_formatDuration(_position),
+                style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold)),
+            Text(_formatDuration(_duration),
+                style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold)),
           ],
         ),
       ],
@@ -255,17 +310,25 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        IconButton(icon: const Icon(Icons.skip_previous, color: Colors.white, size: 48), onPressed: () {}),
+        IconButton(
+            icon: const Icon(Icons.skip_previous, color: Colors.white, size: 48),
+            onPressed: () {}),
         GestureDetector(
           onTap: _togglePlay,
           child: Container(
             height: 75,
             width: 75,
-            decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.surface),
-            child: Icon(_isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, color: AppColors.primary, size: 50),
+            decoration: const BoxDecoration(
+                shape: BoxShape.circle, color: AppColors.surface),
+            child: Icon(
+                _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                color: AppColors.primary,
+                size: 50),
           ),
         ),
-        IconButton(icon: const Icon(Icons.skip_next, color: Colors.white, size: 48), onPressed: () {}),
+        IconButton(
+            icon: const Icon(Icons.skip_next, color: Colors.white, size: 48),
+            onPressed: () {}),
       ],
     );
   }
