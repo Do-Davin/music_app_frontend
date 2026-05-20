@@ -1,7 +1,7 @@
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/core/network/graphql_config.dart';
 import 'package:music_app_frontend/core/network/graphql_error_parser.dart';
-import 'package:music_app_frontend/core/network/queries.dart';
+import 'package:music_app_frontend/core/network/queries/index.dart';
 import 'package:music_app_frontend/features/auth/data/models/user.dart';
 
 class FriendService {

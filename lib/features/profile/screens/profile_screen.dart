@@ -373,6 +373,7 @@ class _UsernameDialogState extends ConsumerState<_UsernameDialog> {
   @override
   Widget build(BuildContext context) {
     final updateState = ref.watch(usernameUpdateProvider);
+    final hasUpdateError = updateState.hasError;
 
     return AlertDialog(
       backgroundColor: AppColors.surface,
@@ -380,63 +381,85 @@ class _UsernameDialogState extends ConsumerState<_UsernameDialog> {
         'Change username',
         style: AppTextStyles.subtitle.copyWith(color: AppColors.onSurface),
       ),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Usernames must be unique.',
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.hint,
-                fontSize: 13,
-              ),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.55,
+        ),
+        child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Usernames must be unique.',
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.hint,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _controller,
+                  enabled: !updateState.isLoading,
+                  autofocus: true,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  onChanged: (_) {
+                    if (hasUpdateError) {
+                      ref.read(usernameUpdateProvider.notifier).clear();
+                    }
+                  },
+                  style: AppTextStyles.body.copyWith(fontSize: 15),
+                  decoration: InputDecoration(
+                    hintText: 'Username',
+                    hintStyle: AppTextStyles.body.copyWith(
+                      color: AppColors.hint,
+                      fontSize: 14,
+                    ),
+                    filled: true,
+                    fillColor: AppColors.card,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: hasUpdateError
+                            ? AppColors.error
+                            : AppColors.inputBorder,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: hasUpdateError
+                            ? AppColors.error
+                            : AppColors.primary,
+                      ),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.error),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.error),
+                    ),
+                  ),
+                  validator: _validateUsername,
+                ),
+                if (updateState.hasError) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _normalizeError(updateState.error!),
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.error,
+                      fontSize: 13,
+                    ),
+                    softWrap: true,
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _controller,
-              enabled: !updateState.isLoading,
-              autofocus: true,
-              style: AppTextStyles.body.copyWith(fontSize: 15),
-              decoration: InputDecoration(
-                hintText: 'Username',
-                hintStyle: AppTextStyles.body.copyWith(
-                  color: AppColors.hint,
-                  fontSize: 14,
-                ),
-                filled: true,
-                fillColor: AppColors.card,
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.inputBorder),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.error),
-                ),
-                focusedErrorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.error),
-                ),
-              ),
-              validator: _validateUsername,
-            ),
-            if (updateState.hasError) ...[
-              const SizedBox(height: 10),
-              Text(
-                _normalizeError(updateState.error!),
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.error,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
       actions: [
@@ -492,7 +515,20 @@ class _UsernameDialogState extends ConsumerState<_UsernameDialog> {
   }
 
   String _normalizeError(Object error) {
-    final message = error.toString();
-    return message.startsWith('Exception: ') ? message.substring(11) : message;
+    final message = error.toString().toLowerCase();
+
+    if (message.contains('already taken') ||
+        message.contains('already exists') ||
+        message.contains('duplicate')) {
+      return 'Username already taken';
+    }
+
+    if (message.contains('at least 3') ||
+        message.contains('at least three') ||
+        message.contains('too short')) {
+      return 'Username must be at least 3 characters';
+    }
+
+    return 'Could not update username';
   }
 }

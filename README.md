@@ -1,17 +1,36 @@
-# music_app_frontend
+## GraphQL Endpoint
 
-A new Flutter project.
+The Flutter app selects its GraphQL endpoint in this order:
 
-## Getting Started
+1. `--dart-define=GRAPHQL_URL=...`
+2. `.env` `GRAPHQL_URL=...`
+3. Android emulator fallback: `http://10.0.2.2:3000/graphql`
+4. iOS simulator, desktop, and web fallback: `http://localhost:3000/graphql`
 
-This project is a starting point for a Flutter application.
+`ip=` is deprecated. If `GRAPHQL_URL` is missing and old `ip` exists, the app
+will still use `http://<ip>:3000/graphql` in debug builds and print a warning.
 
-A few resources to get you started if this is your first Flutter project:
+Examples:
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```env
+# Android emulator: leave empty
+GRAPHQL_URL=
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+# iOS simulator: leave empty
+GRAPHQL_URL=
+
+# Desktop/web on the same machine as the backend: leave empty
+GRAPHQL_URL=
+
+# Mac real iPhone
+GRAPHQL_URL=http://<mac-hostname>.local:3000/graphql
+
+# Windows real Android phone
+GRAPHQL_URL=http://<windows-lan-ip>:3000/graphql
+```
+
+You can also override without editing `.env`:
+
+```sh
+flutter run --dart-define=GRAPHQL_URL=http://<host>:3000/graphql
+```
