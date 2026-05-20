@@ -33,4 +33,20 @@ class SongService {
 
     return Song.fromJson(result.data!['song']);
   }
+
+  Future<List<Song>> searchSongs(String query) async {
+    final result = await _client.query(
+      QueryOptions(
+        document: gql(SongQueries.searchSongs),
+        variables: {'query': query},
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    final List<dynamic> data = result.data?['searchSongs'] ?? [];
+    return data.map((json) => Song.fromJson(json)).toList();
+  }
 }
