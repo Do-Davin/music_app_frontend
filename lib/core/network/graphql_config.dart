@@ -1,6 +1,5 @@
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugPrint, defaultTargetPlatform, kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -14,36 +13,58 @@ class GraphQLConfig {
   static const String _dartDefineGraphqlUrl = String.fromEnvironment(
     'GRAPHQL_URL',
   );
-
-  /// Auto-detects the correct host based on platform:
-  /// - Android emulator → 10.0.2.2 (maps to host machine's localhost)
-  /// - iOS real device / simulator → .env ip, not localhost
-  /// - macOS / Windows / Linux / Web → .env ip or localhost
-  static String get _host {
-    final envHost = dotenv.maybeGet('ip');
-    if (envHost != null && envHost.isNotEmpty) return envHost;
-
-    if (kIsWeb) return 'localhost';
-    if (Platform.isIOS) {
-      throw StateError(
-        'Missing .env ip for iOS GraphQL endpoint. Add ip=<your Mac LAN IP> to .env.',
-      );
-    }
-    if (Platform.isAndroid) {
-      return '10.0.2.2';
-    }
-    return 'localhost';
-  }
+  static bool _hasLoggedEndpoint = false;
 
   static String get httpEndpoint {
-    if (_dartDefineGraphqlUrl.isNotEmpty) return _dartDefineGraphqlUrl;
+    final endpoint = _resolveHttpEndpoint();
+    _logEndpoint(endpoint);
+    return endpoint.url;
+  }
 
-    final envGraphqlUrl = dotenv.maybeGet('GRAPHQL_URL');
-    if (envGraphqlUrl != null && envGraphqlUrl.isNotEmpty) {
-      return envGraphqlUrl;
+  static _ResolvedEndpoint _resolveHttpEndpoint() {
+    final dartDefineUrl = _dartDefineGraphqlUrl.trim();
+    if (dartDefineUrl.isNotEmpty) {
+      return _ResolvedEndpoint(dartDefineUrl, 'dart-define');
     }
 
-    return 'http://$_host:3000/graphql';
+    final envGraphqlUrl = dotenv.maybeGet('GRAPHQL_URL')?.trim();
+    if (envGraphqlUrl != null && envGraphqlUrl.isNotEmpty) {
+      return _ResolvedEndpoint(envGraphqlUrl, '.env GRAPHQL_URL');
+    }
+
+    final deprecatedIp = dotenv.maybeGet('ip')?.trim();
+    if (deprecatedIp != null && deprecatedIp.isNotEmpty) {
+      return _ResolvedEndpoint(
+        'http://$deprecatedIp:3000/graphql',
+        'deprecated .env ip',
+        warning:
+            'The .env "ip" variable is deprecated. Use GRAPHQL_URL=http://$deprecatedIp:3000/graphql instead.',
+      );
+    }
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return const _ResolvedEndpoint(
+        'http://10.0.2.2:3000/graphql',
+        'Android emulator fallback',
+      );
+    }
+
+    return const _ResolvedEndpoint(
+      'http://localhost:3000/graphql',
+      'localhost fallback',
+    );
+  }
+
+  static void _logEndpoint(_ResolvedEndpoint endpoint) {
+    if (!kDebugMode || _hasLoggedEndpoint) return;
+
+    _hasLoggedEndpoint = true;
+    debugPrint(
+      'GraphQL endpoint: ${endpoint.url} (source: ${endpoint.source})',
+    );
+    if (endpoint.warning != null) {
+      debugPrint('GraphQL config warning: ${endpoint.warning}');
+    }
   }
 
   static Link _buildLink({bool authenticated = false}) {
@@ -104,4 +125,12 @@ class GraphQLConfig {
       watchQuery: Policies(fetch: FetchPolicy.noCache),
     );
   }
+}
+
+class _ResolvedEndpoint {
+  final String url;
+  final String source;
+  final String? warning;
+
+  const _ResolvedEndpoint(this.url, this.source, {this.warning});
 }

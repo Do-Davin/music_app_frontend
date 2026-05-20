@@ -7,7 +7,7 @@ This repository uses a feature-first (vertical-slice) frontend architecture with
 - Feature-first: organize code by feature (e.g. `auth`, `playlist`, `song`, `home`, `onboarding`).
 - Thin-client: frontend handles presentation and UI state only; business logic lives on the backend.
 - State: Riverpod (`Provider`, `FutureProvider`, `NotifierProvider`, etc.) wires services to UI.
-- Network: GraphQL client lives in `core/network/graphql_config.dart` and GraphQL queries in `core/network/queries.dart`.
+- Network: GraphQL client lives in `core/network/graphql_config.dart` and GraphQL queries live under `core/network/queries/`.
 
 ## Feature folder layout (recommended)
 

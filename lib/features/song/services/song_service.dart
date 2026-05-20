@@ -1,6 +1,6 @@
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/core/network/graphql_config.dart';
-import 'package:music_app_frontend/core/network/queries.dart';
+import 'package:music_app_frontend/core/network/queries/index.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 
 class SongService {

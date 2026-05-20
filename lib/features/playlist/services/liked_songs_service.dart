@@ -1,6 +1,6 @@
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/core/network/graphql_config.dart';
-import 'package:music_app_frontend/core/network/queries.dart';
+import 'package:music_app_frontend/core/network/queries/index.dart';
 import 'package:music_app_frontend/features/playlist/models/playlist.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 
@@ -12,7 +12,9 @@ class LikedSongsPlaylistResponse {
 }
 
 class LikedSongsService {
-  final GraphQLClient _client = GraphQLConfig.clientToQuery(authenticated: true);
+  final GraphQLClient _client = GraphQLConfig.clientToQuery(
+    authenticated: true,
+  );
 
   Future<List<Song>> fetchLikedSongs() async {
     final result = await _client.query(
@@ -63,4 +65,3 @@ class LikedSongsService {
     }
   }
 }
-
