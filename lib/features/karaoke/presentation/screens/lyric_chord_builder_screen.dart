@@ -554,10 +554,10 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
 
   Widget _buildDraggableItem(LyricChordItem item) {
     final isChord = item.type == CanvasItemType.chord;
-    final background = isChord
-        ? const Color(0xFF2A3A5B)
-        : const Color(0xFF2A2A2A);
     final accent = isChord ? const Color(0xFF6FA8FF) : const Color(0xFF7C4DFF);
+    final background = isChord
+        ? accent
+        : const Color(0xFF2A2A2A).withAlpha(243);
     return Positioned(
       left: item.position.dx,
       top: item.position.dy,
@@ -565,11 +565,15 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
         onPanUpdate: (details) => _moveItem(item.id, details.delta),
         onLongPress: () => _removeItem(item.id),
         child: Container(
-          constraints: const BoxConstraints(minWidth: 100, maxWidth: 240),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          constraints: isChord
+              ? const BoxConstraints.tightFor(width: 56, height: 56)
+              : const BoxConstraints(minWidth: 120, maxWidth: 240),
+          padding: isChord
+              ? EdgeInsets.zero
+              : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: background.withAlpha(243),
-            borderRadius: BorderRadius.circular(14),
+            color: background,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: accent.withAlpha(204), width: 1.2),
             boxShadow: const [
               BoxShadow(
@@ -579,48 +583,34 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    isChord ? Icons.music_note : Icons.text_snippet,
-                    color: accent,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isChord ? 'Chord' : 'Lyric',
-                    style: TextStyle(
-                      color: accent,
+          child: isChord
+              ? Center(
+                  child: Text(
+                    item.text,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      fontSize: 13,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                item.text,
-                style: TextStyle(
-                  color: const Color(0xEBFFFFFF),
-                  fontSize: isChord ? 18 : 15,
-                  fontWeight: isChord ? FontWeight.w700 : FontWeight.w500,
+                )
+              : Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(Icons.text_snippet, color: accent, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        item.text,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              if (isChord)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    _chordNotationStyle == ChordNotationStyle.abc
-                        ? 'ABC notation'
-                        : 'Do Re Mi notation',
-                    style: TextStyle(color: Colors.white54, fontSize: 11),
-                  ),
-                ),
-            ],
-          ),
         ),
       ),
     );
