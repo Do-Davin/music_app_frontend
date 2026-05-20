@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
-import 'package:music_app_frontend/core/constants/mock_data.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
-import 'package:music_app_frontend/features/playlist/models/playlist.dart' as model;
+import 'package:music_app_frontend/features/playlist/models/playlist.dart'
+    as model;
 import 'create_library_screen.dart';
 
 class LibraryScreen extends StatefulWidget {
@@ -126,7 +126,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             color: AppColors.hint,
                             size: 20,
                           ),
-                          onPressed: () => setState(() => selectedFilter = 'All'),
+                          onPressed: () =>
+                              setState(() => selectedFilter = 'All'),
                         ),
                       ],
                     ],
@@ -147,7 +148,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       ),
                       const Spacer(),
                       IconButton(
-                        onPressed: () => setState(() => isGridView = !isGridView),
+                        onPressed: () =>
+                            setState(() => isGridView = !isGridView),
                         icon: Icon(
                           isGridView ? Icons.list : Icons.grid_view_rounded,
                           color: AppColors.onSurface,
@@ -161,7 +163,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     child: playlistsAsync.when(
                       data: (playlists) {
                         final filteredList = playlists.where((playlist) {
-                          final matchesSearch = playlist.name.toLowerCase().contains(searchQuery.toLowerCase());
+                          final matchesSearch = playlist.name
+                              .toLowerCase()
+                              .contains(searchQuery.toLowerCase());
                           if (selectedFilter == 'Playlists') {
                             return matchesSearch;
                           } else if (selectedFilter == 'Artists') {
@@ -182,12 +186,21 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         return AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           child: isGridView
-                              ? _buildGridView(filteredList, key: const ValueKey('grid'))
-                              : _buildListView(filteredList, key: const ValueKey('list')),
+                              ? _buildGridView(
+                                  filteredList,
+                                  key: const ValueKey('grid'),
+                                )
+                              : _buildListView(
+                                  filteredList,
+                                  key: const ValueKey('list'),
+                                ),
                         );
                       },
-                      loading: () => const Center(child: CircularProgressIndicator()),
-                      error: (err, stack) => Center(child: Text('Error: $err', style: AppTextStyles.body)),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (err, stack) => Center(
+                        child: Text('Error: $err', style: AppTextStyles.body),
+                      ),
                     ),
                   ),
                 ],
@@ -298,7 +311,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Widget _buildImageTile(model.Playlist item, double size) {
-    final bool hasImage = item.coverImageUrl != null && item.coverImageUrl!.isNotEmpty;
+    final bool hasImage =
+        item.coverImageUrl != null && item.coverImageUrl!.isNotEmpty;
     return Container(
       width: size,
       height: size,
@@ -313,7 +327,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
             : null,
       ),
       child: !hasImage
-          ? const Icon(Icons.playlist_play, color: AppColors.onSurface, size: 32)
+          ? const Icon(
+              Icons.playlist_play,
+              color: AppColors.onSurface,
+              size: 32,
+            )
           : null,
     );
   }

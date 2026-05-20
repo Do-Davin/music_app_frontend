@@ -135,6 +135,40 @@ class MockData {
     ),
   ];
 
+  // --- Section 4b: Liked Songs (Mock - 5 songs) ---
+  static List<Song> likedSongs = [
+    Song(
+      title: 'Blinding Lights',
+      artist: 'The Weeknd',
+      imageUrl: 'https://picsum.photos/seed/liked1/400/400',
+      lyricsSnippet: "I said, ooh, I'm blinded by the lights",
+    ),
+    Song(
+      title: 'As It Was',
+      artist: 'Harry Styles',
+      imageUrl: 'https://picsum.photos/seed/liked2/400/400',
+      lyricsSnippet: "In this world, it's just us",
+    ),
+    Song(
+      title: 'Flowers',
+      artist: 'Miley Cyrus',
+      imageUrl: 'https://picsum.photos/seed/liked3/400/400',
+      lyricsSnippet: "I can buy myself flowers",
+    ),
+    Song(
+      title: 'Starboy',
+      artist: 'The Weeknd',
+      imageUrl: 'https://picsum.photos/seed/liked4/400/400',
+      lyricsSnippet: "I'm tryna put you in the worst mood",
+    ),
+    Song(
+      title: 'Levitating',
+      artist: 'Dua Lipa',
+      imageUrl: 'https://picsum.photos/seed/liked5/400/400',
+      lyricsSnippet: "You want me, I want you, baby",
+    ),
+  ];
+
   // --- Section 5: Moods (Added Workout & Party) ---
   static List<Playlist> moods = [
     const Playlist(

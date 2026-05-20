@@ -4,7 +4,7 @@ class ProfileService {
   /// Fetch user profile from API
   Future<ProfileModel> fetchProfile() async {
     try {
-      // TODO: Replace with real HTTP call e.g:
+      // Example for real HTTP call:
       // final response = await http.get(Uri.parse('https://your-api.com/profile'));
       // final json = jsonDecode(response.body);
       // return ProfileModel.fromJson(json);
@@ -36,7 +36,7 @@ class ProfileService {
   /// Update user profile via API
   Future<ProfileModel> updateProfile(ProfileModel updatedProfile) async {
     try {
-      // TODO: Replace with real HTTP call e.g:
+      // Example for real HTTP call:
       // final response = await http.put(
       //   Uri.parse('https://your-api.com/profile'),
       //   body: jsonEncode(updatedProfile.toJson()),

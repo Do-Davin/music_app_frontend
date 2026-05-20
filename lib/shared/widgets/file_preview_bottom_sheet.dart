@@ -18,8 +18,8 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 // Separate from your full ReferenceMaterial model to keep
 // the widget independent and reusable.
 class PreviewFile {
-  final String name;       // display name, e.g. "Lecture.pdf"
-  final String type;       // "PDF" | "PPT" | "Note" | "Image"
+  final String name; // display name, e.g. "Lecture.pdf"
+  final String type; // "PDF" | "PPT" | "Note" | "Image"
   final String? localPath; // path on device (if downloaded)
   final String? remoteUrl; // full URL from backend
 
@@ -34,8 +34,7 @@ class PreviewFile {
 
   bool get isPdf => extension == 'pdf';
   bool get isPpt => extension == 'ppt' || extension == 'pptx';
-  bool get isImage =>
-      ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension);
+  bool get isImage => ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension);
 }
 
 // ─────────────────────────────────────────────────────────
@@ -81,12 +80,16 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
 
   void _onShare() {
     if (widget.file.localPath != null) {
-      Share.shareXFiles(
-        [XFile(widget.file.localPath!)],
-        text: widget.file.name,
+      SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(widget.file.localPath!)],
+          text: widget.file.name,
+        ),
       );
     } else if (widget.file.remoteUrl != null) {
-      Share.share(widget.file.remoteUrl!, subject: widget.file.name);
+      SharePlus.instance.share(
+        ShareParams(text: widget.file.remoteUrl!, subject: widget.file.name),
+      );
     }
   }
 
@@ -113,49 +116,51 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
 
   // ── Drag handle ──────────────────────────────────────
   Widget _handle() => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: _textSecondary.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(vertical: 10),
+    child: Container(
+      width: 40,
+      height: 4,
+      decoration: BoxDecoration(
+        color: _textSecondary.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(2),
+      ),
+    ),
+  );
 
   // ── Header row ────────────────────────────────────────
   Widget _header() => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: const Icon(Icons.arrow_back_ios_new,
-                  color: _textPrimary, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Preview: ${widget.file.name}',
-                style: const TextStyle(
-                  color: _textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: _onShare,
-              icon: const Icon(Icons.share_outlined,
-                  color: _textPrimary, size: 22),
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: Row(
+      children: [
+        GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: const Icon(
+            Icons.arrow_back_ios_new,
+            color: _textPrimary,
+            size: 20,
+          ),
         ),
-      );
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            'Preview: ${widget.file.name}',
+            style: const TextStyle(
+              color: _textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: _onShare,
+          icon: const Icon(Icons.share_outlined, color: _textPrimary, size: 22),
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+        ),
+      ],
+    ),
+  );
 
   // ── Route to the right viewer ─────────────────────────
   Widget _body() {
@@ -196,11 +201,7 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
     return Stack(
       children: [
         viewer,
-        Positioned(
-          bottom: 16,
-          right: 16,
-          child: _bottomBar(showPageNav: true),
-        ),
+        Positioned(bottom: 16, right: 16, child: _bottomBar(showPageNav: true)),
       ],
     );
   }
@@ -248,8 +249,8 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
         child: path != null
             ? Image.file(File(path))
             : url != null
-                ? Image.network(url)
-                : const SizedBox(),
+            ? Image.network(url)
+            : const SizedBox(),
       ),
     );
   }
@@ -260,12 +261,17 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.insert_drive_file_outlined,
-              size: 64, color: _gold.withValues(alpha: 0.5)),
+          Icon(
+            Icons.insert_drive_file_outlined,
+            size: 64,
+            color: _gold.withValues(alpha: 0.5),
+          ),
           const SizedBox(height: 16),
-          Text(widget.file.name,
-              style: const TextStyle(color: _textPrimary, fontSize: 15),
-              textAlign: TextAlign.center),
+          Text(
+            widget.file.name,
+            style: const TextStyle(color: _textPrimary, fontSize: 15),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 8),
           const Text(
             'Preview not available.\nDownload to open externally.',
@@ -291,8 +297,7 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
         children: [
           // ── Zoom minus
           GestureDetector(
-            onTap: () =>
-                setState(() => _zoom = (_zoom - 0.1).clamp(0.5, 3.0)),
+            onTap: () => setState(() => _zoom = (_zoom - 0.1).clamp(0.5, 3.0)),
             child: const Icon(Icons.remove, color: _textPrimary, size: 16),
           ),
 
@@ -304,8 +309,7 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
                 thumbColor: _goldLight,
                 activeTrackColor: _gold,
                 inactiveTrackColor: _textSecondary.withValues(alpha: 0.3),
-                thumbShape:
-                    const RoundSliderThumbShape(enabledThumbRadius: 6),
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                 trackHeight: 2,
                 overlayShape: SliderComponentShape.noOverlay,
               ),
@@ -322,9 +326,10 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
           Text(
             '${(_zoom * 100).round()}%',
             style: const TextStyle(
-                color: _textPrimary,
-                fontSize: 12,
-                fontWeight: FontWeight.w500),
+              color: _textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
           ),
 
           // ── Page nav (PDF only)
@@ -334,11 +339,11 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
               onTap: _pdfCurrentPage > 1
                   ? () => _pdfController.previousPage()
                   : null,
-              child: Icon(Icons.chevron_left,
-                  color: _pdfCurrentPage > 1
-                      ? _textPrimary
-                      : _textSecondary,
-                  size: 20),
+              child: Icon(
+                Icons.chevron_left,
+                color: _pdfCurrentPage > 1 ? _textPrimary : _textSecondary,
+                size: 20,
+              ),
             ),
             Text(
               '$_pdfCurrentPage / $_pdfTotalPages',
@@ -348,11 +353,13 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
               onTap: _pdfCurrentPage < _pdfTotalPages
                   ? () => _pdfController.nextPage()
                   : null,
-              child: Icon(Icons.chevron_right,
-                  color: _pdfCurrentPage < _pdfTotalPages
-                      ? _textPrimary
-                      : _textSecondary,
-                  size: 20),
+              child: Icon(
+                Icons.chevron_right,
+                color: _pdfCurrentPage < _pdfTotalPages
+                    ? _textPrimary
+                    : _textSecondary,
+                size: 20,
+              ),
             ),
           ],
         ],

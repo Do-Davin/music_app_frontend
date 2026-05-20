@@ -14,13 +14,6 @@ class PlaylistDetailScreen extends ConsumerWidget {
 
   const PlaylistDetailScreen({super.key, required this.playlistId});
 
-  String _formatDuration(int? seconds) {
-    if (seconds == null) return '--:--';
-    final m = seconds ~/ 60;
-    final s = seconds % 60;
-    return '$m:${s.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final playlistAsync = ref.watch(playlistByIdProvider(playlistId));
@@ -68,8 +61,7 @@ class _PlaylistDetailContent extends StatelessWidget {
   }
 
   int get _totalDuration {
-    return playlist.songs
-            ?.fold<int>(0, (sum, s) => sum + (s.duration ?? 0)) ??
+    return playlist.songs?.fold<int>(0, (sum, s) => sum + (s.duration ?? 0)) ??
         0;
   }
 
@@ -105,7 +97,7 @@ class _PlaylistDetailContent extends StatelessWidget {
                   Image.network(
                     playlist.coverImageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
+                    errorBuilder: (context, error, stackTrace) =>
                         _buildGradientPlaceholder(),
                   )
                 else
@@ -132,8 +124,10 @@ class _PlaylistDetailContent extends StatelessWidget {
         // ── Playlist info header ──────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20.0,
+              vertical: 16.0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -155,28 +149,40 @@ class _PlaylistDetailContent extends StatelessWidget {
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.music_note,
-                        color: AppColors.hint, size: 14),
+                    const Icon(
+                      Icons.music_note,
+                      color: AppColors.hint,
+                      size: 14,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '$songCount song${songCount != 1 ? 's' : ''}',
-                      style: AppTextStyles.body
-                          .copyWith(color: AppColors.hint, fontSize: 13),
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.hint,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.access_time,
-                        color: AppColors.hint, size: 14),
+                    const Icon(
+                      Icons.access_time,
+                      color: AppColors.hint,
+                      size: 14,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       _formatDuration(_totalDuration),
-                      style: AppTextStyles.body
-                          .copyWith(color: AppColors.hint, fontSize: 13),
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.hint,
+                        fontSize: 13,
+                      ),
                     ),
                     const Spacer(),
                     if (playlist.isPublic)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
@@ -208,9 +214,12 @@ class _PlaylistDetailContent extends StatelessWidget {
                       foregroundColor: AppColors.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      textStyle: AppTextStyles.body
-                          .copyWith(fontWeight: FontWeight.bold, fontSize: 16),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ),
@@ -237,26 +246,24 @@ class _PlaylistDetailContent extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.queue_music,
-                          color: AppColors.hint, size: 64),
+                      Icon(Icons.queue_music, color: AppColors.hint, size: 64),
                       const SizedBox(height: 16),
                       Text(
                         'No songs yet',
-                        style: AppTextStyles.body
-                            .copyWith(color: AppColors.hint, fontSize: 16),
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.hint,
+                          fontSize: 16,
+                        ),
                       ),
                     ],
                   ),
                 ),
               )
             : SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final song = songs[index];
-                    return _SongTile(song: song, index: index);
-                  },
-                  childCount: songs.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final song = songs[index];
+                  return _SongTile(song: song, index: index);
+                }, childCount: songs.length),
               ),
         const SliverPadding(padding: EdgeInsets.only(bottom: 32)),
       ],
@@ -273,11 +280,7 @@ class _PlaylistDetailContent extends StatelessWidget {
         ),
       ),
       child: const Center(
-        child: Icon(
-          Icons.library_music,
-          color: AppColors.primary,
-          size: 80,
-        ),
+        child: Icon(Icons.library_music, color: AppColors.primary, size: 80),
       ),
     );
   }
@@ -302,8 +305,7 @@ class _SongTile extends StatelessWidget {
         song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
 
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
         width: 52,
         height: 52,
@@ -318,8 +320,7 @@ class _SongTile extends StatelessWidget {
               : null,
         ),
         child: !hasImage
-            ? const Icon(Icons.music_note,
-                color: AppColors.hint, size: 24)
+            ? const Icon(Icons.music_note, color: AppColors.hint, size: 24)
             : null,
       ),
       title: Text(
@@ -333,14 +334,19 @@ class _SongTile extends StatelessWidget {
           if (song.isYoutube)
             const Padding(
               padding: EdgeInsets.only(right: 4),
-              child: Icon(Icons.smart_display,
-                  color: Color(0xFFFF0000), size: 13),
+              child: Icon(
+                Icons.smart_display,
+                color: Color(0xFFFF0000),
+                size: 13,
+              ),
             ),
           Expanded(
             child: Text(
               song.artist,
-              style: AppTextStyles.body
-                  .copyWith(color: AppColors.hint, fontSize: 12),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.hint,
+                fontSize: 12,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -349,8 +355,7 @@ class _SongTile extends StatelessWidget {
       ),
       trailing: Text(
         _formatDuration(song.duration),
-        style:
-            AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
+        style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
       ),
       onTap: () {
         context.push(

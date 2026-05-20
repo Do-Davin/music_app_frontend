@@ -1,12 +1,16 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/playlist.dart';
 import '../services/playlist_service.dart';
 
 final playlistServiceProvider = Provider((ref) => PlaylistService());
 
-final myPlaylistsProvider = StateNotifierProvider<MyPlaylistsNotifier, AsyncValue<List<Playlist>>>((ref) {
-  return MyPlaylistsNotifier(ref.watch(playlistServiceProvider));
-});
+final myPlaylistsProvider =
+    StateNotifierProvider<MyPlaylistsNotifier, AsyncValue<List<Playlist>>>((
+      ref,
+    ) {
+      return MyPlaylistsNotifier(ref.watch(playlistServiceProvider));
+    });
 
 class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
   final PlaylistService _service;
@@ -27,16 +31,19 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
 
   Future<void> createPlaylist(String name, {String? description}) async {
     try {
-      final newPlaylist = await _service.createPlaylist(name, description: description);
-      
+      final newPlaylist = await _service.createPlaylist(
+        name,
+        description: description,
+      );
+
       final currentPlaylists = state.value ?? [];
       state = AsyncValue.data([...currentPlaylists, newPlaylist]);
-      
-      print('Successfully created playlist: ${newPlaylist.name}');
+
+      debugPrint('Successfully created playlist: ${newPlaylist.name}');
     } catch (e, st) {
-      print('Error creating playlist: $e');
-      print(st);
-      // Optional: you could set state to error here, but usually better to keep 
+      debugPrint('Error creating playlist: $e');
+      debugPrint('$st');
+      // Optional: you could set state to error here, but usually better to keep
       // existing list and show a toast.
     }
   }
@@ -55,6 +62,9 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
   }
 }
 
-final playlistByIdProvider = FutureProvider.family<Playlist, String>((ref, id) async {
+final playlistByIdProvider = FutureProvider.family<Playlist, String>((
+  ref,
+  id,
+) async {
   return ref.watch(playlistServiceProvider).getPlaylistById(id);
 });
