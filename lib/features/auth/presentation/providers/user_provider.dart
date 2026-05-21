@@ -14,6 +14,17 @@ final usernameUpdateProvider =
       return UsernameUpdateNotifier(ref, ref.watch(userServiceProvider));
     });
 
+final switchToProfessionalAccountProvider =
+    StateNotifierProvider<
+      SwitchToProfessionalAccountNotifier,
+      AsyncValue<User?>
+    >((ref) {
+      return SwitchToProfessionalAccountNotifier(
+        ref,
+        ref.watch(userServiceProvider),
+      );
+    });
+
 class UsernameUpdateNotifier extends StateNotifier<AsyncValue<User?>> {
   UsernameUpdateNotifier(this._ref, this._service)
     : super(const AsyncData(null));
@@ -71,5 +82,32 @@ class UsernameUpdateNotifier extends StateNotifier<AsyncValue<User?>> {
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
       throw Exception('Use only letters, numbers, and underscores');
     }
+  }
+}
+
+class SwitchToProfessionalAccountNotifier
+    extends StateNotifier<AsyncValue<User?>> {
+  SwitchToProfessionalAccountNotifier(this._ref, this._service)
+    : super(const AsyncData(null));
+
+  final Ref _ref;
+  final UserService _service;
+
+  Future<User?> switchToProfessionalAccount() async {
+    state = const AsyncLoading();
+
+    try {
+      final updatedUser = await _service.switchToProfessionalAccount();
+      _ref.invalidate(meProvider);
+      state = AsyncData(updatedUser);
+      return updatedUser;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      return null;
+    }
+  }
+
+  void clear() {
+    state = const AsyncData(null);
   }
 }

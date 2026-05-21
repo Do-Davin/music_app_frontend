@@ -5,6 +5,8 @@ import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/features/auth/data/models/user.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
+import 'package:music_app_frontend/features/relationships/models/relationship_status.dart';
+import 'package:music_app_frontend/features/relationships/providers/relationship_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 class FriendsScreen extends ConsumerStatefulWidget {
@@ -35,7 +37,18 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       }
     });
 
+    ref.listen<AsyncValue<void>>(relationshipActionsProvider, (previous, next) {
+      if (!mounted) return;
+
+      if (next.hasError && next.error != previous?.error) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(_normalizeError(next.error!))));
+      }
+    });
+
     final actionState = ref.watch(friendActionsProvider);
+    final relationshipActionState = ref.watch(relationshipActionsProvider);
     final searchState = ref.watch(userSearchProvider);
     final friendsState = ref.watch(myFriendsProvider);
     final incomingState = ref.watch(incomingFriendRequestsProvider);
@@ -46,9 +59,6 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
       data: (user) => user.id,
       orElse: () => null,
     );
-    final myFriendUserIds = _idsFrom(friendsState);
-    final incomingIds = _idsFrom(incomingState);
-    final outgoingIds = _idsFrom(outgoingState);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -79,10 +89,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             _buildSearchResults(
               searchState: searchState,
               currentUserId: currentUserId,
-              myFriendUserIds: myFriendUserIds,
-              incomingIds: incomingIds,
-              outgoingIds: outgoingIds,
-              isActionLoading: actionState.isLoading,
+              isFriendActionLoading: actionState.isLoading,
+              isRelationshipActionLoading: relationshipActionState.isLoading,
             ),
             const SizedBox(height: 28),
             _buildSectionTitle('Incoming Requests'),
@@ -208,10 +216,8 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   Widget _buildSearchResults({
     required AsyncValue<List<User>> searchState,
     required String? currentUserId,
-    required Set<String> myFriendUserIds,
-    required Set<String> incomingIds,
-    required Set<String> outgoingIds,
-    required bool isActionLoading,
+    required bool isFriendActionLoading,
+    required bool isRelationshipActionLoading,
   }) {
     final query = ref.watch(friendSearchQueryProvider).trim();
     if (query.isEmpty) {
@@ -239,28 +245,12 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
 
         return _cardList(
           visibleUsers.map((user) {
-            final alreadyFriend = myFriendUserIds.contains(user.id);
-            final requestSent = outgoingIds.contains(user.id);
-            final requestIncoming = incomingIds.contains(user.id);
-            final canAdd = !alreadyFriend && !requestSent && !requestIncoming;
-
             return _userTile(
               user,
-              trailing: TextButton(
-                onPressed: canAdd && !isActionLoading
-                    ? () => ref
-                          .read(friendActionsProvider.notifier)
-                          .sendFriendRequest(user.id)
-                    : null,
-                child: Text(
-                  alreadyFriend
-                      ? 'Friend'
-                      : requestSent
-                      ? 'Pending'
-                      : requestIncoming
-                      ? 'Incoming'
-                      : 'Add Friend',
-                ),
+              trailing: _buildSearchActionButton(
+                user,
+                isFriendActionLoading: isFriendActionLoading,
+                isRelationshipActionLoading: isRelationshipActionLoading,
               ),
             );
           }).toList(),
@@ -272,6 +262,108 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         onRetry: () => ref.invalidate(userSearchProvider),
       ),
     );
+  }
+
+  Widget _buildSearchActionButton(
+    User user, {
+    required bool isFriendActionLoading,
+    required bool isRelationshipActionLoading,
+  }) {
+    final statusState = ref.watch(relationshipStatusProvider(user.id));
+    final isActionLoading =
+        isFriendActionLoading || isRelationshipActionLoading;
+
+    return statusState.when(
+      skipLoadingOnRefresh: false,
+      data: (status) => _relationshipActionButton(
+        user: user,
+        status: status,
+        isActionLoading: isActionLoading,
+      ),
+      loading: () => const SizedBox(
+        width: 64,
+        child: Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      ),
+      error: (error, _) => TextButton(
+        onPressed: null,
+        child: Text(
+          'Retry',
+          style: AppTextStyles.body.copyWith(color: AppColors.hint),
+        ),
+      ),
+    );
+  }
+
+  Widget _relationshipActionButton({
+    required User user,
+    required RelationshipStatus status,
+    required bool isActionLoading,
+  }) {
+    if (status.isFriend) {
+      return const TextButton(onPressed: null, child: Text('Friend'));
+    }
+
+    if (status.hasOutgoingFriendRequest) {
+      return const TextButton(onPressed: null, child: Text('Pending'));
+    }
+
+    if (status.hasIncomingFriendRequest) {
+      return const TextButton(onPressed: null, child: Text('Respond'));
+    }
+
+    if (status.canAddFriend) {
+      return TextButton(
+        onPressed: isActionLoading
+            ? null
+            : () => ref
+                  .read(friendActionsProvider.notifier)
+                  .sendFriendRequest(user.id),
+        child: const Text('Add Friend'),
+      );
+    }
+
+    if (status.isFollowing) {
+      return TextButton(
+        onPressed: isActionLoading ? null : () => _unfollowUser(user),
+        child: const Text('Following'),
+      );
+    }
+
+    if (status.canFollow) {
+      return TextButton(
+        onPressed: isActionLoading
+            ? null
+            : () => ref
+                  .read(relationshipActionsProvider.notifier)
+                  .followUser(user.id),
+        child: const Text('Follow'),
+      );
+    }
+
+    return const TextButton(onPressed: null, child: Text('Unavailable'));
+  }
+
+  Future<void> _unfollowUser(User user) async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Unfollow User',
+      message: 'Stop following ${user.username}?',
+      confirmText: 'Unfollow',
+      cancelText: 'Cancel',
+    );
+
+    if (!confirmed) return;
+
+    await ref.read(relationshipActionsProvider.notifier).unfollowUser(user.id);
   }
 
   Widget _buildUserList({
@@ -415,13 +507,6 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     return const SizedBox(
       height: 96,
       child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-    );
-  }
-
-  Set<String> _idsFrom(AsyncValue<List<User>> state) {
-    return state.maybeWhen(
-      data: (users) => users.map((user) => user.id).toSet(),
-      orElse: () => const <String>{},
     );
   }
 

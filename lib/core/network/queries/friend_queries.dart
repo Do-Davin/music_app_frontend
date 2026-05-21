@@ -5,6 +5,7 @@ class FriendQueries {
         _id
         username
         email
+        profileType
         profileImageUrl
       }
     }
@@ -16,6 +17,7 @@ class FriendQueries {
         _id
         username
         email
+        profileType
         profileImageUrl
       }
     }
@@ -27,6 +29,7 @@ class FriendQueries {
         _id
         username
         email
+        profileType
         profileImageUrl
       }
     }
@@ -38,6 +41,7 @@ class FriendQueries {
         _id
         username
         email
+        profileType
         profileImageUrl
       }
     }

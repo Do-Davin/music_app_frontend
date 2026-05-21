@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/features/auth/data/models/user.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/services/friend_service.dart';
+import 'package:music_app_frontend/features/relationships/providers/relationship_provider.dart';
 
 final friendServiceProvider = Provider<FriendService>((ref) => FriendService());
 
@@ -56,6 +57,9 @@ class FriendActionsNotifier extends StateNotifier<AsyncValue<void>> {
     await _run(() async {
       final sent = await _service.sendFriendRequest(userId);
       if (sent) {
+        _ref.invalidate(relationshipStatusProvider(userId));
+        _ref.invalidate(myFriendsProvider);
+        _ref.invalidate(incomingFriendRequestsProvider);
         _ref.invalidate(outgoingFriendRequestsProvider);
         _ref.invalidate(userSearchProvider);
       }

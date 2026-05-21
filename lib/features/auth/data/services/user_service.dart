@@ -67,4 +67,18 @@ class UserService {
       result.data!['updateUsername'] as Map<String, dynamic>,
     );
   }
+
+  Future<User> switchToProfessionalAccount() async {
+    final result = await _client.mutate(
+      MutationOptions(document: gql(UserMutations.switchToProfessionalAccount)),
+    );
+
+    if (result.hasException) {
+      throw Exception(parseGraphQlException(result.exception!));
+    }
+
+    return User.fromJson(
+      result.data!['switchToProfessionalAccount'] as Map<String, dynamic>,
+    );
+  }
 }

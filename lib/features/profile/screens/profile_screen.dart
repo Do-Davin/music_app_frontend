@@ -9,6 +9,8 @@ import 'package:music_app_frontend/features/auth/presentation/providers/user_pro
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
 import 'package:music_app_frontend/features/profile/models/profile_model.dart';
 import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
+import 'package:music_app_frontend/features/relationships/models/follow_counts.dart';
+import 'package:music_app_frontend/features/relationships/providers/relationship_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -51,6 +53,14 @@ class _ProfileContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final friendsState = ref.watch(myFriendsProvider);
+    final currentUser = ref
+        .watch(meProvider)
+        .maybeWhen(data: (user) => user, orElse: () => null);
+    final switchState = ref.watch(switchToProfessionalAccountProvider);
+    final followCountsState =
+        currentUser?.profileType == User.professionalProfileType
+        ? ref.watch(followCountsProvider(currentUser!.id))
+        : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -58,9 +68,19 @@ class _ProfileContent extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 32),
-          _buildProfileHeader(ref, friendsState),
+          _buildProfileHeader(
+            ref,
+            friendsState,
+            currentUser: currentUser,
+            followCountsState: followCountsState,
+          ),
           const SizedBox(height: 20),
-          _buildProfileActions(context, ref),
+          _buildProfileActions(
+            context,
+            ref,
+            currentUser: currentUser,
+            isSwitchingAccount: switchState.isLoading,
+          ),
           const SizedBox(height: 32),
           _buildPlaylistsSection(context, ref),
           const SizedBox(height: 32),
@@ -71,8 +91,10 @@ class _ProfileContent extends ConsumerWidget {
 
   Widget _buildProfileHeader(
     WidgetRef ref,
-    AsyncValue<List<User>> friendsState,
-  ) {
+    AsyncValue<List<User>> friendsState, {
+    required User? currentUser,
+    required AsyncValue<FollowCounts>? followCountsState,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -104,22 +126,59 @@ class _ProfileContent extends ConsumerWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
-        _buildFriendshipStat(ref, friendsState),
+        _buildProfileStats(
+          ref,
+          friendsState,
+          currentUser: currentUser,
+          followCountsState: followCountsState,
+        ),
       ],
     );
   }
 
-  Widget _buildFriendshipStat(
+  Widget _buildProfileStats(
     WidgetRef ref,
-    AsyncValue<List<User>> friendsState,
-  ) {
+    AsyncValue<List<User>> friendsState, {
+    required User? currentUser,
+    required AsyncValue<FollowCounts>? followCountsState,
+  }) {
+    final isProfessionalAccount =
+        currentUser?.profileType == User.professionalProfileType;
+
     return friendsState.when(
       skipLoadingOnRefresh: false,
-      data: (friends) => Text(
-        '${friends.length} ${friends.length == 1 ? 'Friend' : 'Friends'}',
-        style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
-        textAlign: TextAlign.center,
-      ),
+      data: (friends) {
+        if (!isProfessionalAccount) {
+          return Text(
+            _formatCount(friends.length, 'Friend', 'Friends'),
+            style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
+            textAlign: TextAlign.center,
+          );
+        }
+
+        final counts = followCountsState?.maybeWhen(
+          data: (counts) => counts,
+          orElse: () => const FollowCounts(),
+        );
+
+        final isLoadingCounts = followCountsState?.isLoading ?? false;
+        final hasCountsError = followCountsState?.hasError ?? false;
+        final followers = counts?.followers ?? 0;
+        final following = counts?.following ?? 0;
+        final suffix = isLoadingCounts
+            ? ' • Loading follows...'
+            : hasCountsError
+            ? ' • Follows unavailable'
+            : '';
+
+        return Text(
+          '${_formatCount(friends.length, 'Friend', 'Friends')} • '
+          '${_formatCount(followers, 'Follower', 'Followers')} • '
+          '${_formatCount(following, 'Following', 'Following')}$suffix',
+          style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
+          textAlign: TextAlign.center,
+        );
+      },
       loading: () => Text(
         'Loading friends...',
         style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 14),
@@ -133,7 +192,21 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileActions(BuildContext context, WidgetRef ref) {
+  String _formatCount(int count, String singular, String plural) {
+    return '$count ${count == 1 ? singular : plural}';
+  }
+
+  Widget _buildProfileActions(
+    BuildContext context,
+    WidgetRef ref, {
+    required User? currentUser,
+    required bool isSwitchingAccount,
+  }) {
+    final isPersonalAccount =
+        currentUser?.profileType == User.personalProfileType;
+    final isProfessionalAccount =
+        currentUser?.profileType == User.professionalProfileType;
+
     return Column(
       children: [
         SizedBox(
@@ -156,6 +229,51 @@ class _ProfileContent extends ConsumerWidget {
             ),
           ),
         ),
+        if (isPersonalAccount) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: isSwitchingAccount
+                  ? null
+                  : () => _switchToProfessionalAccount(context, ref),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: isSwitchingAccount
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : Text(
+                      'Switch to Professional',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
+        ] else if (isProfessionalAccount) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Professional Account',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
@@ -214,6 +332,55 @@ class _ProfileContent extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _switchToProfessionalAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Switch to Professional',
+      message:
+          'Professional accounts can be followed by other users. Other users will see Follow instead of Add Friend.',
+      confirmText: 'Switch',
+      cancelText: 'Cancel',
+    );
+
+    if (!confirmed) return;
+
+    ref.read(switchToProfessionalAccountProvider.notifier).clear();
+    final updatedUser = await ref
+        .read(switchToProfessionalAccountProvider.notifier)
+        .switchToProfessionalAccount();
+
+    if (!context.mounted) return;
+
+    if (updatedUser == null) {
+      final error = ref.read(switchToProfessionalAccountProvider).error;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(_normalizeAccountSwitchError(error))),
+        );
+      return;
+    }
+
+    ref.invalidate(profileProvider);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('Switched to Professional Account')),
+      );
+  }
+
+  String _normalizeAccountSwitchError(Object? error) {
+    final message = error?.toString();
+    if (message == null || message.isEmpty) {
+      return 'Could not switch account type';
+    }
+
+    return message.startsWith('Exception: ') ? message.substring(11) : message;
   }
 
   void _showUsernameDialog(BuildContext context, WidgetRef ref) {

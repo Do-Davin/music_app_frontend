@@ -5,6 +5,7 @@ class UserQueries {
         _id
         username
         email
+        profileType
         profileImageUrl
         practiceGoals {
           dailyMinutes
@@ -47,6 +48,7 @@ class UserQueries {
         _id
         username
         email
+        profileType
         profileImageUrl
       }
     }
@@ -60,6 +62,19 @@ class UserMutations {
         _id
         username
         email
+        profileType
+        profileImageUrl
+      }
+    }
+  ''';
+
+  static const String switchToProfessionalAccount = '''
+    mutation SwitchToProfessionalAccount {
+      switchToProfessionalAccount {
+        _id
+        username
+        email
+        profileType
         profileImageUrl
       }
     }

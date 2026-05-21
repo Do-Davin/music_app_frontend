@@ -8,6 +8,7 @@ class AuthMutations {
           _id
           username
           email
+          profileType
           profileImageUrl
           practiceGoals {
             dailyMinutes
@@ -31,6 +32,7 @@ class AuthMutations {
           _id
           username
           email
+          profileType
           profileImageUrl
           practiceGoals {
             dailyMinutes
