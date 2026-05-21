@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../controllers/karaoke_controller.dart';
 import 'lyric_line.dart';
 
@@ -109,43 +110,33 @@ class _LyricList extends StatefulWidget {
 }
 
 class _LyricListState extends State<_LyricList> {
-  final ScrollController _scrollController = ScrollController();
-  final double _itemHeight = 56.0;
+  final ItemScrollController _itemScrollController = ItemScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Listen to ValueNotifier instead of Stream
     widget.controller.currentLineNotifier.addListener(_onLineChanged);
   }
 
   void _onLineChanged() {
     final index = widget.controller.currentLineNotifier.value;
     debugPrint('📜 ValueNotifier changed to line: $index');
-    _scrollToActiveLine(index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveLine(index);
+    });
   }
 
   void _scrollToActiveLine(int index) {
-    if (!_scrollController.hasClients) {
-      debugPrint('❌ ScrollController has no clients yet');
+    if (!_itemScrollController.isAttached) {
+      debugPrint('❌ ItemScrollController is not attached yet');
       return;
     }
 
-    final viewportHeight = _scrollController.position.viewportDimension;
-    final centerOffset = (viewportHeight / 2) - (_itemHeight / 2);
-    final targetOffset = (index * _itemHeight) - centerOffset;
-
-    final clampedOffset = targetOffset.clamp(
-      0.0,
-      _scrollController.position.maxScrollExtent,
-    );
-
-    debugPrint('📜 Scrolling to index $index, offset: $clampedOffset');
-
-    _scrollController.animateTo(
-      clampedOffset,
+    _itemScrollController.scrollTo(
+      index: index,
       duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOutCubic,
+      alignment: 0.5,
     );
   }
 
@@ -153,44 +144,33 @@ class _LyricListState extends State<_LyricList> {
   Widget build(BuildContext context) {
     final lyrics = widget.controller.currentSong?.lyrics ?? [];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final viewportHeight = constraints.maxHeight;
-        final topPadding = (viewportHeight / 2) - (_itemHeight / 2);
-        final bottomPadding = topPadding;
+    return ValueListenableBuilder<int>(
+      valueListenable: widget.controller.currentLineNotifier,
+      builder: (context, currentLine, _) {
+        return ValueListenableBuilder<Duration>(
+          valueListenable: widget.controller.positionNotifier,
+          builder: (context, currentPosition, _) {
+            return ScrollablePositionedList.builder(
+              itemScrollController: _itemScrollController,
+              padding: const EdgeInsets.symmetric(vertical: 100),
+              itemCount: lyrics.length,
+              itemBuilder: (context, index) {
+                final isActive = index == currentLine;
+                final distance = (index - currentLine).abs();
+                final opacity = isActive
+                    ? 1.0
+                    : (1.0 - (distance * 0.3)).clamp(0.1, 0.5);
 
-        // Use ValueListenableBuilder for both line index and position
-        return ValueListenableBuilder<int>(
-          valueListenable: widget.controller.currentLineNotifier,
-          builder: (context, currentLine, _) {
-            return ValueListenableBuilder<Duration>(
-              valueListenable: widget.controller.positionNotifier,
-              builder: (context, currentPosition, _) {
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding:
-                      EdgeInsets.only(top: topPadding, bottom: bottomPadding),
-                  itemCount: lyrics.length,
-                  itemBuilder: (context, index) {
-                    final isActive = index == currentLine;
-                    final distance = (index - currentLine).abs();
-                    final opacity = isActive
-                        ? 1.0
-                        : (1.0 - (distance * 0.3)).clamp(0.1, 0.5);
-
-                    return Opacity(
-                      opacity: opacity,
-                      child: LyricLine(
-                        text: lyrics[index].text,
-                        isActive: isActive,
-                        height: _itemHeight,
-                        words: lyrics[index].words,
-                        currentPosition: currentPosition,
-                        onWordLongPress: (wordIdx) =>
-                            widget.onWordLongPress?.call(index, wordIdx),
-                      ),
-                    );
-                  },
+                return Opacity(
+                  opacity: opacity,
+                  child: LyricLine(
+                    text: lyrics[index].text,
+                    isActive: isActive,
+                    words: lyrics[index].words,
+                    currentPosition: currentPosition,
+                    onWordLongPress: (wordIdx) =>
+                        widget.onWordLongPress?.call(index, wordIdx),
+                  ),
                 );
               },
             );
@@ -203,7 +183,7 @@ class _LyricListState extends State<_LyricList> {
   @override
   void dispose() {
     widget.controller.currentLineNotifier.removeListener(_onLineChanged);
-    _scrollController.dispose();
     super.dispose();
   }
 }
+

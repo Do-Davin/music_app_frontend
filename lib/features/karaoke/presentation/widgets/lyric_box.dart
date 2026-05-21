@@ -110,7 +110,12 @@ class _LyricList extends StatefulWidget {
 
 class _LyricListState extends State<_LyricList> {
   final ScrollController _scrollController = ScrollController();
-  final double _itemHeight = 56.0;
+
+  /// Stores measured heights of rendered lyric items.
+  final Map<int, double> _measuredHeights = {};
+
+  double _viewportHeight = 0;
+  double _availableWidth = 0;
 
   @override
   void initState() {
@@ -119,10 +124,46 @@ class _LyricListState extends State<_LyricList> {
     widget.controller.currentLineNotifier.addListener(_onLineChanged);
   }
 
+  /// Estimate the height of a lyric item based on text length.
+  double _estimateHeight(int index) {
+    if (_measuredHeights.containsKey(index)) {
+      return _measuredHeights[index]!;
+    }
+
+    final lyrics = widget.controller.currentSong?.lyrics ?? [];
+    if (index >= lyrics.length) return 50.0;
+
+    final text = lyrics[index].text;
+    final currentLine = widget.controller.currentLineNotifier.value;
+    final isActive = index == currentLine;
+    final fontSize = isActive ? 26.0 : 18.0;
+    final verticalPad = isActive ? 28.0 : 16.0;
+    final horizontalPad = 32.0;
+
+    if (_availableWidth <= 0) {
+      return isActive ? 80.0 : 50.0;
+    }
+
+    final charWidth = fontSize * 0.55;
+    final usableWidth = _availableWidth - horizontalPad;
+    final textWidth = text.length * charWidth;
+    final numLines = (textWidth / usableWidth).ceil().clamp(1, 5);
+
+    return (numLines * fontSize * 1.4) + verticalPad;
+  }
+
+  void _onItemMeasured(int index, double height) {
+    if ((_measuredHeights[index] ?? 0) != height) {
+      _measuredHeights[index] = height;
+    }
+  }
+
   void _onLineChanged() {
     final index = widget.controller.currentLineNotifier.value;
     debugPrint('📜 ValueNotifier changed to line: $index');
-    _scrollToActiveLine(index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveLine(index);
+    });
   }
 
   void _scrollToActiveLine(int index) {
@@ -131,9 +172,16 @@ class _LyricListState extends State<_LyricList> {
       return;
     }
 
-    final viewportHeight = _scrollController.position.viewportDimension;
-    final centerOffset = (viewportHeight / 2) - (_itemHeight / 2);
-    final targetOffset = (index * _itemHeight) - centerOffset;
+    if (_viewportHeight == 0) return;
+
+    double offsetToTop = 0;
+    for (int i = 0; i < index; i++) {
+      offsetToTop += _estimateHeight(i);
+    }
+
+    final activeItemHeight = _estimateHeight(index);
+    final itemCenter = offsetToTop + activeItemHeight / 2;
+    final targetOffset = itemCenter - _viewportHeight / 2;
 
     final clampedOffset = targetOffset.clamp(
       0.0,
@@ -155,9 +203,10 @@ class _LyricListState extends State<_LyricList> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final viewportHeight = constraints.maxHeight;
-        final topPadding = (viewportHeight / 2) - (_itemHeight / 2);
-        final bottomPadding = topPadding;
+        _viewportHeight = constraints.maxHeight;
+        _availableWidth = constraints.maxWidth;
+
+        final halfViewport = _viewportHeight / 2;
 
         // Use ValueListenableBuilder for both line index and position
         return ValueListenableBuilder<int>(
@@ -169,7 +218,7 @@ class _LyricListState extends State<_LyricList> {
                 return ListView.builder(
                   controller: _scrollController,
                   padding:
-                      EdgeInsets.only(top: topPadding, bottom: bottomPadding),
+                      EdgeInsets.only(top: halfViewport, bottom: halfViewport),
                   itemCount: lyrics.length,
                   itemBuilder: (context, index) {
                     final isActive = index == currentLine;
@@ -178,16 +227,19 @@ class _LyricListState extends State<_LyricList> {
                         ? 1.0
                         : (1.0 - (distance * 0.3)).clamp(0.1, 0.5);
 
-                    return Opacity(
-                      opacity: opacity,
-                      child: LyricLine(
-                        text: lyrics[index].text,
-                        isActive: isActive,
-                        height: _itemHeight,
-                        words: lyrics[index].words,
-                        currentPosition: currentPosition,
-                        onWordLongPress: (wordIdx) =>
-                            widget.onWordLongPress?.call(index, wordIdx),
+                    return _LyricBoxItemWrapper(
+                      index: index,
+                      onMeasured: _onItemMeasured,
+                      child: Opacity(
+                        opacity: opacity,
+                        child: LyricLine(
+                          text: lyrics[index].text,
+                          isActive: isActive,
+                          words: lyrics[index].words,
+                          currentPosition: currentPosition,
+                          onWordLongPress: (wordIdx) =>
+                              widget.onWordLongPress?.call(index, wordIdx),
+                        ),
                       ),
                     );
                   },
@@ -207,3 +259,51 @@ class _LyricListState extends State<_LyricList> {
     super.dispose();
   }
 }
+
+/// Wrapper that measures its child's rendered height and reports it back.
+class _LyricBoxItemWrapper extends StatefulWidget {
+  final int index;
+  final void Function(int index, double height) onMeasured;
+  final Widget child;
+
+  const _LyricBoxItemWrapper({
+    required this.index,
+    required this.onMeasured,
+    required this.child,
+  });
+
+  @override
+  State<_LyricBoxItemWrapper> createState() => _LyricBoxItemWrapperState();
+}
+
+class _LyricBoxItemWrapperState extends State<_LyricBoxItemWrapper> {
+  final GlobalKey _key = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+  }
+
+  @override
+  void didUpdateWidget(covariant _LyricBoxItemWrapper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
+  }
+
+  void _measure() {
+    final renderBox = _key.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox != null && renderBox.hasSize) {
+      widget.onMeasured(widget.index, renderBox.size.height);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: _key,
+      child: widget.child,
+    );
+  }
+}
+
