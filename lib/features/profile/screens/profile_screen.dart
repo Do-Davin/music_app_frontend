@@ -9,6 +9,8 @@ import 'package:music_app_frontend/features/auth/presentation/providers/user_pro
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
 import 'package:music_app_frontend/features/profile/models/profile_model.dart';
 import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
+import 'package:music_app_frontend/features/relationships/models/follow_counts.dart';
+import 'package:music_app_frontend/features/relationships/providers/relationship_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -55,6 +57,10 @@ class _ProfileContent extends ConsumerWidget {
         .watch(meProvider)
         .maybeWhen(data: (user) => user, orElse: () => null);
     final switchState = ref.watch(switchToProfessionalAccountProvider);
+    final followCountsState =
+        currentUser?.profileType == User.professionalProfileType
+        ? ref.watch(followCountsProvider(currentUser!.id))
+        : null;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -62,7 +68,12 @@ class _ProfileContent extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 32),
-          _buildProfileHeader(ref, friendsState),
+          _buildProfileHeader(
+            ref,
+            friendsState,
+            currentUser: currentUser,
+            followCountsState: followCountsState,
+          ),
           const SizedBox(height: 20),
           _buildProfileActions(
             context,
@@ -80,8 +91,10 @@ class _ProfileContent extends ConsumerWidget {
 
   Widget _buildProfileHeader(
     WidgetRef ref,
-    AsyncValue<List<User>> friendsState,
-  ) {
+    AsyncValue<List<User>> friendsState, {
+    required User? currentUser,
+    required AsyncValue<FollowCounts>? followCountsState,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -113,22 +126,59 @@ class _ProfileContent extends ConsumerWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
-        _buildFriendshipStat(ref, friendsState),
+        _buildProfileStats(
+          ref,
+          friendsState,
+          currentUser: currentUser,
+          followCountsState: followCountsState,
+        ),
       ],
     );
   }
 
-  Widget _buildFriendshipStat(
+  Widget _buildProfileStats(
     WidgetRef ref,
-    AsyncValue<List<User>> friendsState,
-  ) {
+    AsyncValue<List<User>> friendsState, {
+    required User? currentUser,
+    required AsyncValue<FollowCounts>? followCountsState,
+  }) {
+    final isProfessionalAccount =
+        currentUser?.profileType == User.professionalProfileType;
+
     return friendsState.when(
       skipLoadingOnRefresh: false,
-      data: (friends) => Text(
-        '${friends.length} ${friends.length == 1 ? 'Friend' : 'Friends'}',
-        style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
-        textAlign: TextAlign.center,
-      ),
+      data: (friends) {
+        if (!isProfessionalAccount) {
+          return Text(
+            _formatCount(friends.length, 'Friend', 'Friends'),
+            style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
+            textAlign: TextAlign.center,
+          );
+        }
+
+        final counts = followCountsState?.maybeWhen(
+          data: (counts) => counts,
+          orElse: () => const FollowCounts(),
+        );
+
+        final isLoadingCounts = followCountsState?.isLoading ?? false;
+        final hasCountsError = followCountsState?.hasError ?? false;
+        final followers = counts?.followers ?? 0;
+        final following = counts?.following ?? 0;
+        final suffix = isLoadingCounts
+            ? ' • Loading follows...'
+            : hasCountsError
+            ? ' • Follows unavailable'
+            : '';
+
+        return Text(
+          '${_formatCount(friends.length, 'Friend', 'Friends')} • '
+          '${_formatCount(followers, 'Follower', 'Followers')} • '
+          '${_formatCount(following, 'Following', 'Following')}$suffix',
+          style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
+          textAlign: TextAlign.center,
+        );
+      },
       loading: () => Text(
         'Loading friends...',
         style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 14),
@@ -140,6 +190,10 @@ class _ProfileContent extends ConsumerWidget {
         label: const Text('Retry friends'),
       ),
     );
+  }
+
+  String _formatCount(int count, String singular, String plural) {
+    return '$count ${count == 1 ? singular : plural}';
   }
 
   Widget _buildProfileActions(
