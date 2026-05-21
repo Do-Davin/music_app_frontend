@@ -51,6 +51,10 @@ class _ProfileContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final friendsState = ref.watch(myFriendsProvider);
+    final currentUser = ref
+        .watch(meProvider)
+        .maybeWhen(data: (user) => user, orElse: () => null);
+    final switchState = ref.watch(switchToProfessionalAccountProvider);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -60,7 +64,12 @@ class _ProfileContent extends ConsumerWidget {
           const SizedBox(height: 32),
           _buildProfileHeader(ref, friendsState),
           const SizedBox(height: 20),
-          _buildProfileActions(context, ref),
+          _buildProfileActions(
+            context,
+            ref,
+            currentUser: currentUser,
+            isSwitchingAccount: switchState.isLoading,
+          ),
           const SizedBox(height: 32),
           _buildPlaylistsSection(context, ref),
           const SizedBox(height: 32),
@@ -133,7 +142,17 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileActions(BuildContext context, WidgetRef ref) {
+  Widget _buildProfileActions(
+    BuildContext context,
+    WidgetRef ref, {
+    required User? currentUser,
+    required bool isSwitchingAccount,
+  }) {
+    final isPersonalAccount =
+        currentUser?.profileType == User.personalProfileType;
+    final isProfessionalAccount =
+        currentUser?.profileType == User.professionalProfileType;
+
     return Column(
       children: [
         SizedBox(
@@ -156,6 +175,51 @@ class _ProfileContent extends ConsumerWidget {
             ),
           ),
         ),
+        if (isPersonalAccount) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: isSwitchingAccount
+                  ? null
+                  : () => _switchToProfessionalAccount(context, ref),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.primary, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: isSwitchingAccount
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    )
+                  : Text(
+                      'Switch to Professional',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+            ),
+          ),
+        ] else if (isProfessionalAccount) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Professional Account',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
@@ -214,6 +278,55 @@ class _ProfileContent extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _switchToProfessionalAccount(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Switch to Professional',
+      message:
+          'Professional accounts can be followed by other users. Other users will see Follow instead of Add Friend.',
+      confirmText: 'Switch',
+      cancelText: 'Cancel',
+    );
+
+    if (!confirmed) return;
+
+    ref.read(switchToProfessionalAccountProvider.notifier).clear();
+    final updatedUser = await ref
+        .read(switchToProfessionalAccountProvider.notifier)
+        .switchToProfessionalAccount();
+
+    if (!context.mounted) return;
+
+    if (updatedUser == null) {
+      final error = ref.read(switchToProfessionalAccountProvider).error;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(_normalizeAccountSwitchError(error))),
+        );
+      return;
+    }
+
+    ref.invalidate(profileProvider);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('Switched to Professional Account')),
+      );
+  }
+
+  String _normalizeAccountSwitchError(Object? error) {
+    final message = error?.toString();
+    if (message == null || message.isEmpty) {
+      return 'Could not switch account type';
+    }
+
+    return message.startsWith('Exception: ') ? message.substring(11) : message;
   }
 
   void _showUsernameDialog(BuildContext context, WidgetRef ref) {
