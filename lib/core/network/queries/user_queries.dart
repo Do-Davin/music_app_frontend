@@ -68,6 +68,18 @@ class UserMutations {
     }
   ''';
 
+  static const String switchToProfessionalAccount = '''
+    mutation SwitchToProfessionalAccount {
+      switchToProfessionalAccount {
+        _id
+        username
+        email
+        profileType
+        profileImageUrl
+      }
+    }
+  ''';
+
   static const String toggleLikeSong = '''
     mutation ToggleLikeSong(\$songId: ID!) {
       toggleLikeSong(songId: \$songId)
