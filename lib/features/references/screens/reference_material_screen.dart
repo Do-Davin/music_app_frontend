@@ -10,7 +10,14 @@ import '../models/reference_material.dart';
 
 class ReferenceMaterialScreen extends ConsumerStatefulWidget {
   final String? songId;
-  const ReferenceMaterialScreen({super.key, this.songId});
+  /// Set to false when embedding inside a bottom sheet (hides the AppBar)
+  final bool showAppBar;
+
+  const ReferenceMaterialScreen({
+    super.key,
+    this.songId,
+    this.showAppBar = true,
+  });
 
   @override
   ConsumerState<ReferenceMaterialScreen> createState() => _ReferenceMaterialScreenState();
@@ -54,11 +61,13 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Reference Materials'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
+      appBar: widget.showAppBar
+          ? AppBar(
+              title: const Text('Reference Materials'),
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+            )
+          : null,
       body: Column(
         children: [
           // Filter chips
