@@ -120,7 +120,6 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // If it's a YouTube song, we wrap the body in the player builder
     if (widget.song.isYoutube && _youtubeController != null) {
       return YoutubePlayerBuilder(
         player: YoutubePlayer(
@@ -176,6 +175,8 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 30),
+
+              // ── Song title, artist & favourite ──────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -194,18 +195,27 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
                         ),
                         Text(
                           widget.song.artist,
-                          style:
-                              const TextStyle(color: Colors.grey, fontSize: 18),
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 18),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.favorite, color: AppColors.primary, size: 30),
+                  const Icon(Icons.favorite,
+                      color: AppColors.primary, size: 30),
                 ],
               ),
-              const SizedBox(height: 30),
+
+              const SizedBox(height: 24),
+
+              // ── Material / Karaoke / Chord buttons ──────────────────────
+              _buildActionButtons(),
+
+              const SizedBox(height: 24),
+
+              // ── Progress bar & controls ─────────────────────────────────
               _buildProgressBar(),
               const SizedBox(height: 20),
               _buildPlayerControls(),
@@ -214,6 +224,31 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        _ActionButton(
+          icon: Icons.description_outlined,
+          label: 'Material',
+          onTap: () {},
+        ),
+        const SizedBox(width: 10),
+        _ActionButton(
+          icon: Icons.mic_outlined,
+          label: 'Karaoke',
+          onTap: () {},
+        ),
+        const SizedBox(width: 10),
+        _ActionButton(
+          icon: Icons.grid_on_outlined,
+          label: 'Chord',
+          onTap: () {},
+        ),
+      ],
     );
   }
 
@@ -249,7 +284,7 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
             if (youtubePlayer != null)
               Positioned.fill(
                 child: Opacity(
-                  opacity: 0.01, // Near invisible but still rendered
+                  opacity: 0.01,
                   child: youtubePlayer,
                 ),
               ),
@@ -311,7 +346,8 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
-            icon: const Icon(Icons.skip_previous, color: Colors.white, size: 48),
+            icon: const Icon(Icons.skip_previous,
+                color: Colors.white, size: 48),
             onPressed: () {}),
         GestureDetector(
           onTap: _togglePlay,
@@ -330,6 +366,50 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
             icon: const Icon(Icons.skip_next, color: Colors.white, size: 48),
             onPressed: () {}),
       ],
+    );
+  }
+}
+
+// ── Reusable pill-shaped action button ────────────────────────────────────────
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: AppColors.primary, width: 1.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.primary, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
