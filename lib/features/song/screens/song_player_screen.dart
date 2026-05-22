@@ -41,23 +41,24 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
     if (widget.song.isYoutube) {
       final videoId = YoutubePlayer.convertUrlToId(url);
       if (videoId != null) {
-        _youtubeController = YoutubePlayerController(
-          initialVideoId: videoId,
-          flags: const YoutubePlayerFlags(
-            autoPlay: true,
-            mute: false,
-            hideControls: true,
-            disableDragSeek: true,
-          ),
-        )..addListener(() {
-            if (mounted) {
-              setState(() {
-                _isPlaying = _youtubeController!.value.isPlaying;
-                _position = _youtubeController!.value.position;
-                _duration = _youtubeController!.metadata.duration;
-              });
-            }
-          });
+        _youtubeController =
+            YoutubePlayerController(
+              initialVideoId: videoId,
+              flags: const YoutubePlayerFlags(
+                autoPlay: true,
+                mute: false,
+                hideControls: true,
+                disableDragSeek: true,
+              ),
+            )..addListener(() {
+              if (mounted) {
+                setState(() {
+                  _isPlaying = _youtubeController!.value.isPlaying;
+                  _position = _youtubeController!.value.position;
+                  _duration = _youtubeController!.metadata.duration;
+                });
+              }
+            });
       } else {
         debugPrint("Could not extract YouTube ID from URL: $url");
       }
@@ -143,16 +144,20 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_down,
-              color: Colors.white, size: 32),
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            color: Colors.white,
+            size: 32,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.category,
           style: const TextStyle(
-              color: AppColors.primary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold),
+            color: AppColors.primary,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -167,9 +172,10 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
               Text(
                 widget.song.lyrics ?? "Enjoy the music!",
                 style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500),
+                  color: AppColors.primary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -187,24 +193,30 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
                         Text(
                           widget.song.title,
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           widget.song.artist,
                           style: const TextStyle(
-                              color: Colors.grey, fontSize: 18),
+                            color: Colors.grey,
+                            fontSize: 18,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.favorite,
-                      color: AppColors.primary, size: 30),
+                  const Icon(
+                    Icons.favorite,
+                    color: AppColors.primary,
+                    size: 30,
+                  ),
                 ],
               ),
 
@@ -234,19 +246,25 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
         _ActionButton(
           icon: Icons.description_outlined,
           label: 'Material',
-          onTap: () {},
+          onTap: () {
+            print("Material button has been tapped");
+          },
         ),
         const SizedBox(width: 10),
         _ActionButton(
           icon: Icons.mic_outlined,
           label: 'Karaoke',
-          onTap: () {},
+          onTap: () {
+            print("Karaoke button has been tapped");
+          },
         ),
         const SizedBox(width: 10),
         _ActionButton(
           icon: Icons.grid_on_outlined,
           label: 'Chord',
-          onTap: () {},
+          onTap: () {
+            print("Chord button has been tapped");
+          },
         ),
       ],
     );
@@ -260,9 +278,10 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
-              blurRadius: 25,
-              offset: const Offset(0, 10)),
+            color: Colors.black.withValues(alpha: 0.5),
+            blurRadius: 25,
+            offset: const Offset(0, 10),
+          ),
         ],
       ),
       child: ClipRRect(
@@ -271,22 +290,26 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
           children: [
             if (widget.song.coverImageUrl != null &&
                 widget.song.coverImageUrl!.isNotEmpty)
-              Image.network(widget.song.coverImageUrl!,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity)
+              Image.network(
+                widget.song.coverImageUrl!,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+              )
             else
               Container(
-                  color: AppColors.surface,
-                  child: const Center(
-                      child: Icon(Icons.music_note,
-                          color: Colors.white24, size: 80))),
+                color: AppColors.surface,
+                child: const Center(
+                  child: Icon(
+                    Icons.music_note,
+                    color: Colors.white24,
+                    size: 80,
+                  ),
+                ),
+              ),
             if (youtubePlayer != null)
               Positioned.fill(
-                child: Opacity(
-                  opacity: 0.01,
-                  child: youtubePlayer,
-                ),
+                child: Opacity(opacity: 0.01, child: youtubePlayer),
               ),
           ],
         ),
@@ -312,7 +335,8 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
             value: value.clamp(0.0, 1.0),
             onChanged: (v) {
               final newPos = Duration(
-                  milliseconds: (v * _duration.inMilliseconds).toInt());
+                milliseconds: (v * _duration.inMilliseconds).toInt(),
+              );
               if (widget.song.isYoutube) {
                 _youtubeController?.seekTo(newPos);
               } else {
@@ -325,16 +349,22 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(_formatDuration(_position),
-                style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
-            Text(_formatDuration(_duration),
-                style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              _formatDuration(_position),
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              _formatDuration(_duration),
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ],
@@ -346,25 +376,29 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
-            icon: const Icon(Icons.skip_previous,
-                color: Colors.white, size: 48),
-            onPressed: () {}),
+          icon: const Icon(Icons.skip_previous, color: Colors.white, size: 48),
+          onPressed: () {},
+        ),
         GestureDetector(
           onTap: _togglePlay,
           child: Container(
             height: 75,
             width: 75,
             decoration: const BoxDecoration(
-                shape: BoxShape.circle, color: AppColors.surface),
+              shape: BoxShape.circle,
+              color: AppColors.surface,
+            ),
             child: Icon(
-                _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: AppColors.primary,
-                size: 50),
+              _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              color: AppColors.primary,
+              size: 50,
+            ),
           ),
         ),
         IconButton(
-            icon: const Icon(Icons.skip_next, color: Colors.white, size: 48),
-            onPressed: () {}),
+          icon: const Icon(Icons.skip_next, color: Colors.white, size: 48),
+          onPressed: () {},
+        ),
       ],
     );
   }
