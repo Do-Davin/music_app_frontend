@@ -15,6 +15,7 @@ class LyricLine extends StatelessWidget {
   final List<LrcWord>? words;
   final Duration currentPosition;
   final void Function(int wordIndex)? onWordLongPress;
+  final double fontScale;
 
   const LyricLine({
     super.key,
@@ -24,6 +25,7 @@ class LyricLine extends StatelessWidget {
     this.words,
     this.currentPosition = Duration.zero,
     this.onWordLongPress,
+    this.fontScale = 1.0,
   });
 
   @override
@@ -37,9 +39,7 @@ class LyricLine extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.max,
-        children: [
-          hasWords ? _buildWordByWord() : _buildSingleLine(),
-        ],
+        children: [hasWords ? _buildWordByWord() : _buildSingleLine()],
       ),
     );
   }
@@ -50,11 +50,9 @@ class LyricLine extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       style: TextStyle(
-        fontSize: isActive ? 26 : 18,
+        fontSize: (isActive ? 26 : 18) * fontScale,
         fontWeight: isActive ? FontWeight.w800 : FontWeight.w400,
-        color: isActive
-            ? Colors.white
-            : Colors.white.withValues(alpha: 0.3),
+        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.3),
         height: 1.4,
         letterSpacing: isActive ? 0.5 : 0,
         shadows: isActive
@@ -95,9 +93,11 @@ class LyricLine extends StatelessWidget {
         wordEnd = words![i + 1].timestamp;
       }
 
-      final bool isPast = currentPosition >= wordStart &&
+      final bool isPast =
+          currentPosition >= wordStart &&
           (wordEnd == null || currentPosition >= wordEnd);
-      final bool isCurrent = currentPosition >= wordStart &&
+      final bool isCurrent =
+          currentPosition >= wordStart &&
           (wordEnd == null || currentPosition < wordEnd);
 
       Color wordColor;
@@ -143,23 +143,25 @@ class LyricLine extends StatelessWidget {
         spans.add(const TextSpan(text: ' '));
       }
 
-      spans.add(WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: GestureDetector(
-          onLongPress: () => onWordLongPress?.call(i),
-          child: Text(
-            word.text,
-            style: TextStyle(
-              color: wordColor,
-              fontWeight: wordWeight,
-              fontSize: 26,
-              height: 1.4,
-              letterSpacing: 0.5,
-              shadows: wordShadows,
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: GestureDetector(
+            onLongPress: () => onWordLongPress?.call(i),
+            child: Text(
+              word.text,
+              style: TextStyle(
+                color: wordColor,
+                fontWeight: wordWeight,
+                fontSize: 26 * fontScale,
+                height: 1.4,
+                letterSpacing: 0.5,
+                shadows: wordShadows,
+              ),
             ),
           ),
         ),
-      ));
+      );
     }
 
     return Text.rich(

@@ -11,11 +11,7 @@ class PlayerScreen extends StatefulWidget {
   final KaraokeSong song;
   final KaraokeController controller;
 
-  const PlayerScreen({
-    super.key,
-    required this.song,
-    required this.controller,
-  });
+  const PlayerScreen({super.key, required this.song, required this.controller});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -24,13 +20,15 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   late List<LrcLine> _lyricsWithWords;
   bool _isAdvancedMode = false;
+  double _lyricScale = 1.0;
 
   @override
   void initState() {
     super.initState();
     // Auto-generate word timing from line timestamps
-    _lyricsWithWords =
-        WordTimingGenerator.generateWordTiming(widget.song.lyrics);
+    _lyricsWithWords = WordTimingGenerator.generateWordTiming(
+      widget.song.lyrics,
+    );
 
     // Start playing when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -78,6 +76,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           },
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: FloatingActionButton.small(
+        onPressed: _showResizeDialog,
+        backgroundColor: const Color(0xFF7C4DFF),
+        child: const Icon(Icons.format_size),
+      ),
     );
   }
 
@@ -111,6 +115,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
               ],
             ),
+          ),
+          // Edit lyrics (pencil)
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            tooltip: 'Edit full lyrics',
+            onPressed: () => _showEditLyricsDialog(),
           ),
           IconButton(
             icon: Icon(
@@ -229,9 +239,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         margin: const EdgeInsets.only(left: 4),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isActive
-              ? const Color(0xFF7C4DFF)
-              : const Color(0xFF2A2A2A),
+          color: isActive ? const Color(0xFF7C4DFF) : const Color(0xFF2A2A2A),
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
@@ -271,9 +279,165 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: _LyricScroller(
           controller: widget.controller,
           lyrics: lyrics,
+          fontScale: _lyricScale,
           onWordLongPress: _isAdvancedMode ? _showWordEditDialog : null,
         ),
       ),
+    );
+  }
+
+  void _showEditLyricsDialog() {
+    final aggregated = _lyricsWithWords.map((l) => l.text).join('\n');
+    final ctrl = TextEditingController(text: aggregated);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Edit Lyrics', style: TextStyle(color: Colors.white)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: TextField(
+            controller: ctrl,
+            style: const TextStyle(color: Colors.white),
+            maxLines: 12,
+            decoration: InputDecoration(
+              hintText: 'Edit lyrics here (one line per lyric line)',
+              hintStyle: TextStyle(color: Colors.grey[600]),
+              filled: true,
+              fillColor: const Color(0xFF2A2A2A),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final edited = ctrl.text.split('\n');
+              setState(() {
+                final minLen = edited.length < _lyricsWithWords.length
+                    ? edited.length
+                    : _lyricsWithWords.length;
+                for (int i = 0; i < minLen; i++) {
+                  _lyricsWithWords[i] = _lyricsWithWords[i].copyWith(
+                    text: edited[i],
+                  );
+                }
+                if (edited.length > _lyricsWithWords.length) {
+                  // append new lines with zero timestamp
+                  for (
+                    int i = _lyricsWithWords.length;
+                    i < edited.length;
+                    i++
+                  ) {
+                    _lyricsWithWords.add(
+                      LrcLine(timestamp: Duration.zero, text: edited[i]),
+                    );
+                  }
+                } else if (edited.length < _lyricsWithWords.length) {
+                  // truncate extra lines
+                  _lyricsWithWords = _lyricsWithWords.sublist(0, edited.length);
+                }
+              });
+
+              widget.controller.saveLyrics(widget.song.id, _lyricsWithWords);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Lyrics updated')));
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF7C4DFF),
+            ),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showResizeDialog() {
+    double temp = _lyricScale;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Resize Lyrics',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              StatefulBuilder(
+                builder: (context, setStateSB) {
+                  return Column(
+                    children: [
+                      Slider(
+                        min: 0.7,
+                        max: 1.6,
+                        value: temp,
+                        activeColor: const Color(0xFF7C4DFF),
+                        onChanged: (v) => setStateSB(() => temp = v),
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Small',
+                            style: TextStyle(color: Colors.grey[400]),
+                          ),
+                          Text(
+                            '${(temp * 100).round()}%',
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          Text(
+                            'Large',
+                            style: TextStyle(color: Colors.grey[400]),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              setState(() => _lyricScale = temp);
+                              Navigator.pop(ctx);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7C4DFF),
+                            ),
+                            child: const Text('Apply'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -308,8 +472,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         activeTrackColor: const Color(0xFF7C4DFF),
                         inactiveTrackColor: Colors.grey[800],
                         thumbColor: const Color(0xFF7C4DFF),
-                        overlayColor:
-                            const Color(0xFF7C4DFF).withValues(alpha: 0.2),
+                        overlayColor: const Color(
+                          0xFF7C4DFF,
+                        ).withValues(alpha: 0.2),
                       ),
                       child: Slider(
                         min: 0,
@@ -361,9 +526,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.fast_rewind_rounded, color: Colors.white, size: 36),
+                    icon: const Icon(
+                      Icons.fast_rewind_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                     tooltip: 'Back 2s',
-                    onPressed: () => widget.controller.skip(const Duration(seconds: -2)),
+                    onPressed: () =>
+                        widget.controller.skip(const Duration(seconds: -2)),
                   ),
                   const SizedBox(width: 20),
                   GestureDetector(
@@ -377,14 +547,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         color: const Color(0xFF7C4DFF),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF7C4DFF).withValues(alpha: 0.4),
+                            color: const Color(
+                              0xFF7C4DFF,
+                            ).withValues(alpha: 0.4),
                             blurRadius: 20,
                             spreadRadius: 2,
                           ),
                         ],
                       ),
                       child: Icon(
-                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         size: 40,
                         color: Colors.white,
                       ),
@@ -392,9 +566,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                   const SizedBox(width: 20),
                   IconButton(
-                    icon: const Icon(Icons.fast_forward_rounded, color: Colors.white, size: 36),
+                    icon: const Icon(
+                      Icons.fast_forward_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                     tooltip: 'Forward 2s',
-                    onPressed: () => widget.controller.skip(const Duration(seconds: 2)),
+                    onPressed: () =>
+                        widget.controller.skip(const Duration(seconds: 2)),
                   ),
                 ],
               );
@@ -432,7 +611,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: const Color(0xFF1E1E1E),
-            title: const Text('Edit Word Timing', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Edit Word Timing',
+              style: TextStyle(color: Colors.white),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -442,13 +624,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Word Text',
                     labelStyle: TextStyle(color: Colors.grey),
-                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF7C4DFF))),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF7C4DFF)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
                   'Timestamp: ${_formatTimeWithMs(currentTimestamp)}',
-                  style: const TextStyle(color: Color(0xFF7C4DFF), fontFamily: 'monospace', fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Color(0xFF7C4DFF),
+                    fontFamily: 'monospace',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Wrap(
@@ -457,16 +646,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   alignment: WrapAlignment.center,
                   children: [
                     _adjustBtn(setDialogState, -100, '-100ms', () {
-                      setDialogState(() => currentTimestamp -= const Duration(milliseconds: 100));
+                      setDialogState(
+                        () => currentTimestamp -= const Duration(
+                          milliseconds: 100,
+                        ),
+                      );
                     }),
                     _adjustBtn(setDialogState, -10, '-10ms', () {
-                      setDialogState(() => currentTimestamp -= const Duration(milliseconds: 10));
+                      setDialogState(
+                        () => currentTimestamp -= const Duration(
+                          milliseconds: 10,
+                        ),
+                      );
                     }),
                     _adjustBtn(setDialogState, 10, '+10ms', () {
-                      setDialogState(() => currentTimestamp += const Duration(milliseconds: 10));
+                      setDialogState(
+                        () => currentTimestamp += const Duration(
+                          milliseconds: 10,
+                        ),
+                      );
                     }),
                     _adjustBtn(setDialogState, 100, '+100ms', () {
-                      setDialogState(() => currentTimestamp += const Duration(milliseconds: 100));
+                      setDialogState(
+                        () => currentTimestamp += const Duration(
+                          milliseconds: 100,
+                        ),
+                      );
                     }),
                   ],
                 ),
@@ -475,15 +680,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
               ElevatedButton(
                 onPressed: () {
-                  _updateWord(lineIndex, wordIndex, textController.text, currentTimestamp);
+                  _updateWord(
+                    lineIndex,
+                    wordIndex,
+                    textController.text,
+                    currentTimestamp,
+                  );
                   Navigator.pop(context);
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C4DFF)),
-                child: const Text('Save Change', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C4DFF),
+                ),
+                child: const Text(
+                  'Save Change',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );
@@ -492,7 +710,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _adjustBtn(StateSetter setDialogState, int ms, String label, VoidCallback onPressed) {
+  Widget _adjustBtn(
+    StateSetter setDialogState,
+    int ms,
+    String label,
+    VoidCallback onPressed,
+  ) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
@@ -514,9 +737,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
 
     widget.controller.saveLyrics(widget.song.id, _lyricsWithWords);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Word updated and saved!'), duration: Duration(seconds: 1)),
+      const SnackBar(
+        content: Text('Word updated and saved!'),
+        duration: Duration(seconds: 1),
+      ),
     );
   }
 
@@ -536,11 +762,13 @@ class _LyricScroller extends StatefulWidget {
   final KaraokeController controller;
   final List<LrcLine> lyrics;
   final void Function(int lineIndex, int wordIndex)? onWordLongPress;
+  final double fontScale;
 
   const _LyricScroller({
     required this.controller,
     required this.lyrics,
     this.onWordLongPress,
+    this.fontScale = 1.0,
   });
 
   @override
@@ -611,8 +839,7 @@ class _LyricScrollerState extends State<_LyricScroller> {
         _viewportHeight = constraints.maxHeight;
 
         final halfViewport = _viewportHeight / 2;
-        final verticalPadding =
-            math.max(0.0, halfViewport - _activeHeight / 2);
+        final verticalPadding = math.max(0.0, halfViewport - _activeHeight / 2);
 
         return ValueListenableBuilder<int>(
           valueListenable: widget.controller.currentLineNotifier,
@@ -648,6 +875,7 @@ class _LyricScrollerState extends State<_LyricScroller> {
                           currentPosition: currentPosition,
                           onWordLongPress: (wordIdx) =>
                               widget.onWordLongPress?.call(index, wordIdx),
+                          fontScale: widget.fontScale,
                         ),
                       ),
                     );
