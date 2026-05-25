@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
 import '../../domain/utils/word_timing_generator.dart';
@@ -530,7 +530,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
 // ============================================
 // Lyric scroller: active line always centered
-// with word-by-word highlighting
+// with word-by-word highlighting.
+// Heights are dynamic — adapts to text that wraps
+// to multiple lines (e.g. YouTube auto-generated lyrics).
 // ============================================
 class _LyricScroller extends StatefulWidget {
   final KaraokeController controller;
@@ -548,110 +550,63 @@ class _LyricScroller extends StatefulWidget {
 }
 
 class _LyricScrollerState extends State<_LyricScroller> {
-  final ScrollController _scrollController = ScrollController();
-
-  static const double _inactiveHeight = 52.0;
-  static const double _activeHeight = 72.0;
-
-  late List<double> _itemHeights;
-  double _viewportHeight = 0;
+  final ItemScrollController _itemScrollController = ItemScrollController();
 
   @override
   void initState() {
     super.initState();
-    _rebuildHeights(0);
     widget.controller.currentLineNotifier.addListener(_onLineChanged);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final currentLine = widget.controller.currentLineNotifier.value;
-      _scrollToActiveLine(currentLine);
-    });
-  }
-
-  void _rebuildHeights(int activeLine) {
-    _itemHeights = List.generate(
-      widget.lyrics.length,
-      (i) => i == activeLine ? _activeHeight : _inactiveHeight,
-    );
   }
 
   void _onLineChanged() {
     final index = widget.controller.currentLineNotifier.value;
-    _rebuildHeights(index);
-    _scrollToActiveLine(index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveLine(index);
+    });
   }
 
   void _scrollToActiveLine(int index) {
-    if (!_scrollController.hasClients || _viewportHeight == 0) return;
-
-    double offsetToTop = 0;
-    for (int i = 0; i < index; i++) {
-      offsetToTop += _itemHeights[i];
+    if (!_itemScrollController.isAttached) {
+      return;
     }
 
-    final itemCenter = offsetToTop + _itemHeights[index] / 2;
-    final targetOffset = itemCenter - _viewportHeight / 2;
-
-    final clamped = targetOffset.clamp(
-      0.0,
-      _scrollController.position.maxScrollExtent,
-    );
-
-    _scrollController.animateTo(
-      clamped,
-      duration: const Duration(milliseconds: 450),
+    _itemScrollController.scrollTo(
+      index: index,
+      duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOutCubic,
+      alignment: 0.5,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _viewportHeight = constraints.maxHeight;
+    return ValueListenableBuilder<int>(
+      valueListenable: widget.controller.currentLineNotifier,
+      builder: (context, currentLine, _) {
+        return ValueListenableBuilder<Duration>(
+          valueListenable: widget.controller.positionNotifier,
+          builder: (context, currentPosition, _) {
+            return ScrollablePositionedList.builder(
+              itemScrollController: _itemScrollController,
+              padding: const EdgeInsets.symmetric(vertical: 100),
+              itemCount: widget.lyrics.length,
+              itemBuilder: (context, index) {
+                final isActive = index == currentLine;
+                final distance = (index - currentLine).abs();
+                final opacity = isActive
+                    ? 1.0
+                    : (1.0 - (distance * 0.25)).clamp(0.1, 0.55);
 
-        final halfViewport = _viewportHeight / 2;
-        final verticalPadding =
-            math.max(0.0, halfViewport - _activeHeight / 2);
-
-        return ValueListenableBuilder<int>(
-          valueListenable: widget.controller.currentLineNotifier,
-          builder: (context, currentLine, _) {
-            _rebuildHeights(currentLine);
-
-            return ValueListenableBuilder<Duration>(
-              valueListenable: widget.controller.positionNotifier,
-              builder: (context, currentPosition, _) {
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: EdgeInsets.only(
-                    top: verticalPadding,
-                    bottom: verticalPadding,
+                return Opacity(
+                  opacity: opacity,
+                  child: LyricLine(
+                    text: widget.lyrics[index].text,
+                    isActive: isActive,
+                    words: widget.lyrics[index].words,
+                    currentPosition: currentPosition,
+                    onWordLongPress: (wordIdx) =>
+                        widget.onWordLongPress?.call(index, wordIdx),
                   ),
-                  itemCount: widget.lyrics.length,
-                  itemBuilder: (context, index) {
-                    final isActive = index == currentLine;
-                    final distance = (index - currentLine).abs();
-                    final opacity = isActive
-                        ? 1.0
-                        : (1.0 - (distance * 0.25)).clamp(0.1, 0.55);
-
-                    return SizedBox(
-                      height: _itemHeights[index],
-                      child: Opacity(
-                        opacity: opacity,
-                        child: LyricLine(
-                          text: widget.lyrics[index].text,
-                          isActive: isActive,
-                          height: _itemHeights[index],
-                          words: widget.lyrics[index].words,
-                          currentPosition: currentPosition,
-                          onWordLongPress: (wordIdx) =>
-                              widget.onWordLongPress?.call(index, wordIdx),
-                        ),
-                      ),
-                    );
-                  },
                 );
               },
             );
@@ -664,7 +619,6 @@ class _LyricScrollerState extends State<_LyricScroller> {
   @override
   void dispose() {
     widget.controller.currentLineNotifier.removeListener(_onLineChanged);
-    _scrollController.dispose();
     super.dispose();
   }
 }
