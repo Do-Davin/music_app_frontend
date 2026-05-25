@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
+import 'package:music_app_frontend/features/references/screens/reference_material_screen.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
-class SongPlayerScreen extends StatefulWidget {
+// Changed to ConsumerStatefulWidget so we can access Riverpod inside
+class SongPlayerScreen extends ConsumerStatefulWidget {
   final Song song;
   final String category;
 
@@ -15,10 +18,10 @@ class SongPlayerScreen extends StatefulWidget {
   });
 
   @override
-  State<SongPlayerScreen> createState() => _SongPlayerScreenState();
+  ConsumerState<SongPlayerScreen> createState() => _SongPlayerScreenState();
 }
 
-class _SongPlayerScreenState extends State<SongPlayerScreen> {
+class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   AudioPlayer? _audioPlayer;
   YoutubePlayerController? _youtubeController;
   bool _isPlaying = false;
@@ -71,11 +74,7 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
       }
 
       _audioPlayer!.playerStateStream.listen((state) {
-        if (mounted) {
-          setState(() {
-            _isPlaying = state.playing;
-          });
-        }
+        if (mounted) setState(() => _isPlaying = state.playing);
       });
 
       _audioPlayer!.positionStream.listen((pos) {
@@ -113,25 +112,90 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
-    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
-    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    final twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
     return "$twoDigitMinutes:$twoDigitSeconds";
   }
 
+  // ── Opens the Reference Materials bottom sheet filtered by this song ────────
+  void _openMaterial() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,          // allows full height
+      backgroundColor: Colors.transparent,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.50,          // opens at 40% screen height
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // ── Drag handle ──────────────────────────────────────────────
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // ── Header row ───────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Reference Materials',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ── ReferenceMaterialScreen body (reuses existing widget) ────
+              Expanded(
+                child: ReferenceMaterialScreen(
+                  songId: widget.song.id,
+                  showAppBar: false,       // hide its own AppBar inside sheet
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    // If it's a YouTube song, we wrap the body in the player builder
     if (widget.song.isYoutube && _youtubeController != null) {
       return YoutubePlayerBuilder(
         player: YoutubePlayer(
           controller: _youtubeController!,
-          onReady: () {
-            debugPrint('YouTube Player is ready.');
-          },
+          onReady: () => debugPrint('YouTube Player is ready.'),
         ),
-        builder: (context, player) {
-          return _buildScaffold(context, player);
-        },
+        builder: (context, player) => _buildScaffold(context, player),
       );
     }
     return _buildScaffold(context, null);
@@ -176,6 +240,8 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 30),
+
+              // ── Song title, artist & favourite ──────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -194,18 +260,27 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
                         ),
                         Text(
                           widget.song.artist,
-                          style:
-                              const TextStyle(color: Colors.grey, fontSize: 18),
+                          style: const TextStyle(
+                              color: Colors.grey, fontSize: 18),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.favorite, color: AppColors.primary, size: 30),
+                  const Icon(Icons.favorite,
+                      color: AppColors.primary, size: 30),
                 ],
               ),
-              const SizedBox(height: 30),
+
+              const SizedBox(height: 24),
+
+              // ── Material / Karaoke / Chord buttons ──────────────────────
+              _buildActionButtons(),
+
+              const SizedBox(height: 24),
+
+              // ── Progress bar & controls ─────────────────────────────────
               _buildProgressBar(),
               const SizedBox(height: 20),
               _buildPlayerControls(),
@@ -214,6 +289,31 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActionButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        _ActionButton(
+          icon: Icons.description_outlined,
+          label: 'Material',
+          onTap: _openMaterial,             // ← wired up
+        ),
+        const SizedBox(width: 10),
+        _ActionButton(
+          icon: Icons.mic_outlined,
+          label: 'Karaoke',
+          onTap: () {},
+        ),
+        const SizedBox(width: 10),
+        _ActionButton(
+          icon: Icons.grid_on_outlined,
+          label: 'Chord',
+          onTap: () {},
+        ),
+      ],
     );
   }
 
@@ -248,10 +348,7 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
                           color: Colors.white24, size: 80))),
             if (youtubePlayer != null)
               Positioned.fill(
-                child: Opacity(
-                  opacity: 0.01, // Near invisible but still rendered
-                  child: youtubePlayer,
-                ),
+                child: Opacity(opacity: 0.01, child: youtubePlayer),
               ),
           ],
         ),
@@ -311,7 +408,8 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
-            icon: const Icon(Icons.skip_previous, color: Colors.white, size: 48),
+            icon: const Icon(Icons.skip_previous,
+                color: Colors.white, size: 48),
             onPressed: () {}),
         GestureDetector(
           onTap: _togglePlay,
@@ -330,6 +428,50 @@ class _SongPlayerScreenState extends State<SongPlayerScreen> {
             icon: const Icon(Icons.skip_next, color: Colors.white, size: 48),
             onPressed: () {}),
       ],
+    );
+  }
+}
+
+// ── Reusable pill-shaped action button ────────────────────────────────────────
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: AppColors.primary, width: 1.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: AppColors.primary, size: 18),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
