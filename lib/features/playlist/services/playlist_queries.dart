@@ -34,6 +34,7 @@ class PlaylistQueries {
           sourcePath
           fileUrl
           videoUrl
+          lyrics
         }
         createdAt
       }
@@ -65,6 +66,7 @@ class PlaylistQueries {
           key
           tempo
           tags
+          lyrics
         }
         createdAt
         updatedAt
@@ -116,6 +118,9 @@ class PlaylistQueries {
           duration
           source
           sourcePath
+          fileUrl
+          videoUrl
+          lyrics
         }
       }
     }

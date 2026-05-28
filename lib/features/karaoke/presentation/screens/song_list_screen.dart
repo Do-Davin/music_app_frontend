@@ -19,56 +19,70 @@ class SongListScreen extends StatelessWidget {
         }
 
         if (controller.songs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+          return RefreshIndicator(
+            color: const Color(0xFF7C4DFF),
+            onRefresh: controller.loadSongs,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
-                Icon(Icons.music_note, size: 64, color: Colors.grey[700]),
-                const SizedBox(height: 16),
-                Text(
-                  'No songs yet\nTap + to add one!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.music_note, size: 64, color: Colors.grey[700]),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No songs yet\nPull down to refresh!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           );
         }
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: controller.songs.length,
-          itemBuilder: (context, index) {
-            final song = controller.songs[index];
-            return _SongCard(
-              song: song,
-              onTap: () {
-                if (song.lyrics.isEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => LyricEditorScreen(
-                        song: song,
-                        controller: controller, // ← Pass controller
+        return RefreshIndicator(
+          color: const Color(0xFF7C4DFF),
+          onRefresh: controller.loadSongs,
+          child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16),
+            itemCount: controller.songs.length,
+            itemBuilder: (context, index) {
+              final song = controller.songs[index];
+              return _SongCard(
+                song: song,
+                onTap: () {
+                  if (song.lyrics.isEmpty) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LyricEditorScreen(
+                          song: song,
+                          controller: controller,
+                        ),
                       ),
-                    ),
-                  );
-                } else {
-                  // Has lyrics - go to player
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PlayerScreen(
-                        song: song,
-                        controller: controller, // ← Pass controller
+                    );
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PlayerScreen(
+                          song: song,
+                          controller: controller,
+                        ),
                       ),
-                    ),
-                  );
-                }
-              },
-              onDelete: () => controller.deleteSong(song.id),
-            );
-          },
+                    );
+                  }
+                },
+                onDelete: () => controller.deleteSong(song.id),
+              );
+            },
+          ),
         );
       },
     );

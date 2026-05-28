@@ -5,9 +5,11 @@ import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/features/playlist/models/playlist.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
+import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/core/routing/app_router.dart';
 import 'package:go_router/go_router.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -49,7 +51,7 @@ class PlaylistDetailScreen extends ConsumerWidget {
   }
 }
 
-class _PlaylistDetailContent extends StatelessWidget {
+class _PlaylistDetailContent extends ConsumerWidget {
   final Playlist playlist;
   const _PlaylistDetailContent({required this.playlist});
 
@@ -66,7 +68,7 @@ class _PlaylistDetailContent extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final songs = playlist.songs ?? [];
     final songCount = songs.length;
 
@@ -223,6 +225,28 @@ class _PlaylistDetailContent extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 10),
+                // Add Song to Playlist button
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showAddSongToPlaylistDialog(context, ref, playlist.id),
+                    icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                    label: const Text('Add Song to Playlist'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      textStyle: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 Text(
                   'Songs',
@@ -281,6 +305,231 @@ class _PlaylistDetailContent extends StatelessWidget {
       ),
       child: const Center(
         child: Icon(Icons.library_music, color: AppColors.primary, size: 80),
+      ),
+    );
+  }
+
+  void _showAddSongToPlaylistDialog(BuildContext context, WidgetRef ref, String playlistId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Add Song to Playlist',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                leading: const Icon(Icons.link, color: Color(0xFF7C4DFF)),
+                title: const Text('YouTube URL', style: TextStyle(color: Colors.white)),
+                tileColor: const Color(0xFF2A2A2A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showYoutubeInput(context, ref, playlistId);
+                },
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                leading: const Icon(Icons.folder, color: Color(0xFF7C4DFF)),
+                title: const Text('Local MP3 File', style: TextStyle(color: Colors.white)),
+                tileColor: const Color(0xFF2A2A2A),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showLocalInput(context, ref, playlistId);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showYoutubeInput(BuildContext context, WidgetRef ref, String playlistId) {
+    final urlCtrl = TextEditingController();
+    final titleCtrl = TextEditingController();
+    final artistCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('YouTube Song', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTextField(urlCtrl, 'YouTube URL'),
+            const SizedBox(height: 12),
+            _buildTextField(titleCtrl, 'Song Title'),
+            const SizedBox(height: 12),
+            _buildTextField(artistCtrl, 'Artist'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final url = urlCtrl.text.trim();
+              final title = titleCtrl.text.trim();
+              final artist = artistCtrl.text.trim();
+              if (title.isEmpty || artist.isEmpty || url.isEmpty) return;
+
+              final videoId = YoutubePlayer.convertUrlToId(url);
+              if (videoId == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Invalid YouTube URL')),
+                );
+                return;
+              }
+
+              Navigator.pop(ctx);
+              await _createSongAndAddToPlaylist(
+                context, ref, playlistId,
+                title: title,
+                artist: artist,
+                source: 'youtube',
+                sourcePath: videoId,
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C4DFF)),
+            child: const Text('Add Song'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLocalInput(BuildContext context, WidgetRef ref, String playlistId) {
+    final titleCtrl = TextEditingController();
+    final artistCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Local MP3', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTextField(titleCtrl, 'Song Title'),
+            const SizedBox(height: 12),
+            _buildTextField(artistCtrl, 'Artist'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final title = titleCtrl.text.trim();
+              final artist = artistCtrl.text.trim();
+              if (title.isEmpty || artist.isEmpty) return;
+
+              Navigator.pop(ctx);
+              await _createSongAndAddToPlaylist(
+                context, ref, playlistId,
+                title: title,
+                artist: artist,
+                source: 'mp3',
+                sourcePath: '',
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C4DFF)),
+            child: const Text('Add Song'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createSongAndAddToPlaylist(
+    BuildContext context,
+    WidgetRef ref,
+    String playlistId, {
+    required String title,
+    required String artist,
+    required String source,
+    required String sourcePath,
+  }) async {
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: Color(0xFF7C4DFF)));
+      },
+    );
+
+    try {
+      final songService = ref.read(songServiceProvider);
+      final backendSong = await songService.createSong(
+        title: title,
+        artist: artist,
+        source: source,
+        sourcePath: sourcePath,
+      );
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      // Add to this specific playlist automatically!
+      await ref.read(playlistServiceProvider).addSongToPlaylist(playlistId, backendSong.id);
+      
+      // Invalidate providers to refresh the list automatically
+      ref.invalidate(playlistByIdProvider(playlistId));
+      ref.invalidate(myPlaylistsProvider);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Song added directly to playlist!')),
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add song: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildTextField(TextEditingController ctrl, String hint) {
+    return TextField(
+      controller: ctrl,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[600]),
+        filled: true,
+        fillColor: const Color(0xFF2A2A2A),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
       ),
     );
   }
