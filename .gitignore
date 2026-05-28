@@ -56,3 +56,4 @@ app.*.map.json
 build/reports/problems/
 
 .env
+docs/
