@@ -11,11 +11,7 @@ class PlayerScreen extends StatefulWidget {
   final KaraokeSong song;
   final KaraokeController controller;
 
-  const PlayerScreen({
-    super.key,
-    required this.song,
-    required this.controller,
-  });
+  const PlayerScreen({super.key, required this.song, required this.controller});
 
   @override
   State<PlayerScreen> createState() => _PlayerScreenState();
@@ -24,26 +20,93 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   late List<LrcLine> _lyricsWithWords;
   bool _isAdvancedMode = false;
+  String? _initError;
 
   @override
   void initState() {
     super.initState();
-    // Auto-generate word timing from line timestamps
-    _lyricsWithWords =
-        WordTimingGenerator.generateWordTiming(widget.song.lyrics);
 
-    // Start playing when screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.controller.currentSong?.id != widget.song.id) {
-        widget.controller.playSong(
-          widget.song.copyWith(lyrics: _lyricsWithWords),
+    try {
+      if (widget.song.lyrics.isEmpty) {
+        debugPrint('⚠️ Song has no lyrics');
+        _lyricsWithWords = [];
+      } else {
+        // Auto-generate word timing from line timestamps
+        _lyricsWithWords = WordTimingGenerator.generateWordTiming(
+          widget.song.lyrics,
         );
+        debugPrint('✅ Generated word timing for ${_lyricsWithWords.length} lines');
       }
-    });
+
+      // Start playing when screen opens
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          if (widget.controller.currentSong?.id != widget.song.id) {
+            widget.controller.playSong(
+              widget.song.copyWith(lyrics: _lyricsWithWords),
+            );
+          }
+        } catch (e) {
+          debugPrint('❌ Error playing song: $e');
+          setState(() => _initError = 'Error playing song: ${e.toString()}');
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ Error initializing lyrics: $e');
+      setState(() => _initError = 'Error loading lyrics: ${e.toString()}');
+      _lyricsWithWords = [];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_initError != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF121212),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF121212),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'Error Loading Song',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _initError!,
+                  style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C4DFF),
+                  ),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       body: SafeArea(
@@ -51,12 +114,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           animation: widget.controller,
           builder: (context, _) {
             return Column(
+              mainAxisSize: MainAxisSize.max,
               children: [
                 _buildHeader(context),
 
                 // Media player section
-                if (widget.song.source == SongSource.youtube &&
-                    widget.controller.youtubeController != null)
+                if (widget.song.source == SongSource.youtube)
                   _buildYoutubePlayer()
                 else if (widget.song.source == SongSource.local)
                   _buildLocalPlayerIndicator(),
@@ -140,6 +203,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _buildYoutubePlayer() {
+    if (widget.controller.youtubeController == null) {
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFF1E1E1E),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+              SizedBox(height: 12),
+              Text('Loading video...', style: TextStyle(color: Colors.white70)),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       height: 200,
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -153,7 +237,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           controller: widget.controller.youtubeController!,
           showVideoProgressIndicator: true,
           progressIndicatorColor: const Color(0xFF7C4DFF),
-          onReady: () {},
+          onReady: () {
+            debugPrint('✅ YouTube player ready');
+          },
         ),
       ),
     );
@@ -229,9 +315,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         margin: const EdgeInsets.only(left: 4),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isActive
-              ? const Color(0xFF7C4DFF)
-              : const Color(0xFF2A2A2A),
+          color: isActive ? const Color(0xFF7C4DFF) : const Color(0xFF2A2A2A),
           borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
@@ -253,9 +337,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (lyrics.isEmpty) {
       return Center(
-        child: Text(
-          'No lyrics available',
-          style: TextStyle(color: Colors.grey[600]),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lyrics, size: 48, color: Colors.grey[600]),
+              const SizedBox(height: 16),
+              Text(
+                'No lyrics available',
+                style: TextStyle(color: Colors.grey[500], fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Add lyrics using the editor to sync with audio',
+                style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -308,8 +408,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         activeTrackColor: const Color(0xFF7C4DFF),
                         inactiveTrackColor: Colors.grey[800],
                         thumbColor: const Color(0xFF7C4DFF),
-                        overlayColor:
-                            const Color(0xFF7C4DFF).withValues(alpha: 0.2),
+                        overlayColor: const Color(
+                          0xFF7C4DFF,
+                        ).withValues(alpha: 0.2),
                       ),
                       child: Slider(
                         min: 0,
@@ -361,9 +462,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.fast_rewind_rounded, color: Colors.white, size: 36),
+                    icon: const Icon(
+                      Icons.fast_rewind_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                     tooltip: 'Back 2s',
-                    onPressed: () => widget.controller.skip(const Duration(seconds: -2)),
+                    onPressed: () =>
+                        widget.controller.skip(const Duration(seconds: -2)),
                   ),
                   const SizedBox(width: 20),
                   GestureDetector(
@@ -377,14 +483,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         color: const Color(0xFF7C4DFF),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF7C4DFF).withValues(alpha: 0.4),
+                            color: const Color(
+                              0xFF7C4DFF,
+                            ).withValues(alpha: 0.4),
                             blurRadius: 20,
                             spreadRadius: 2,
                           ),
                         ],
                       ),
                       child: Icon(
-                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         size: 40,
                         color: Colors.white,
                       ),
@@ -392,9 +502,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                   const SizedBox(width: 20),
                   IconButton(
-                    icon: const Icon(Icons.fast_forward_rounded, color: Colors.white, size: 36),
+                    icon: const Icon(
+                      Icons.fast_forward_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                     tooltip: 'Forward 2s',
-                    onPressed: () => widget.controller.skip(const Duration(seconds: 2)),
+                    onPressed: () =>
+                        widget.controller.skip(const Duration(seconds: 2)),
                   ),
                 ],
               );
@@ -432,7 +547,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: const Color(0xFF1E1E1E),
-            title: const Text('Edit Word Timing', style: TextStyle(color: Colors.white)),
+            title: const Text(
+              'Edit Word Timing',
+              style: TextStyle(color: Colors.white),
+            ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -442,13 +560,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Word Text',
                     labelStyle: TextStyle(color: Colors.grey),
-                    enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF7C4DFF))),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Color(0xFF7C4DFF)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
                 Text(
                   'Timestamp: ${_formatTimeWithMs(currentTimestamp)}',
-                  style: const TextStyle(color: Color(0xFF7C4DFF), fontFamily: 'monospace', fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Color(0xFF7C4DFF),
+                    fontFamily: 'monospace',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Wrap(
@@ -457,16 +582,32 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   alignment: WrapAlignment.center,
                   children: [
                     _adjustBtn(setDialogState, -100, '-100ms', () {
-                      setDialogState(() => currentTimestamp -= const Duration(milliseconds: 100));
+                      setDialogState(
+                        () => currentTimestamp -= const Duration(
+                          milliseconds: 100,
+                        ),
+                      );
                     }),
                     _adjustBtn(setDialogState, -10, '-10ms', () {
-                      setDialogState(() => currentTimestamp -= const Duration(milliseconds: 10));
+                      setDialogState(
+                        () => currentTimestamp -= const Duration(
+                          milliseconds: 10,
+                        ),
+                      );
                     }),
                     _adjustBtn(setDialogState, 10, '+10ms', () {
-                      setDialogState(() => currentTimestamp += const Duration(milliseconds: 10));
+                      setDialogState(
+                        () => currentTimestamp += const Duration(
+                          milliseconds: 10,
+                        ),
+                      );
                     }),
                     _adjustBtn(setDialogState, 100, '+100ms', () {
-                      setDialogState(() => currentTimestamp += const Duration(milliseconds: 100));
+                      setDialogState(
+                        () => currentTimestamp += const Duration(
+                          milliseconds: 100,
+                        ),
+                      );
                     }),
                   ],
                 ),
@@ -475,15 +616,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
               ElevatedButton(
                 onPressed: () {
-                  _updateWord(lineIndex, wordIndex, textController.text, currentTimestamp);
+                  _updateWord(
+                    lineIndex,
+                    wordIndex,
+                    textController.text,
+                    currentTimestamp,
+                  );
                   Navigator.pop(context);
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C4DFF)),
-                child: const Text('Save Change', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C4DFF),
+                ),
+                child: const Text(
+                  'Save Change',
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           );
@@ -492,7 +646,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
     );
   }
 
-  Widget _adjustBtn(StateSetter setDialogState, int ms, String label, VoidCallback onPressed) {
+  Widget _adjustBtn(
+    StateSetter setDialogState,
+    int ms,
+    String label,
+    VoidCallback onPressed,
+  ) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
@@ -513,11 +672,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _lyricsWithWords[lineIdx] = line.copyWith(words: words);
     });
 
-    widget.controller.saveLyrics(widget.song.id, _lyricsWithWords);
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Word updated and saved!'), duration: Duration(seconds: 1)),
-    );
+    widget.controller.saveLyrics(widget.song.id, _lyricsWithWords).then((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Word updated and saved!'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }).catchError((e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
   }
 
   String _formatTimeWithMs(Duration d) {

@@ -2,7 +2,7 @@ import '../../song/models/song.dart';
 
 class Playlist {
   final String id;
-  final String userId;
+  final String? userId;
   final String name;
   final String? description;
   final String? coverImageUrl;
@@ -14,7 +14,7 @@ class Playlist {
 
   Playlist({
     required this.id,
-    required this.userId,
+    this.userId,
     required this.name,
     this.description,
     this.coverImageUrl,
@@ -28,7 +28,7 @@ class Playlist {
   factory Playlist.fromJson(Map<String, dynamic> json) {
     return Playlist(
       id: json['_id'] as String,
-      userId: json['userId'] as String,
+      userId: json['userId'] as String?,
       name: json['name'] as String,
       description: json['description'] as String?,
       coverImageUrl: json['coverImageUrl'] as String?,

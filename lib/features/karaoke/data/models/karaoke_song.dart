@@ -60,18 +60,20 @@ class KaraokeSong {
 
   factory KaraokeSong.fromJson(Map<String, dynamic> json) {
     return KaraokeSong(
-      id: json['id'],
-      title: json['title'],
-      artist: json['artist'],
-      source: SongSource.values.byName(json['source']),
-      sourcePath: json['sourcePath'],
-      lyrics: (json['lyrics'] as List)
+      id: (json['id'] ?? json['_id']) as String,
+      title: json['title'] as String,
+      artist: json['artist'] as String?,
+      source: SongSource.values.byName((json['source'] as String).toLowerCase()),
+      sourcePath: json['sourcePath'] as String,
+      lyrics: ((json['lyrics'] as List?) ?? [])
           .map((l) => LrcLine.fromJson(l as Map<String, dynamic>))
           .toList(),
       duration: json['duration'] != null
-          ? Duration(milliseconds: json['duration'])
+          ? Duration(milliseconds: (json['duration'] as num).round())
           : null,
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
     );
   }
 }
