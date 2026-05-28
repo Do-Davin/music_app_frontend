@@ -124,9 +124,9 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       isScrollControlled: true,          // allows full height
       backgroundColor: Colors.transparent,
       builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.50,          // opens at 40% screen height
-        minChildSize: 0.4,
-        maxChildSize: 0.95,
+        initialChildSize: 0.50,          // opens at 50% screen height
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
         expand: false,
         builder: (_, scrollController) => Container(
           decoration: const BoxDecoration(
