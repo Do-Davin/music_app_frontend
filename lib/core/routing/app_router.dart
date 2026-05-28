@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/routing/auth_wrapper.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
+import 'package:music_app_frontend/features/auth/data/models/user.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/forgot_password/forgot_password_screen.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/forgot_password/new_password_screen.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/forgot_password/verify_account_screen.dart';
@@ -14,6 +15,8 @@ import 'package:music_app_frontend/features/onboarding/screens/onboarding_screen
 import 'package:music_app_frontend/features/onboarding/screens/splash_screen.dart';
 import 'package:music_app_frontend/features/playlist/screens/no_playlists_screen.dart';
 import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
+import 'package:music_app_frontend/features/relationships/screens/follow_list_screen.dart';
+import 'package:music_app_frontend/features/relationships/screens/user_detail_screen.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/song/screens/no_results_screen.dart';
 import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
@@ -45,6 +48,33 @@ final appRouter = GoRouter(
     GoRoute(
       path: Routes.friends,
       builder: (context, state) => const FriendsScreen(),
+    ),
+    GoRoute(
+      path: Routes.followers,
+      builder: (context, state) =>
+          const FollowListScreen(mode: FollowListMode.followers),
+    ),
+    GoRoute(
+      path: Routes.following,
+      builder: (context, state) =>
+          const FollowListScreen(mode: FollowListMode.following),
+    ),
+    GoRoute(
+      path: Routes.userDetail,
+      builder: (context, state) {
+        final extra = state.extra;
+        if (extra is User) {
+          return UserDetailScreen(user: extra);
+        }
+        return const StatelessStatusScreen(
+          icon: Icons.person_off_outlined,
+          appBarTitle: 'Profile',
+          title: 'Profile Unavailable',
+          subtitle: 'This profile could not be opened.',
+          iconColor: AppColors.error,
+          iconBackgroundColor: AppColors.errorBackground,
+        );
+      },
     ),
     GoRoute(
       path: Routes.login,
