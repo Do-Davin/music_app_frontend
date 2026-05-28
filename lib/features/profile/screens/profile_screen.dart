@@ -388,28 +388,6 @@ class _ProfileContent extends ConsumerWidget {
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: null,
-            icon: const Icon(Icons.fitness_center, color: Colors.grey),
-            label: Text(
-              'Practice sessions (removed)',
-              style: AppTextStyles.body.copyWith(
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.grey, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
           child: OutlinedButton(
             onPressed: () async {
               final confirmed = await showConfirmDialog(
