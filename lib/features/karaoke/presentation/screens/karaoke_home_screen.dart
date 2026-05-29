@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/karaoke_controller.dart';
 import 'song_list_screen.dart';
-import 'lyric_editor_screen.dart';
 import 'lyric_chord_builder_screen.dart';
-import 'player_screen.dart';
 
 class KaraokeHomeScreen extends StatelessWidget {
   const KaraokeHomeScreen({super.key});

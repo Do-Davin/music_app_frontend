@@ -36,7 +36,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _lyricsWithWords = WordTimingGenerator.generateWordTiming(
           widget.song.lyrics,
         );
-        debugPrint('✅ Generated word timing for ${_lyricsWithWords.length} lines');
+        debugPrint(
+          '✅ Generated word timing for ${_lyricsWithWords.length} lines',
+        );
       }
 
       // Start playing when screen opens
@@ -841,36 +843,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _lyricsWithWords[lineIdx] = line.copyWith(words: words);
     });
 
-<<<<<<< HEAD
-    widget.controller.saveLyrics(widget.song.id, _lyricsWithWords);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Word updated and saved!'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-=======
-    widget.controller.saveLyrics(widget.song.id, _lyricsWithWords).then((_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Word updated and saved!'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
-    }).catchError((e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving: $e'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    });
->>>>>>> 0ba1b295bf05b24746e88a0573d6b644a8c4095a
+    widget.controller
+        .saveLyrics(widget.song.id, _lyricsWithWords)
+        .then((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Word updated and saved!'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          }
+        })
+        .catchError((e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error saving: $e'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        });
   }
 
   String _formatTimeWithMs(Duration d) {
@@ -952,50 +946,6 @@ class _LyricScrollerState extends State<_LyricScroller> {
                     ? 1.0
                     : (1.0 - (distance * 0.25)).clamp(0.1, 0.55);
 
-<<<<<<< HEAD
-        final halfViewport = _viewportHeight / 2;
-        final verticalPadding = math.max(0.0, halfViewport - _activeHeight / 2);
-
-        return ValueListenableBuilder<int>(
-          valueListenable: widget.controller.currentLineNotifier,
-          builder: (context, currentLine, _) {
-            _rebuildHeights(currentLine);
-
-            return ValueListenableBuilder<Duration>(
-              valueListenable: widget.controller.positionNotifier,
-              builder: (context, currentPosition, _) {
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: EdgeInsets.only(
-                    top: verticalPadding,
-                    bottom: verticalPadding,
-                  ),
-                  itemCount: widget.lyrics.length,
-                  itemBuilder: (context, index) {
-                    final isActive = index == currentLine;
-                    final distance = (index - currentLine).abs();
-                    final opacity = isActive
-                        ? 1.0
-                        : (1.0 - (distance * 0.25)).clamp(0.1, 0.55);
-
-                    return SizedBox(
-                      height: _itemHeights[index],
-                      child: Opacity(
-                        opacity: opacity,
-                        child: LyricLine(
-                          text: widget.lyrics[index].text,
-                          isActive: isActive,
-                          height: _itemHeights[index],
-                          words: widget.lyrics[index].words,
-                          currentPosition: currentPosition,
-                          onWordLongPress: (wordIdx) =>
-                              widget.onWordLongPress?.call(index, wordIdx),
-                          fontScale: widget.fontScale,
-                        ),
-                      ),
-                    );
-                  },
-=======
                 return Opacity(
                   opacity: opacity,
                   child: LyricLine(
@@ -1005,8 +955,8 @@ class _LyricScrollerState extends State<_LyricScroller> {
                     currentPosition: currentPosition,
                     onWordLongPress: (wordIdx) =>
                         widget.onWordLongPress?.call(index, wordIdx),
+                    fontScale: widget.fontScale,
                   ),
->>>>>>> 0ba1b295bf05b24746e88a0573d6b644a8c4095a
                 );
               },
             );

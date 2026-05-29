@@ -287,6 +287,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             widget.targetPlaylistId!,
             backendSong.id,
           );
+          // ignore: unused_result
           ref.refresh(playlistByIdProvider(widget.targetPlaylistId!));
 
           if (mounted) {
