@@ -1,11 +1,111 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:music_app_frontend/core/network/graphql_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/karaoke_song.dart';
 
 class KaraokeRepository {
   static const String _storageKey = 'karaoke_songs';
+  final GraphQLClient _client = GraphQLConfig.clientToQuery(
+    authenticated: true,
+  );
 
   Future<List<KaraokeSong>> getAllSongs() async {
+    try {
+      final result = await _client.query(
+        QueryOptions(
+          document: gql(_karaokeSongsQuery),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+
+      if (result.hasException) {
+        debugPrint('❌ GraphQL Error fetching karaoke songs: ${result.exception}');
+        throw Exception(result.exception.toString());
+      }
+
+      final List<dynamic> data = result.data?['karaokeSongs'] ?? [];
+      try {
+        final songs = data
+            .map((json) => KaraokeSong.fromJson(json as Map<String, dynamic>))
+            .toList();
+
+        await _saveLocalSongs(songs);
+        debugPrint('✅ Successfully loaded ${songs.length} karaoke songs from backend');
+        return songs;
+      } catch (e) {
+        debugPrint('❌ Error parsing karaoke songs: $e');
+        rethrow;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to fetch from backend, using local cache: $e');
+      return _getLocalSongs();
+    }
+  }
+
+  Future<void> saveSong(KaraokeSong song) async {
+    await _saveLocalSong(song);
+
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(_createKaraokeSongMutation),
+          variables: {'input': _toInput(song)},
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception('GraphQL Error: ${result.exception.toString()}');
+      }
+
+      if (result.data == null || result.data!['createKaraokeSong'] == null) {
+        throw Exception('Backend did not return karaoke song data');
+      }
+
+      final saved = KaraokeSong.fromJson(
+        result.data!['createKaraokeSong'] as Map<String, dynamic>,
+      );
+      await _saveLocalSong(saved);
+    } catch (e) {
+      // Log the error but keep the local song
+      debugPrint('❌ Error saving to backend: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteSong(String id) async {
+    final existing = await _getLocalSongs();
+    existing.removeWhere((s) => s.id == id);
+    await _saveLocalSongs(existing);
+  }
+
+  Map<String, dynamic> _toInput(KaraokeSong song) {
+    return {
+      'title': song.title,
+      'artist': song.artist,
+      'source': song.source.name,
+      'sourcePath': song.sourcePath,
+      'lyrics': song.lyrics.map((line) {
+        final lyricsMap = {
+          'timestamp': line.timestamp.inMilliseconds,
+          'text': line.text,
+        };
+        if (line.words != null && line.words!.isNotEmpty) {
+          lyricsMap['words'] = line.words!.map((word) {
+            return {
+              'timestamp': word.timestamp.inMilliseconds,
+              'text': word.text,
+            };
+          }).toList();
+        }
+        return lyricsMap;
+      }).toList(),
+      'duration': song.duration?.inMilliseconds,
+    };
+  }
+
+  Future<List<KaraokeSong>> _getLocalSongs() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_storageKey);
 
@@ -15,11 +115,9 @@ class KaraokeRepository {
     return decoded.map((j) => KaraokeSong.fromJson(j)).toList();
   }
 
-  Future<void> saveSong(KaraokeSong song) async {
-    final prefs = await SharedPreferences.getInstance();
-    final existing = await getAllSongs();
+  Future<void> _saveLocalSong(KaraokeSong song) async {
+    final existing = await _getLocalSongs();
 
-    // Replace if exists, otherwise add
     final index = existing.indexWhere((s) => s.id == song.id);
     if (index >= 0) {
       existing[index] = song;
@@ -27,16 +125,56 @@ class KaraokeRepository {
       existing.add(song);
     }
 
-    final encoded = jsonEncode(existing.map((s) => s.toJson()).toList());
-    await prefs.setString(_storageKey, encoded);
+    await _saveLocalSongs(existing);
   }
 
-  Future<void> deleteSong(String id) async {
+  Future<void> _saveLocalSongs(List<KaraokeSong> songs) async {
     final prefs = await SharedPreferences.getInstance();
-    final existing = await getAllSongs();
-    existing.removeWhere((s) => s.id == id);
-
-    final encoded = jsonEncode(existing.map((s) => s.toJson()).toList());
+    final encoded = jsonEncode(songs.map((s) => s.toJson()).toList());
     await prefs.setString(_storageKey, encoded);
   }
+
+  static const String _karaokeSongsQuery = r'''
+    query KaraokeSongs {
+      karaokeSongs {
+        _id
+        title
+        artist
+        source
+        sourcePath
+        duration
+        createdAt
+        lyrics {
+          timestamp
+          text
+          words {
+            timestamp
+            text
+          }
+        }
+      }
+    }
+  ''';
+
+  static const String _createKaraokeSongMutation = r'''
+    mutation CreateKaraokeSong($input: CreateKaraokeSongInput!) {
+      createKaraokeSong(input: $input) {
+        _id
+        title
+        artist
+        source
+        sourcePath
+        duration
+        createdAt
+        lyrics {
+          timestamp
+          text
+          words {
+            timestamp
+            text
+          }
+        }
+      }
+    }
+  ''';
 }

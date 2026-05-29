@@ -8,10 +8,12 @@ import '../../data/models/lrc_line.dart';
 /// are highlighted (bright white + glow), while upcoming words remain dim.
 ///
 /// When [words] is null, falls back to the original line-level highlighting.
+///
+/// Height is dynamic — it adapts to the text length, handling both single-line
+/// and multi-line lyrics without overflow.
 class LyricLine extends StatelessWidget {
   final String text;
   final bool isActive;
-  final double height;
   final List<LrcWord>? words;
   final Duration currentPosition;
   final void Function(int wordIndex)? onWordLongPress;
@@ -20,7 +22,6 @@ class LyricLine extends StatelessWidget {
     super.key,
     required this.text,
     required this.isActive,
-    required this.height,
     this.words,
     this.currentPosition = Duration.zero,
     this.onWordLongPress,
@@ -33,14 +34,11 @@ class LyricLine extends StatelessWidget {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutCubic,
-      height: height,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          hasWords ? _buildWordByWord() : _buildSingleLine(),
-        ],
+      padding: EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: isActive ? 14 : 8,
       ),
+      child: hasWords ? _buildWordByWord() : _buildSingleLine(),
     );
   }
 
@@ -75,8 +73,6 @@ class LyricLine extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -165,8 +161,6 @@ class LyricLine extends StatelessWidget {
     return Text.rich(
       TextSpan(children: spans),
       textAlign: TextAlign.center,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
     );
   }
 }

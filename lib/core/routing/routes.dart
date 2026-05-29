@@ -12,6 +12,9 @@ class Routes {
   static const newPassword = '/new-password';
   static const status = '/status';
   static const friends = '/friends';
+  static const followers = '/followers';
+  static const following = '/following';
+  static const userDetail = '/user-detail';
   static const noPlaylists = '/no-playlists';
   static const noResults = '/no-results';
   static const song = '/song/:id';

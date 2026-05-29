@@ -70,10 +70,24 @@ class Song {
   }
 
   /// Returns the best playback URL: sourcePath first, then videoUrl/fileUrl as fallback.
-  String? get audioUrl => sourcePath ?? videoUrl ?? fileUrl;
+  String? get audioUrl {
+    for (final value in [sourcePath, videoUrl, fileUrl]) {
+      final trimmed = value?.trim();
+      if (trimmed != null && trimmed.isNotEmpty) return trimmed;
+    }
+
+    return null;
+  }
 
   /// Whether this song is played via YouTube.
-  bool get isYoutube => source == 'youtube';
+  bool get isYoutube {
+    if (source == 'youtube') return true;
+
+    final url = audioUrl?.toLowerCase();
+    if (url == null) return false;
+
+    return url.contains('youtube.com') || url.contains('youtu.be');
+  }
 
   Map<String, dynamic> toJson() {
     return {

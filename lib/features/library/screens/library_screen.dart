@@ -29,7 +29,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => const CreateLibrarySheet(),
+      builder: (_) => CreateLibrarySheet(parentContext: context),
     );
   }
 
@@ -160,46 +160,95 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                   // Content
                   Expanded(
-                    child: playlistsAsync.when(
-                      data: (playlists) {
-                        final filteredList = playlists.where((playlist) {
-                          final matchesSearch = playlist.name
-                              .toLowerCase()
-                              .contains(searchQuery.toLowerCase());
-                          if (selectedFilter == 'Playlists') {
+                    child: RefreshIndicator(
+                      color: AppColors.primary,
+                      onRefresh: () => ref
+                          .read(myPlaylistsProvider.notifier)
+                          .loadPlaylists(),
+                      child: playlistsAsync.when(
+                        data: (playlists) {
+                          final filteredList = playlists.where((playlist) {
+                            final matchesSearch = playlist.name
+                                .toLowerCase()
+                                .contains(searchQuery.toLowerCase());
+                            if (selectedFilter == 'Playlists') {
+                              return matchesSearch;
+                            } else if (selectedFilter == 'Artists') {
+                              return false; // We don't have artists yet
+                            }
                             return matchesSearch;
-                          } else if (selectedFilter == 'Artists') {
-                            return false; // We don't have artists yet
-                          }
-                          return matchesSearch;
-                        }).toList();
+                          }).toList();
 
-                        if (filteredList.isEmpty) {
-                          return AppEmptyStateWidget(
-                            icon: Icons.library_music_outlined,
-                            title: 'No Playlists Found',
-                            subtitle: 'Try searching for a different name',
-                            iconColor: AppColors.primary,
-                          );
-                        }
-
-                        return AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: isGridView
-                              ? _buildGridView(
-                                  filteredList,
-                                  key: const ValueKey('grid'),
-                                )
-                              : _buildListView(
-                                  filteredList,
-                                  key: const ValueKey('list'),
+                          if (filteredList.isEmpty) {
+                            return ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.2,
                                 ),
-                        );
-                      },
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
-                      error: (err, stack) => Center(
-                        child: Text('Error: $err', style: AppTextStyles.body),
+                                AppEmptyStateWidget(
+                                  icon: Icons.library_music_outlined,
+                                  title: 'No Playlists Found',
+                                  subtitle:
+                                      'Try searching for a different name or pull down to refresh',
+                                  iconColor: AppColors.primary,
+                                ),
+                              ],
+                            );
+                          }
+
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: isGridView
+                                ? _buildGridView(
+                                    filteredList,
+                                    key: const ValueKey('grid'),
+                                  )
+                                : _buildListView(
+                                    filteredList,
+                                    key: const ValueKey('list'),
+                                  ),
+                          );
+                        },
+                        loading: () => const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        error: (err, stack) => ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.2,
+                            ),
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: AppColors.error,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'Failed to load library',
+                                    style: AppTextStyles.body,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Pull down to retry',
+                                    style: AppTextStyles.body.copyWith(
+                                      color: AppColors.hint,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -239,6 +288,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _buildListView(List<model.Playlist> playlists, {required Key key}) {
     return ListView.builder(
       key: key,
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: playlists.length,
       padding: const EdgeInsets.only(top: 10),
       itemBuilder: (context, index) {
@@ -269,6 +319,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget _buildGridView(List<model.Playlist> playlists, {required Key key}) {
     return GridView.builder(
       key: key,
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(top: 10),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,

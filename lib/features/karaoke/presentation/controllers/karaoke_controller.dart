@@ -6,9 +6,11 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt_explode;
 import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:http/http.dart' as http;
+import 'package:music_app_frontend/core/network/graphql_config.dart';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
 import '../../data/repositories/karaoke_repository.dart';
+import '../../../song/models/song.dart' as backend;
 
 class KaraokeController extends ChangeNotifier {
   final _repository = KaraokeRepository();
@@ -373,6 +375,10 @@ class KaraokeController extends ChangeNotifier {
 
   Future<void> saveLyrics(String songId, List<LrcLine> lyrics) async {
     final song = _songs.firstWhere((s) => s.id == songId);
+    await saveLyricsForSong(song, lyrics);
+  }
+
+  Future<void> saveLyricsForSong(KaraokeSong song, List<LrcLine> lyrics) async {
     final updated = KaraokeSong(
       id: song.id,
       title: song.title,
@@ -409,21 +415,59 @@ class KaraokeController extends ChangeNotifier {
   }
 
   void _initYoutubePlayer(String videoId) {
-    _youtubeController = YoutubePlayerController(
-      initialVideoId: videoId,
-      flags: const YoutubePlayerFlags(
-        autoPlay: true,
-        mute: false,
-        hideControls: true,
-        hideThumbnail: false,
-      ),
-    );
+    try {
+      if (videoId.isEmpty) {
+        debugPrint('❌ Invalid video ID: empty string');
+        return;
+      }
+
+      _youtubeController = YoutubePlayerController(
+        initialVideoId: videoId,
+        flags: const YoutubePlayerFlags(
+          autoPlay: true,
+          mute: false,
+          hideControls: true,
+          hideThumbnail: false,
+        ),
+      );
+      debugPrint('✅ YouTube player initialized with video: $videoId');
+    } catch (e) {
+      debugPrint('❌ Failed to initialize YouTube player: $e');
+      _youtubeController = null;
+    }
   }
 
   Future<void> _initAudioPlayer(String filePath) async {
-    _audioPlayer = AudioPlayer();
-    await _audioPlayer!.setFilePath(filePath);
-    await _audioPlayer!.play();
+    try {
+      if (filePath.isEmpty) {
+        debugPrint('❌ Invalid file path: empty string');
+        _error = 'Invalid file path';
+        notifyListeners();
+        return;
+      }
+
+      _audioPlayer = AudioPlayer();
+      final uri = Uri.tryParse(filePath);
+      if (uri != null && uri.hasScheme) {
+        await _audioPlayer!.setUrl(filePath);
+      } else if (filePath.startsWith('/')) {
+        final endpoint = Uri.tryParse(GraphQLConfig.httpEndpoint);
+        final url = endpoint
+            ?.replace(path: filePath, query: '', fragment: '')
+            .toString();
+        await _audioPlayer!.setUrl(url ?? filePath);
+      } else {
+        await _audioPlayer!.setFilePath(filePath);
+      }
+      await _audioPlayer!.play();
+      debugPrint('✅ Audio player initialized and playing: $filePath');
+    } catch (e) {
+      debugPrint('❌ Failed to initialize audio player: $e');
+      _error = 'Failed to play audio: ${e.toString()}';
+      _audioPlayer?.dispose();
+      _audioPlayer = null;
+      notifyListeners();
+    }
   }
 
   void _startSync() {
@@ -532,6 +576,117 @@ class KaraokeController extends ChangeNotifier {
     }
     await _repository.deleteSong(id);
     await loadSongs();
+  }
+
+  // ==================== CONVERT BACKEND SONG TO KARAOKE ====================
+
+  /// Convert a backend Song into a local KaraokeSong.
+  /// Auto-fetches YouTube captions if the song source is YouTube.
+  Future<KaraokeSong> convertSongToKaraoke(backend.Song backendSong) async {
+    List<LrcLine> fetchedLyrics = _parseBackendLyrics(backendSong.lyrics);
+    final playbackUrl = backendSong.audioUrl ?? '';
+    final youtubeVideoId = backendSong.isYoutube
+        ? YoutubePlayer.convertUrlToId(playbackUrl)
+        : null;
+
+    if (fetchedLyrics.isEmpty &&
+        backendSong.isYoutube &&
+        youtubeVideoId != null) {
+      try {
+        final yt = yt_explode.YoutubeExplode();
+        final manifest = await yt.videos.closedCaptions.getManifest(
+          youtubeVideoId,
+        );
+
+        if (manifest.tracks.isNotEmpty) {
+          yt_explode.ClosedCaptionTrackInfo? bestTrack;
+
+          for (var track in manifest.tracks) {
+            if (track.language.code.toLowerCase().startsWith('km')) {
+              bestTrack = track;
+              break;
+            }
+          }
+          if (bestTrack == null) {
+            for (var track in manifest.tracks) {
+              if (track.language.code.toLowerCase().startsWith('en')) {
+                bestTrack = track;
+                break;
+              }
+            }
+          }
+          bestTrack ??= manifest.tracks.first;
+
+          fetchedLyrics = await _fetchCaptionsWithYoutubeDart(
+            youtubeVideoId,
+            bestTrack,
+          );
+        }
+        yt.close();
+      } catch (e) {
+        debugPrint('Failed to auto-fetch captions: $e');
+      }
+    }
+
+    final karaokeSong = KaraokeSong(
+      id: backendSong.id,
+      title: backendSong.title,
+      artist: backendSong.artist,
+      source: backendSong.isYoutube ? SongSource.youtube : SongSource.local,
+      sourcePath: backendSong.isYoutube
+          ? youtubeVideoId ?? playbackUrl
+          : playbackUrl,
+      lyrics: fetchedLyrics,
+    );
+
+    if (karaokeSong.lyrics.isNotEmpty) {
+      await _repository.saveSong(karaokeSong);
+      await loadSongs();
+    }
+    return karaokeSong;
+  }
+
+  List<LrcLine> _parseBackendLyrics(String? lyrics) {
+    final value = lyrics?.trim();
+    if (value == null || value.isEmpty) return [];
+
+    final parsed = <LrcLine>[];
+    final timestampPattern =
+        RegExp(r'^\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]\s*(.*)$');
+
+    for (final rawLine in value.split('\n')) {
+      final line = rawLine.trim();
+      if (line.isEmpty) continue;
+
+      final match = timestampPattern.firstMatch(line);
+      if (match == null) continue;
+
+      final minutes = int.parse(match.group(1)!);
+      final seconds = int.parse(match.group(2)!);
+      final fraction = (match.group(3) ?? '0').padRight(3, '0');
+      final milliseconds = int.parse(fraction.substring(0, 3));
+      final text = match.group(4)?.trim() ?? '';
+      if (text.isEmpty) continue;
+
+      parsed.add(
+        LrcLine(
+          timestamp: Duration(
+            minutes: minutes,
+            seconds: seconds,
+            milliseconds: milliseconds,
+          ),
+          text: text,
+        ),
+      );
+    }
+
+    if (parsed.isNotEmpty) return parsed;
+
+    return value
+        .split('\n')
+        .where((line) => line.trim().isNotEmpty)
+        .map((line) => LrcLine(timestamp: Duration.zero, text: line.trim()))
+        .toList();
   }
 
   @override

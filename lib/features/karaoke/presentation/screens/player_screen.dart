@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
 import '../../domain/utils/word_timing_generator.dart';
@@ -21,27 +21,93 @@ class _PlayerScreenState extends State<PlayerScreen> {
   late List<LrcLine> _lyricsWithWords;
   bool _isAdvancedMode = false;
   double _lyricScale = 1.0;
+  String? _initError;
 
   @override
   void initState() {
     super.initState();
-    // Auto-generate word timing from line timestamps
-    _lyricsWithWords = WordTimingGenerator.generateWordTiming(
-      widget.song.lyrics,
-    );
 
-    // Start playing when screen opens
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (widget.controller.currentSong?.id != widget.song.id) {
-        widget.controller.playSong(
-          widget.song.copyWith(lyrics: _lyricsWithWords),
+    try {
+      if (widget.song.lyrics.isEmpty) {
+        debugPrint('⚠️ Song has no lyrics');
+        _lyricsWithWords = [];
+      } else {
+        // Auto-generate word timing from line timestamps
+        _lyricsWithWords = WordTimingGenerator.generateWordTiming(
+          widget.song.lyrics,
         );
+        debugPrint('✅ Generated word timing for ${_lyricsWithWords.length} lines');
       }
-    });
+
+      // Start playing when screen opens
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        try {
+          if (widget.controller.currentSong?.id != widget.song.id) {
+            widget.controller.playSong(
+              widget.song.copyWith(lyrics: _lyricsWithWords),
+            );
+          }
+        } catch (e) {
+          debugPrint('❌ Error playing song: $e');
+          setState(() => _initError = 'Error playing song: ${e.toString()}');
+        }
+      });
+    } catch (e) {
+      debugPrint('❌ Error initializing lyrics: $e');
+      setState(() => _initError = 'Error loading lyrics: ${e.toString()}');
+      _lyricsWithWords = [];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_initError != null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF121212),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF121212),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
+                const SizedBox(height: 16),
+                Text(
+                  'Error Loading Song',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _initError!,
+                  style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C4DFF),
+                  ),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       body: SafeArea(
@@ -49,12 +115,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
           animation: widget.controller,
           builder: (context, _) {
             return Column(
+              mainAxisSize: MainAxisSize.max,
               children: [
                 _buildHeader(context),
 
                 // Media player section
-                if (widget.song.source == SongSource.youtube &&
-                    widget.controller.youtubeController != null)
+                if (widget.song.source == SongSource.youtube)
                   _buildYoutubePlayer()
                 else if (widget.song.source == SongSource.local)
                   _buildLocalPlayerIndicator(),
@@ -150,6 +216,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
   }
 
   Widget _buildYoutubePlayer() {
+    if (widget.controller.youtubeController == null) {
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFF1E1E1E),
+        ),
+        child: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+              SizedBox(height: 12),
+              Text('Loading video...', style: TextStyle(color: Colors.white70)),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       height: 200,
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -163,7 +250,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
           controller: widget.controller.youtubeController!,
           showVideoProgressIndicator: true,
           progressIndicatorColor: const Color(0xFF7C4DFF),
-          onReady: () {},
+          onReady: () {
+            debugPrint('✅ YouTube player ready');
+          },
         ),
       ),
     );
@@ -261,9 +350,25 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
     if (lyrics.isEmpty) {
       return Center(
-        child: Text(
-          'No lyrics available',
-          style: TextStyle(color: Colors.grey[600]),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lyrics, size: 48, color: Colors.grey[600]),
+              const SizedBox(height: 16),
+              Text(
+                'No lyrics available',
+                style: TextStyle(color: Colors.grey[500], fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Add lyrics using the editor to sync with audio',
+                style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -736,6 +841,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _lyricsWithWords[lineIdx] = line.copyWith(words: words);
     });
 
+<<<<<<< HEAD
     widget.controller.saveLyrics(widget.song.id, _lyricsWithWords);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -744,6 +850,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
         duration: Duration(seconds: 1),
       ),
     );
+=======
+    widget.controller.saveLyrics(widget.song.id, _lyricsWithWords).then((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Word updated and saved!'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }).catchError((e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    });
+>>>>>>> 0ba1b295bf05b24746e88a0573d6b644a8c4095a
   }
 
   String _formatTimeWithMs(Duration d) {
@@ -756,7 +883,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
 // ============================================
 // Lyric scroller: active line always centered
-// with word-by-word highlighting
+// with word-by-word highlighting.
+// Heights are dynamic — adapts to text that wraps
+// to multiple lines (e.g. YouTube auto-generated lyrics).
 // ============================================
 class _LyricScroller extends StatefulWidget {
   final KaraokeController controller;
@@ -776,68 +905,54 @@ class _LyricScroller extends StatefulWidget {
 }
 
 class _LyricScrollerState extends State<_LyricScroller> {
-  final ScrollController _scrollController = ScrollController();
-
-  static const double _inactiveHeight = 52.0;
-  static const double _activeHeight = 72.0;
-
-  late List<double> _itemHeights;
-  double _viewportHeight = 0;
+  final ItemScrollController _itemScrollController = ItemScrollController();
 
   @override
   void initState() {
     super.initState();
-    _rebuildHeights(0);
     widget.controller.currentLineNotifier.addListener(_onLineChanged);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final currentLine = widget.controller.currentLineNotifier.value;
-      _scrollToActiveLine(currentLine);
-    });
-  }
-
-  void _rebuildHeights(int activeLine) {
-    _itemHeights = List.generate(
-      widget.lyrics.length,
-      (i) => i == activeLine ? _activeHeight : _inactiveHeight,
-    );
   }
 
   void _onLineChanged() {
     final index = widget.controller.currentLineNotifier.value;
-    _rebuildHeights(index);
-    _scrollToActiveLine(index);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveLine(index);
+    });
   }
 
   void _scrollToActiveLine(int index) {
-    if (!_scrollController.hasClients || _viewportHeight == 0) return;
-
-    double offsetToTop = 0;
-    for (int i = 0; i < index; i++) {
-      offsetToTop += _itemHeights[i];
+    if (!_itemScrollController.isAttached) {
+      return;
     }
 
-    final itemCenter = offsetToTop + _itemHeights[index] / 2;
-    final targetOffset = itemCenter - _viewportHeight / 2;
-
-    final clamped = targetOffset.clamp(
-      0.0,
-      _scrollController.position.maxScrollExtent,
-    );
-
-    _scrollController.animateTo(
-      clamped,
-      duration: const Duration(milliseconds: 450),
+    _itemScrollController.scrollTo(
+      index: index,
+      duration: const Duration(milliseconds: 500),
       curve: Curves.easeInOutCubic,
+      alignment: 0.5,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        _viewportHeight = constraints.maxHeight;
+    return ValueListenableBuilder<int>(
+      valueListenable: widget.controller.currentLineNotifier,
+      builder: (context, currentLine, _) {
+        return ValueListenableBuilder<Duration>(
+          valueListenable: widget.controller.positionNotifier,
+          builder: (context, currentPosition, _) {
+            return ScrollablePositionedList.builder(
+              itemScrollController: _itemScrollController,
+              padding: const EdgeInsets.symmetric(vertical: 100),
+              itemCount: widget.lyrics.length,
+              itemBuilder: (context, index) {
+                final isActive = index == currentLine;
+                final distance = (index - currentLine).abs();
+                final opacity = isActive
+                    ? 1.0
+                    : (1.0 - (distance * 0.25)).clamp(0.1, 0.55);
 
+<<<<<<< HEAD
         final halfViewport = _viewportHeight / 2;
         final verticalPadding = math.max(0.0, halfViewport - _activeHeight / 2);
 
@@ -880,6 +995,18 @@ class _LyricScrollerState extends State<_LyricScroller> {
                       ),
                     );
                   },
+=======
+                return Opacity(
+                  opacity: opacity,
+                  child: LyricLine(
+                    text: widget.lyrics[index].text,
+                    isActive: isActive,
+                    words: widget.lyrics[index].words,
+                    currentPosition: currentPosition,
+                    onWordLongPress: (wordIdx) =>
+                        widget.onWordLongPress?.call(index, wordIdx),
+                  ),
+>>>>>>> 0ba1b295bf05b24746e88a0573d6b644a8c4095a
                 );
               },
             );
@@ -892,7 +1019,6 @@ class _LyricScrollerState extends State<_LyricScroller> {
   @override
   void dispose() {
     widget.controller.currentLineNotifier.removeListener(_onLineChanged);
-    _scrollController.dispose();
     super.dispose();
   }
 }

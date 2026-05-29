@@ -29,10 +29,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.edit,
     ),
     _OnboardingPageData(
-      title: 'Practice Smarter Everyday',
+      title: 'Sing and Study With Confidence',
       subtitle:
-          'Metronome, tuner, practice timer, and streak tracking — everything you need to level up faster.',
-      icon: Icons.bolt,
+          'Use karaoke playback and reference materials to learn songs, lyrics, and theory in one place.',
+      icon: Icons.mic,
     ),
   ];
 

@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/routing/navigation_provider.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/auth/data/models/user.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
@@ -69,6 +73,7 @@ class _ProfileContent extends ConsumerWidget {
         children: [
           const SizedBox(height: 32),
           _buildProfileHeader(
+            context,
             ref,
             friendsState,
             currentUser: currentUser,
@@ -90,53 +95,75 @@ class _ProfileContent extends ConsumerWidget {
   }
 
   Widget _buildProfileHeader(
+    BuildContext context,
     WidgetRef ref,
     AsyncValue<List<User>> friendsState, {
     required User? currentUser,
     required AsyncValue<FollowCounts>? followCountsState,
   }) {
+    final isProfessionalAccount =
+        currentUser?.profileType == User.professionalProfileType;
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Center(
-          child: CircleAvatar(
-            radius: 64,
-            backgroundColor: AppColors.surface,
-            backgroundImage: profile.avatarUrl != null
-                ? NetworkImage(profile.avatarUrl!)
-                : null,
-            child: profile.avatarUrl == null
-                ? const Icon(Icons.person, size: 64, color: AppColors.primary)
-                : null,
+        _ProfileCardContainer(
+          isProfessional: isProfessionalAccount,
+          child: Column(
+            children: [
+              CircleAvatar(
+                radius: 64,
+                backgroundColor: colorScheme.surface,
+                backgroundImage: profile.avatarUrl != null
+                    ? NetworkImage(profile.avatarUrl!)
+                    : null,
+                child: profile.avatarUrl == null
+                    ? const Icon(
+                        Icons.person,
+                        size: 64,
+                        color: AppColors.primary,
+                      )
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                profile.name,
+                style: AppTextStyles.header.copyWith(
+                  color: AppColors.onSurface,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                profile.email,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (isProfessionalAccount) ...[
+                const SizedBox(height: 14),
+                _buildProfessionalBadge(),
+              ],
+              const SizedBox(height: 18),
+              _buildProfileStats(
+                context,
+                ref,
+                friendsState,
+                currentUser: currentUser,
+                followCountsState: followCountsState,
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          profile.name,
-          style: AppTextStyles.header.copyWith(color: AppColors.onSurface),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          profile.email,
-          style: AppTextStyles.body.copyWith(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w500,
-          ),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 8),
-        _buildProfileStats(
-          ref,
-          friendsState,
-          currentUser: currentUser,
-          followCountsState: followCountsState,
         ),
       ],
     );
   }
 
   Widget _buildProfileStats(
+    BuildContext context,
     WidgetRef ref,
     AsyncValue<List<User>> friendsState, {
     required User? currentUser,
@@ -165,18 +192,46 @@ class _ProfileContent extends ConsumerWidget {
         final hasCountsError = followCountsState?.hasError ?? false;
         final followers = counts?.followers ?? 0;
         final following = counts?.following ?? 0;
-        final suffix = isLoadingCounts
-            ? ' • Loading follows...'
-            : hasCountsError
-            ? ' • Follows unavailable'
-            : '';
-
-        return Text(
-          '${_formatCount(friends.length, 'Friend', 'Friends')} • '
-          '${_formatCount(followers, 'Follower', 'Followers')} • '
-          '${_formatCount(following, 'Following', 'Following')}$suffix',
-          style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
-          textAlign: TextAlign.center,
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatColumn(
+                    value: friends.length,
+                    label: 'Friends',
+                  ),
+                ),
+                _buildStatDivider(),
+                Expanded(
+                  child: _buildStatColumn(
+                    value: followers,
+                    label: 'Followers',
+                    onTap: () => context.push(Routes.followers),
+                  ),
+                ),
+                _buildStatDivider(),
+                Expanded(
+                  child: _buildStatColumn(
+                    value: following,
+                    label: 'Following',
+                    onTap: () => context.push(Routes.following),
+                  ),
+                ),
+              ],
+            ),
+            if (isLoadingCounts || hasCountsError) ...[
+              const SizedBox(height: 12),
+              Text(
+                isLoadingCounts ? 'Loading follows...' : 'Follows unavailable',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.hint,
+                  fontSize: 12,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ],
         );
       },
       loading: () => Text(
@@ -196,6 +251,75 @@ class _ProfileContent extends ConsumerWidget {
     return '$count ${count == 1 ? singular : plural}';
   }
 
+  Widget _buildProfessionalBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.primary),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.verified, color: AppColors.primary, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            'Professional Account',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatColumn({
+    required int value,
+    required String label,
+    VoidCallback? onTap,
+  }) {
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        children: [
+          Text(
+            '$value',
+            style: AppTextStyles.subtitle.copyWith(
+              color: onTap == null ? AppColors.onSurface : AppColors.primary,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.hint,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) return content;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: content,
+    );
+  }
+
+  Widget _buildStatDivider() {
+    return Container(width: 1, height: 42, color: AppColors.inputBorder);
+  }
+
   Widget _buildProfileActions(
     BuildContext context,
     WidgetRef ref, {
@@ -204,8 +328,6 @@ class _ProfileContent extends ConsumerWidget {
   }) {
     final isPersonalAccount =
         currentUser?.profileType == User.personalProfileType;
-    final isProfessionalAccount =
-        currentUser?.profileType == User.professionalProfileType;
 
     return Column(
       children: [
@@ -262,40 +384,7 @@ class _ProfileContent extends ConsumerWidget {
                     ),
             ),
           ),
-        ] else if (isProfessionalAccount) ...[
-          const SizedBox(height: 12),
-          Text(
-            'Professional Account',
-            style: AppTextStyles.body.copyWith(
-              color: AppColors.primary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-          ),
         ],
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: null,
-            icon: const Icon(Icons.fitness_center, color: Colors.grey),
-            label: Text(
-              'Practice sessions (removed)',
-              style: AppTextStyles.body.copyWith(
-                color: Colors.grey,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.grey, width: 1.5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-        ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
@@ -508,6 +597,134 @@ class _ProfileContent extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ProfileCardContainer extends StatelessWidget {
+  const _ProfileCardContainer({
+    required this.isProfessional,
+    required this.child,
+  });
+
+  final bool isProfessional;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isProfessional) {
+      return _ProfessionalShineCard(child: child);
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.inputBorder),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _ProfessionalShineCard extends StatefulWidget {
+  const _ProfessionalShineCard({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ProfessionalShineCard> createState() => _ProfessionalShineCardState();
+}
+
+class _ProfessionalShineCardState extends State<_ProfessionalShineCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  Timer? _shineTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..addStatusListener(_handleAnimationStatus);
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _shineTimer?.cancel();
+    _controller.removeStatusListener(_handleAnimationStatus);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleAnimationStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+
+    _controller.reset();
+    _shineTimer?.cancel();
+    _shineTimer = Timer(const Duration(milliseconds: 2200), () {
+      if (!mounted) return;
+      _controller.forward();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final value = _controller.value;
+        final position = -1.3 + (value * 2.6);
+        final opacityScale = value < 0.5 ? value * 2 : (1 - value) * 2;
+        final peakAlpha = (0.04 * opacityScale.clamp(0.0, 1.0)).toDouble();
+
+        return Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.45),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                  color: AppColors.card,
+                  child: child,
+                ),
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment(position - 0.45, position - 0.45),
+                          end: Alignment(position + 0.45, position + 0.45),
+                          colors: [
+                            AppColors.primary.withValues(alpha: 0),
+                            AppColors.primary.withValues(alpha: peakAlpha),
+                            AppColors.primary.withValues(alpha: 0),
+                          ],
+                          stops: const [0.20, 0.50, 0.80],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }

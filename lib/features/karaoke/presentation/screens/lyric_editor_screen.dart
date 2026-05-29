@@ -1,19 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
 import '../../domain/utils/lrc_parser.dart';
 import '../controllers/karaoke_controller.dart';
 import 'player_screen.dart';
 import '../../../references/screens/reference_material_screen.dart';
+import '../../../../features/song/providers/song_provider.dart';
+import '../../../../features/playlist/providers/playlist_provider.dart';
 
 class LyricEditorScreen extends StatefulWidget {
   final KaraokeSong song;
   final KaraokeController controller;
+  final String? targetPlaylistId;
+  final String? sourceSongId;
+  final bool selectPlaylistAfterSave;
 
   const LyricEditorScreen({
     super.key,
     required this.song,
     required this.controller,
+    this.targetPlaylistId,
+    this.sourceSongId,
+    this.selectPlaylistAfterSave = false,
   });
 
   @override
@@ -156,7 +165,8 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         newLines.add(
           LyricLineInput(
             timeCtrl: TextEditingController(
-                text: _formatTime(parsed.timestamp)),
+              text: _formatTime(parsed.timestamp),
+            ),
             textCtrl: TextEditingController(text: parsed.text),
           ),
         );
@@ -172,9 +182,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
 
     if (newLines.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No valid lyrics found')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No valid lyrics found')));
       return;
     }
 
@@ -191,7 +201,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     );
   }
 
-  Future<void> _saveLyrics() async {
+  Future<void> _saveLyrics(WidgetRef ref) async {
     final lyrics = <LrcLine>[];
 
     for (final line in _lines) {
@@ -213,20 +223,357 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       return;
     }
 
-    // Use widget.controller instead of context.read
-    await widget.controller.saveLyrics(widget.song.id, lyrics);
+    try {
+      await widget.controller.saveLyricsForSong(widget.song, lyrics);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save karaoke lyrics: $e')),
+        );
+      }
+      return;
+    }
+    final serializedLyrics = lyrics
+        .map((l) => '[${_formatTime(l.timestamp)}] ${l.text}')
+        .join('\n');
 
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PlayerScreen(
-            song: widget.song.copyWith(lyrics: lyrics),
-            controller: widget.controller,
-          ),
+    if (widget.sourceSongId != null &&
+        _looksLikeObjectId(widget.sourceSongId!)) {
+      try {
+        await ref
+            .read(songServiceProvider)
+            .updateSongLyrics(
+              songId: widget.sourceSongId!,
+              lyrics: serializedLyrics,
+            );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Karaoke saved, but song lyrics update failed: $e'),
+            ),
+          );
+        }
+      }
+    }
+
+    if (widget.targetPlaylistId != null || widget.selectPlaylistAfterSave) {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
         ),
       );
+
+      try {
+        final songService = ref.read(songServiceProvider);
+        final playlistService = ref.read(playlistServiceProvider);
+
+        final backendSong = await songService.createSong(
+          title: widget.song.title,
+          artist: widget.song.artist ?? 'Unknown Artist',
+          source: widget.song.source == SongSource.youtube ? 'youtube' : 'mp3',
+          sourcePath: widget.song.sourcePath,
+          lyrics: serializedLyrics,
+        );
+
+        // Close loading
+        Navigator.pop(context);
+
+        if (widget.targetPlaylistId != null) {
+          await playlistService.addSongToPlaylist(
+            widget.targetPlaylistId!,
+            backendSong.id,
+          );
+          ref.refresh(playlistByIdProvider(widget.targetPlaylistId!));
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('✅ Song successfully added to playlist!'),
+              ),
+            );
+            Navigator.pop(context); // Close LyricEditorScreen
+          }
+        } else if (widget.selectPlaylistAfterSave) {
+          _showPlaylistSelectionSheet(backendSong.id, ref);
+        }
+      } catch (e) {
+        Navigator.pop(context); // Close loading
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to save to playlist backend: $e')),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PlayerScreen(
+              song: widget.song.copyWith(lyrics: lyrics),
+              controller: widget.controller,
+            ),
+          ),
+        );
+      }
     }
+  }
+
+  bool _looksLikeObjectId(String value) =>
+      RegExp(r'^[a-fA-F0-9]{24}$').hasMatch(value);
+
+  void _showPlaylistSelectionSheet(String songId, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Consumer(
+          builder: (ctx, ref, _) {
+            final playlistsAsync = ref.watch(myPlaylistsProvider);
+
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Add to Playlist',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    leading: const Icon(Icons.add, color: Color(0xFF7C4DFF)),
+                    title: const Text(
+                      'Create New Playlist',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    tileColor: const Color(0xFF2A2A2A),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showCreateAndAddPlaylistDialog(songId, ref);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Select Existing Playlist',
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: playlistsAsync.when(
+                      data: (playlists) {
+                        if (playlists.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              'No playlists available.\nCreate one above!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          );
+                        }
+                        return ListView.builder(
+                          itemCount: playlists.length,
+                          itemBuilder: (context, index) {
+                            final playlist = playlists[index];
+                            return ListTile(
+                              leading: const Icon(
+                                Icons.playlist_play,
+                                color: Color(0xFF7C4DFF),
+                              ),
+                              title: Text(
+                                playlist.name,
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              onTap: () async {
+                                Navigator.pop(ctx);
+                                await _addSongToExistingPlaylist(
+                                  playlist.id,
+                                  songId,
+                                  ref,
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                      loading: () => const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF7C4DFF),
+                        ),
+                      ),
+                      error: (err, _) => Center(
+                        child: Text(
+                          'Error: $err',
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx); // Close sheet
+                        Navigator.pop(context); // Close LyricEditorScreen
+                      },
+                      child: const Text(
+                        'Skip',
+                        style: TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _addSongToExistingPlaylist(
+    String playlistId,
+    String songId,
+    WidgetRef ref,
+  ) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+      ),
+    );
+
+    try {
+      final playlistService = ref.read(playlistServiceProvider);
+      await playlistService.addSongToPlaylist(playlistId, songId);
+      ref.invalidate(myPlaylistsProvider);
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Song successfully added to playlist!'),
+          ),
+        );
+        Navigator.pop(context); // Close LyricEditorScreen
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add to playlist: $e')),
+        );
+      }
+    }
+  }
+
+  void _showCreateAndAddPlaylistDialog(String songId, WidgetRef ref) {
+    final TextEditingController nameController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text(
+          'New Playlist',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Playlist Name',
+            hintStyle: TextStyle(color: Colors.grey),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: Color(0xFF7C4DFF)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = nameController.text.trim();
+              if (name.isNotEmpty) {
+                Navigator.pop(context); // Close dialog
+
+                // Show loading
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+                  ),
+                );
+
+                try {
+                  final playlistService = ref.read(playlistServiceProvider);
+                  final newPlaylist = await playlistService.createPlaylist(
+                    name,
+                  );
+                  await playlistService.addSongToPlaylist(
+                    newPlaylist.id,
+                    songId,
+                  );
+                  ref.invalidate(myPlaylistsProvider);
+
+                  if (mounted) {
+                    Navigator.pop(context); // Close loading dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '✅ Playlist "$name" created and song added!',
+                        ),
+                      ),
+                    );
+                    Navigator.pop(context); // Close LyricEditorScreen
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    Navigator.pop(context); // Close loading dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to create playlist: $e')),
+                    );
+                  }
+                }
+              }
+            },
+            child: const Text(
+              'Create & Add',
+              style: TextStyle(
+                color: Color(0xFF7C4DFF),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Duration? _parseTime(String timeStr) {
@@ -258,15 +605,19 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
         actions: [
-          TextButton(
-            onPressed: _saveLyrics,
-            child: const Text(
-              'SAVE',
-              style: TextStyle(
-                color: Color(0xFF7C4DFF),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+          Consumer(
+            builder: (context, ref, _) {
+              return TextButton(
+                onPressed: () => _saveLyrics(ref),
+                child: const Text(
+                  'SAVE',
+                  style: TextStyle(
+                    color: Color(0xFF7C4DFF),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -340,7 +691,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ReferenceMaterialScreen(songId: widget.song.id),
+                              builder: (context) => ReferenceMaterialScreen(
+                                songId: widget.song.id,
+                              ),
                             ),
                           );
                         },
