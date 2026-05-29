@@ -14,9 +14,32 @@ final songByIdProvider = FutureProvider.family<Song, String>((ref, id) async {
   return service.fetchSongById(id);
 });
 
-final searchSongsProvider =
-    FutureProvider.family<List<Song>, String>((ref, query) async {
+final searchSongsProvider = FutureProvider.family<List<Song>, String>((
+  ref,
+  query,
+) async {
   if (query.isEmpty) return [];
   final service = ref.watch(songServiceProvider);
   return service.searchSongs(query);
+});
+
+final isSongFavoriteProvider = FutureProvider.family<bool, String>((
+  ref,
+  songId,
+) async {
+  final service = ref.watch(songServiceProvider);
+  return service.isSongFavorite(songId);
+});
+
+final myFavoriteSongsProvider = FutureProvider<List<Song>>((ref) async {
+  final service = ref.watch(songServiceProvider);
+  return service.getMyFavoriteSongs();
+});
+
+final toggleFavoriteSongProvider = FutureProvider.family<bool, String>((
+  ref,
+  songId,
+) async {
+  final service = ref.watch(songServiceProvider);
+  return service.toggleFavoriteSong(songId);
 });

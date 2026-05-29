@@ -7,6 +7,7 @@ import 'package:music_app_frontend/features/playlist/providers/playlist_provider
 import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/core/routing/app_router.dart';
+import 'package:music_app_frontend/shared/widgets/favorite_icon_button.dart';
 import 'package:go_router/go_router.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
@@ -286,7 +287,7 @@ class _PlaylistDetailContent extends StatelessWidget {
   }
 }
 
-class _SongTile extends StatelessWidget {
+class _SongTile extends ConsumerWidget {
   final Song song;
   final int index;
 
@@ -300,7 +301,7 @@ class _SongTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bool hasImage =
         song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
 
@@ -353,9 +354,32 @@ class _SongTile extends StatelessWidget {
           ),
         ],
       ),
-      trailing: Text(
-        _formatDuration(song.duration),
-        style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
+      trailing: SizedBox(
+        width: 120,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Text(
+                _formatDuration(song.duration),
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.hint,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            FavoriteIconButton(
+              songId: song.id,
+              initialIsFavorite: song.isFavorite,
+              iconSize: 20,
+              onToggle: () {
+                // Could refresh playlist here if needed, or just let the UI update
+                // since the heart icon state changes immediately
+              },
+            ),
+          ],
+        ),
       ),
       onTap: () {
         context.push(

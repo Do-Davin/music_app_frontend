@@ -68,3 +68,21 @@ final playlistByIdProvider = FutureProvider.family<Playlist, String>((
 ) async {
   return ref.watch(playlistServiceProvider).getPlaylistById(id);
 });
+
+final likedSongsPlaylistProvider = FutureProvider<Playlist>((ref) async {
+  return ref.watch(playlistServiceProvider).getLikedSongsPlaylist();
+});
+
+final isSongInLikedSongsProvider = FutureProvider.family<bool, String>((
+  ref,
+  songId,
+) async {
+  return ref.watch(playlistServiceProvider).isSongInLikedSongs(songId);
+});
+
+final toggleSongInLikedSongsProvider = FutureProvider.family<bool, String>((
+  ref,
+  songId,
+) async {
+  return ref.watch(playlistServiceProvider).toggleSongInLikedSongs(songId);
+});

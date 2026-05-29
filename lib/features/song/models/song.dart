@@ -8,8 +8,10 @@ class Song {
   final int? tempo;
   final String? difficulty;
   final List<String>? tags;
+
   /// Source type: 'mp3' or 'youtube'
   final String? source;
+
   /// File path (mp3) or YouTube URL
   final String? sourcePath;
   final String? fileUrl;
@@ -19,6 +21,7 @@ class Song {
   final String? chordNotationStyle;
   final bool isPublic;
   final int playCount;
+  final bool isFavorite;
 
   Song({
     required this.id,
@@ -39,6 +42,7 @@ class Song {
     this.chordNotationStyle,
     this.isPublic = false,
     this.playCount = 0,
+    this.isFavorite = false,
   });
 
   factory Song.fromJson(Map<String, dynamic> json) {
@@ -61,6 +65,7 @@ class Song {
       chordNotationStyle: json['chordNotationStyle'] as String?,
       isPublic: json['isPublic'] as bool? ?? false,
       playCount: json['playCount'] as int? ?? 0,
+      isFavorite: json['isFavorite'] as bool? ?? false,
     );
   }
 
@@ -90,6 +95,52 @@ class Song {
       'chordNotationStyle': chordNotationStyle,
       'isPublic': isPublic,
       'playCount': playCount,
+      'isFavorite': isFavorite,
     };
+  }
+
+  /// Create a copy of this Song with modified fields
+  Song copyWith({
+    String? id,
+    String? title,
+    String? artist,
+    String? albumName,
+    int? duration,
+    String? key,
+    int? tempo,
+    String? difficulty,
+    List<String>? tags,
+    String? source,
+    String? sourcePath,
+    String? fileUrl,
+    String? videoUrl,
+    String? coverImageUrl,
+    String? lyrics,
+    String? chordNotationStyle,
+    bool? isPublic,
+    int? playCount,
+    bool? isFavorite,
+  }) {
+    return Song(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      albumName: albumName ?? this.albumName,
+      duration: duration ?? this.duration,
+      key: key ?? this.key,
+      tempo: tempo ?? this.tempo,
+      difficulty: difficulty ?? this.difficulty,
+      tags: tags ?? this.tags,
+      source: source ?? this.source,
+      sourcePath: sourcePath ?? this.sourcePath,
+      fileUrl: fileUrl ?? this.fileUrl,
+      videoUrl: videoUrl ?? this.videoUrl,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      lyrics: lyrics ?? this.lyrics,
+      chordNotationStyle: chordNotationStyle ?? this.chordNotationStyle,
+      isPublic: isPublic ?? this.isPublic,
+      playCount: playCount ?? this.playCount,
+      isFavorite: isFavorite ?? this.isFavorite,
+    );
   }
 }

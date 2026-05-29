@@ -263,17 +263,28 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
     final current = _items[index];
     final delta = currentPosition - _resizeStartPosition!;
 
-    // Change font scale based on vertical drag movement
-    final fontScaleDelta = delta.dy * 0.005;
-    final newFontScale = (_resizeStartFontScale! + fontScaleDelta).clamp(
+    // Horizontal dragging scales width, vertical dragging scales font/height
+    final horizontalDelta = delta.dx * 0.01;
+    final verticalDelta = delta.dy * 0.005;
+
+    // Calculate new width from horizontal dragging (direct pixel expansion)
+    final newWidth = (current.width + horizontalDelta).clamp(
+      80.0,
+      double.infinity,
+    );
+
+    // Calculate new font scale from vertical dragging
+    final newFontScale = (_resizeStartFontScale! + verticalDelta).clamp(
       0.5,
       2.5,
     );
 
-    // Scale width and height proportionally to font scale change
+    // Scale height proportionally to font scale change
     final scaleRatio = newFontScale / _resizeStartFontScale!;
-    final newWidth = (current.width * scaleRatio).clamp(80.0, 600.0);
-    final newHeight = (current.height * scaleRatio).clamp(40.0, 300.0);
+    final newHeight = (current.height * scaleRatio).clamp(
+      40.0,
+      double.infinity,
+    );
 
     setState(() {
       _items[index] = _items[index].copyWith(
@@ -564,35 +575,37 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: Center(
+              child: SingleChildScrollView(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  child: SingleChildScrollView(
-                    child: Container(
-                      key: _canvasKey,
-                      width: _canvasWidth,
-                      height: _canvasHeight,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        color: const Color(0xFF1B1B1B),
-                        border: Border.all(color: Colors.white12),
-                        boxShadow: [
-                          const BoxShadow(
-                            color: Color(0x59000000),
-                            blurRadius: 24,
-                            offset: Offset(0, 12),
-                          ),
-                        ],
+                  child: Stack(
+                    children: [
+                      Container(
+                        key: _canvasKey,
+                        width: _canvasWidth,
+                        height: _canvasHeight,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          color: const Color(0xFF1B1B1B),
+                          border: Border.all(color: Colors.white12),
+                          boxShadow: [
+                            const BoxShadow(
+                              color: Color(0x59000000),
+                              blurRadius: 24,
+                              offset: Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: CustomPaint(painter: _CanvasGridPainter()),
+                            ),
+                            ..._items.map(_buildDraggableItem),
+                          ],
+                        ),
                       ),
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: CustomPaint(painter: _CanvasGridPainter()),
-                          ),
-                          ..._items.map(_buildDraggableItem),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -687,7 +700,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
                           item.text,
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16 * item.fontScale,
+                            fontSize: 24 * item.fontScale,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -823,144 +836,6 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showResizeItemDialog(LyricChordItem item) {
-    double tempW = item.width;
-    double tempH = item.height;
-    double tempScale = item.fontScale;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF161616),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-      ),
-      isScrollControlled: true,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setStateSB) {
-            return SingleChildScrollView(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  top: 16,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Resize Item',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        const Text(
-                          'Width',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${tempW.round()}px',
-                          style: const TextStyle(
-                            color: Color(0xFF7C4DFF),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Slider(
-                      min: 80,
-                      max: 600,
-                      value: tempW,
-                      activeColor: const Color(0xFF7C4DFF),
-                      inactiveColor: Colors.white12,
-                      onChanged: (v) => setStateSB(() => tempW = v),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Text(
-                          'Font Size',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${(tempScale * 100).round()}%',
-                          style: const TextStyle(
-                            color: Color(0xFF7C4DFF),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Slider(
-                      min: 0.7,
-                      max: 1.6,
-                      value: tempScale,
-                      activeColor: const Color(0xFF7C4DFF),
-                      inactiveColor: Colors.white12,
-                      onChanged: (v) => setStateSB(() => tempScale = v),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: () {
-                            final idx = _items.indexWhere(
-                              (i) => i.id == item.id,
-                            );
-                            if (idx != -1) {
-                              setState(() {
-                                _items[idx] = _items[idx].copyWith(
-                                  width: tempW,
-                                  height: tempH,
-                                  fontScale: tempScale,
-                                );
-                              });
-                              _saveCanvasState();
-                            }
-                            Navigator.pop(ctx);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF7C4DFF),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                          ),
-                          child: const Text('Apply'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }
