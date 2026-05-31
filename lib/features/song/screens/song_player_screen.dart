@@ -178,6 +178,43 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
     }
   }
 
+  void _skipForward() {
+    final newPosition = _position + const Duration(seconds: 10);
+    final maxPosition = _duration;
+    
+    if (newPosition < maxPosition) {
+      if (widget.song.isYoutube) {
+        _youtubeController?.seekTo(newPosition);
+      } else {
+        _audioPlayer?.seek(newPosition);
+      }
+    } else {
+      if (widget.song.isYoutube) {
+        _youtubeController?.seekTo(maxPosition);
+      } else {
+        _audioPlayer?.seek(maxPosition);
+      }
+    }
+  }
+
+  void _skipBackward() {
+    final newPosition = _position - const Duration(seconds: 10);
+    
+    if (newPosition > Duration.zero) {
+      if (widget.song.isYoutube) {
+        _youtubeController?.seekTo(newPosition);
+      } else {
+        _audioPlayer?.seek(newPosition);
+      }
+    } else {
+      if (widget.song.isYoutube) {
+        _youtubeController?.seekTo(Duration.zero);
+      } else {
+        _audioPlayer?.seek(Duration.zero);
+      }
+    }
+  }
+
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, "0");
     final twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
@@ -260,6 +297,11 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   Widget _buildScaffold(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final titleFontSize = screenWidth > 600 ? 30.0 : 26.0;
+    final artistFontSize = screenWidth > 600 ? 20.0 : 18.0;
+    final lyricsFontSize = screenWidth > 600 ? 16.0 : 14.0;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -297,93 +339,98 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              _buildMedia(context),
-              const SizedBox(height: 40),
-              Text(
-                _currentSong?.lyrics ?? "Enjoy the music!",
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.song.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          widget.song.artist,
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 18,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
+                  const SizedBox(height: 20),
+                  _buildMedia(context),
+                  const SizedBox(height: 40),
+                  Text(
+                    _currentSong?.lyrics ?? "Enjoy the music!",
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: lyricsFontSize,
+                      fontWeight: FontWeight.w500,
                     ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
+                  const SizedBox(height: 30),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      IconButton(
-                        tooltip: _hasLyrics
-                            ? 'Karaoke lyrics ready'
-                            : 'Set up lyrics',
-                        icon: Icon(
-                          Icons.lyrics,
-                          color: _hasLyrics
-                              ? Colors.grey.shade600
-                              : const Color(0xFF7C4DFF),
-                          size: 28,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.song.title,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: titleFontSize,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              widget.song.artist,
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: artistFontSize,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        onPressed: _hasLyrics || _isPreparingKaraoke
-                            ? null
-                            : () => _startLyricSetup(context, widget.song),
                       ),
-                      const SizedBox(height: 10),
-                      const Icon(
-                        Icons.favorite,
-                        color: AppColors.primary,
-                        size: 30,
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: _hasLyrics
+                                ? 'Karaoke lyrics ready'
+                                : 'Set up lyrics',
+                            icon: Icon(
+                              Icons.lyrics,
+                              color: _hasLyrics
+                                  ? Colors.grey.shade600
+                                  : const Color(0xFF7C4DFF),
+                              size: 28,
+                            ),
+                            onPressed: _hasLyrics || _isPreparingKaraoke
+                                ? null
+                                : () => _startLyricSetup(context, widget.song),
+                          ),
+                          const SizedBox(height: 10),
+                          const Icon(
+                            Icons.favorite,
+                            color: AppColors.primary,
+                            size: 30,
+                          ),
+                        ],
                       ),
                     ],
                   ),
+                  const SizedBox(height: 24),
+                  _buildActionButtons(),
+                  const SizedBox(height: 24),
+                  _buildProgressBar(),
+                  const SizedBox(height: 20),
+                  _buildPlayerControls(),
+                  const SizedBox(height: 30),
+                  _buildFeatureActions(),
+                  const SizedBox(height: 20),
                 ],
               ),
-              const SizedBox(height: 24),
-              _buildActionButtons(),
-              const SizedBox(height: 24),
-              _buildProgressBar(),
-              const SizedBox(height: 20),
-              _buildPlayerControls(),
-              const SizedBox(height: 30),
-              _buildFeatureActions(),
-              const SizedBox(height: 20),
-            ],
+            ),
           ),
         ),
       ),
@@ -391,15 +438,16 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   Widget _buildActionButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
+    return Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      alignment: WrapAlignment.start,
       children: [
         _ActionButton(
           icon: Icons.description_outlined,
           label: 'Material',
           onTap: _openMaterial,
         ),
-        const SizedBox(width: 10),
         _ActionButton(
           icon: Icons.mic_outlined,
           label: 'Karaoke',
@@ -407,7 +455,6 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
               ? () => _startKaraokeConversion(context, widget.song)
               : () => _startLyricSetup(context, widget.song),
         ),
-        const SizedBox(width: 10),
         _ActionButton(
           icon: Icons.grid_on_outlined,
           label: 'Chord',
@@ -419,10 +466,12 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
 
   Widget _buildFeatureActions() {
     final enabled = _hasLyrics && !_isPreparingKaraoke;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final buttonMaxWidth = screenWidth > 600 ? 320.0 : 260.0;
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 260),
+        constraints: BoxConstraints(maxWidth: buttonMaxWidth),
         child: ElevatedButton.icon(
           onPressed: enabled
               ? () => _startKaraokeConversion(context, widget.song)
@@ -456,9 +505,13 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
 
   Widget _buildMedia(BuildContext context) {
     final controller = _youtubeController;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final contentWidth = screenWidth > 600 ? 600.0 : screenWidth;
+    final youtubeHeight = (contentWidth - 48) * 0.55;
+
     if (widget.song.isYoutube && controller != null) {
       return Container(
-        height: 220,
+        height: youtubeHeight,
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
@@ -485,8 +538,12 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   Widget _buildAlbumArt(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final contentWidth = screenWidth > 600 ? 600.0 : screenWidth;
+    final albumArtSize = (contentWidth - 48) * 0.85;
+
     return Container(
-      height: MediaQuery.of(context).size.width * 0.85,
+      height: albumArtSize,
       width: double.infinity,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
@@ -578,18 +635,28 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   Widget _buildPlayerControls() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final playButtonSize = screenWidth > 600 ? 85.0 : 75.0;
+    final playIconSize = screenWidth > 600 ? 56.0 : 50.0;
+    final skipIconSize = screenWidth > 600 ? 52.0 : 48.0;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         IconButton(
-          icon: const Icon(Icons.skip_previous, color: Colors.white, size: 48),
-          onPressed: () {},
+          icon: Icon(
+            Icons.replay_10,
+            color: Colors.white,
+            size: skipIconSize,
+          ),
+          onPressed: _skipBackward,
+          tooltip: 'Rewind 10 seconds',
         ),
         GestureDetector(
           onTap: _togglePlay,
           child: Container(
-            height: 75,
-            width: 75,
+            height: playButtonSize,
+            width: playButtonSize,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: AppColors.surface,
@@ -597,13 +664,18 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
             child: Icon(
               _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
               color: AppColors.primary,
-              size: 50,
+              size: playIconSize,
             ),
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.skip_next, color: Colors.white, size: 48),
-          onPressed: () {},
+          icon: Icon(
+            Icons.forward_10,
+            color: Colors.white,
+            size: skipIconSize,
+          ),
+          onPressed: _skipForward,
+          tooltip: 'Forward 10 seconds',
         ),
       ],
     );

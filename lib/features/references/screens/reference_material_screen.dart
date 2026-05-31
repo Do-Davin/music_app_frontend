@@ -25,6 +25,9 @@ class ReferenceMaterialScreen extends ConsumerStatefulWidget {
 
 class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScreen> {
   String? _selectedFilter;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _sortBy = 'newest'; // newest, oldest, alphabetical
 
   @override
   void initState() {
@@ -32,6 +35,12 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(referenceMaterialProvider.notifier).fetchMaterials(songId: widget.songId);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _showCreateDialog() {
@@ -55,6 +64,111 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     ref.read(referenceMaterialProvider.notifier).fetchMaterials(type: filter, songId: widget.songId);
   }
 
+  void _showSortOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF2A2A2A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Sort by',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSortOption('Newest First', 'newest'),
+          _buildSortOption('Oldest First', 'oldest'),
+          _buildSortOption('Alphabetical (A-Z)', 'alphabetical'),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortOption(String label, String value) {
+    final isSelected = _sortBy == value;
+    return ListTile(
+      leading: Icon(
+        isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+        color: isSelected ? const Color(0xFFFF9800) : Colors.grey,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : Colors.grey.shade400,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      onTap: () {
+        setState(() {
+          _sortBy = value;
+        });
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  List<ReferenceMaterial> _filterMaterials(List<ReferenceMaterial> materials) {
+    // First apply search filter
+    var filtered = materials.toList(); // Create a mutable copy
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((material) {
+        final titleMatch = material.title.toLowerCase().contains(_searchQuery.toLowerCase());
+        final descMatch = material.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false;
+        final topicMatch = material.topic?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false;
+        return titleMatch || descMatch || topicMatch;
+      }).toList();
+    }
+
+    // Then apply sorting
+    switch (_sortBy) {
+      case 'newest':
+        filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case 'alphabetical':
+        filtered.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        break;
+    }
+
+    return filtered;
+  }
+
+  String get _sortLabel {
+    switch (_sortBy) {
+      case 'newest':
+        return 'Newest';
+      case 'oldest':
+        return 'Oldest';
+      case 'alphabetical':
+        return 'A-Z';
+      default:
+        return 'Newest';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(referenceMaterialProvider);
@@ -70,18 +184,81 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
           : null,
       body: Column(
         children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Search materials...',
+                hintStyle: TextStyle(color: Colors.grey.shade600),
+                prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                filled: true,
+                fillColor: const Color(0xFF2A2A2A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          
           // Filter chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                _buildFilterChip('All', null),
-                _buildFilterChip('PDF', 'PDF'),
-                _buildFilterChip('PPT', 'PPT'),
-                _buildFilterChip('Sheet Music', 'Sheet Music'),
-                _buildFilterChip('Note', 'Note'),
-                _buildFilterChip('Other', 'Other'),
+                _buildFilterChip('All', null, Icons.grid_on),
+                const SizedBox(width: 8),
+                _buildFilterChip('PDF', 'PDF', Icons.picture_as_pdf),
+                const SizedBox(width: 8),
+                _buildFilterChip('PPT', 'PPT', Icons.slideshow),
+                const SizedBox(width: 8),
+                _buildFilterChip('Sheet Music', 'Sheet Music', Icons.music_note),
+                const SizedBox(width: 8),
+                _buildFilterChip('Note', 'Note', Icons.note),
+              ],
+            ),
+          ),
+          
+          // Materials count and sort
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Materials (${_filterMaterials(state.materials).length})',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                InkWell(
+                  onTap: _showSortOptions,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      children: [
+                        Text(
+                          _sortLabel,
+                          style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                        ),
+                        Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade400, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -93,10 +270,10 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        heroTag: 'referenceMaterialFAB', // Fixes "Multiple heroes share the same tag"
+        heroTag: 'referenceMaterialFAB',
         onPressed: _showCreateDialog,
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add),
+        backgroundColor: const Color(0xFF7C4DFF),
+        child: const Icon(Icons.book, color: Colors.white),
       ),
     );
   }
@@ -108,7 +285,7 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
 
     if (state.error != null && state.materials.isEmpty) {
       return Center(
-        child: SingleChildScrollView( // Fixes overflow if error message is long
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -131,14 +308,36 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
       );
     }
 
-    if (state.materials.isEmpty) {
-      return const Center(child: Text('No materials found', style: TextStyle(color: Colors.white70)));
+    final filteredMaterials = _filterMaterials(state.materials);
+
+    if (filteredMaterials.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.folder_open, size: 64, color: Colors.grey.shade700),
+            const SizedBox(height: 16),
+            Text(
+              _searchQuery.isNotEmpty ? 'No materials found' : 'No materials yet',
+              style: const TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+            if (_searchQuery.isEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Tap + to add your first material',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+              ),
+            ],
+          ],
+        ),
+      );
     }
 
     return ListView.builder(
-      itemCount: state.materials.length,
+      padding: const EdgeInsets.only(bottom: 80),
+      itemCount: filteredMaterials.length,
       itemBuilder: (context, index) {
-        final material = state.materials[index];
+        final material = filteredMaterials[index];
         return _MaterialCard(
           material: material,
           onEdit: () => _showEditDialog(material),
@@ -148,20 +347,42 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     );
   }
 
-  Widget _buildFilterChip(String label, String? value) {
+  Widget _buildFilterChip(String label, String? value, IconData icon) {
     final isSelected = _selectedFilter == value;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (_) => _applyFilter(value),
-        selectedColor: AppColors.primary.withValues(alpha: 0.3),
-        checkmarkColor: AppColors.primary,
-        labelStyle: TextStyle(
-          color: isSelected ? AppColors.primary : Colors.white70,
+    return Container(
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFFFF9800) : const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isSelected ? const Color(0xFFFF9800) : Colors.transparent,
+          width: 1.5,
         ),
-        backgroundColor: AppColors.surface,
+      ),
+      child: InkWell(
+        onTap: () => _applyFilter(value),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
+                color: isSelected ? Colors.black : Colors.white70,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.black : Colors.white70,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -203,6 +424,36 @@ class _MaterialCard extends StatelessWidget {
     required this.onDelete,
   });
 
+  IconData _getFileIcon() {
+    switch (material.type.toLowerCase()) {
+      case 'pdf':
+        return Icons.picture_as_pdf;
+      case 'ppt':
+        return Icons.slideshow;
+      case 'sheet music':
+        return Icons.music_note;
+      case 'note':
+        return Icons.note;
+      default:
+        return Icons.insert_drive_file;
+    }
+  }
+
+  Color _getFileIconColor() {
+    switch (material.type.toLowerCase()) {
+      case 'pdf':
+        return const Color(0xFFE53935);
+      case 'ppt':
+        return const Color(0xFFFF6F00);
+      case 'sheet music':
+        return const Color(0xFF7C4DFF);
+      case 'note':
+        return const Color(0xFF42A5F5);
+      default:
+        return Colors.grey;
+    }
+  }
+
   void _showPreview(BuildContext context) {
     if (material.fileUrl == null && material.fileName == null) return;
 
@@ -217,82 +468,143 @@ class _MaterialCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: AppColors.surface,
+    return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(  // Makes whole card slightly tappable
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: InkWell(
         onTap: material.fileUrl != null ? () => _showPreview(context) : null,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Header with icon, title, and actions
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Expanded(
-                    child: Text(
-                      material.title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                  // File type icon
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: _getFileIconColor().withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      _getFileIcon(),
+                      color: _getFileIconColor(),
+                      size: 32,
                     ),
                   ),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white70),
-                        onPressed: onEdit,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.redAccent),
-                        onPressed: onDelete,
-                      ),
-                    ],
+                  const SizedBox(width: 12),
+                  
+                  // Title and topic
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          material.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            if (material.topic != null) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF9800).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  material.topic!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFFF9800),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(
+                              material.timeAgo,
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Action buttons
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 22),
+                    onPressed: onEdit,
+                    tooltip: 'Edit',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                    onPressed: onDelete,
+                    tooltip: 'Delete',
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
+              
+              // Description
+              if (material.description != null && material.description!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  material.description!,
+                  style: TextStyle(
+                    color: Colors.grey.shade400,
+                    fontSize: 13,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                child: Text(
-                  material.type,
-                  style: TextStyle(color: AppColors.primary, fontSize: 12),
-                ),
-              ),
-              if (material.topic != null) ...[
-                const SizedBox(height: 8),
-                Text('Topic: ${material.topic}', style: const TextStyle(color: Colors.white60)),
-              ],
-              if (material.description != null) ...[
-                const SizedBox(height: 8),
-                Text(material.description!, style: const TextStyle(color: Colors.white70)),
               ],
 
-              // === FILE PREVIEW SECTION (Clickable) ===
+              // File preview section
               if (material.fileName != null) ...[
                 const SizedBox(height: 12),
                 InkWell(
                   onTap: () => _showPreview(context),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(8),
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.white10),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.attach_file, size: 20, color: Colors.white70),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.insert_drive_file,
+                            size: 24,
+                            color: _getFileIconColor(),
+                          ),
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -301,20 +613,36 @@ class _MaterialCard extends StatelessWidget {
                               Text(
                                 material.fileName!,
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w600,
                                   color: Colors.white,
+                                  fontSize: 13,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              const SizedBox(height: 2),
                               Text(
-                                '${material.formattedFileSize} • ${material.mimeType ?? 'Unknown'}',
-                                style: const TextStyle(fontSize: 12, color: Colors.white60),
+                                '${material.formattedFileSize} • ${material.type}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.shade600,
+                                ),
                               ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.visibility, color: Colors.white70),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.visibility_outlined,
+                            color: Colors.grey.shade600,
+                            size: 20,
+                          ),
+                        ),
                       ],
                     ),
                   ),

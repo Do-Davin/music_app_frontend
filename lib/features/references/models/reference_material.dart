@@ -59,4 +59,32 @@ class ReferenceMaterial {
     if (fileSize! < 1024 * 1024) return '${(fileSize! / 1024).toStringAsFixed(1)} KB';
     return '${(fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
+
+  // Helper to format time ago
+  String get timeAgo {
+    final now = DateTime.now();
+    final difference = now.difference(createdAt);
+
+    if (difference.inSeconds < 60) {
+      return 'Added just now';
+    } else if (difference.inMinutes < 60) {
+      final mins = difference.inMinutes;
+      return 'Added ${mins} ${mins == 1 ? 'min' : 'mins'} ago';
+    } else if (difference.inHours < 24) {
+      final hours = difference.inHours;
+      return 'Added ${hours} ${hours == 1 ? 'hour' : 'hours'} ago';
+    } else if (difference.inDays < 7) {
+      final days = difference.inDays;
+      return 'Added ${days} ${days == 1 ? 'day' : 'days'} ago';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return 'Added ${weeks} ${weeks == 1 ? 'week' : 'weeks'} ago';
+    } else if (difference.inDays < 365) {
+      final months = (difference.inDays / 30).floor();
+      return 'Added ${months} ${months == 1 ? 'month' : 'months'} ago';
+    } else {
+      final years = (difference.inDays / 365).floor();
+      return 'Added ${years} ${years == 1 ? 'year' : 'years'} ago';
+    }
+  }
 }
