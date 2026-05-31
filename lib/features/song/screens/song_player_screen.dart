@@ -279,9 +279,14 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                 ),
               ),
               Expanded(
-                child: ReferenceMaterialScreen(
-                  songId: widget.song.id,
-                  showAppBar: false,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: ReferenceMaterialScreen(
+                    songId: widget.song.id,
+                    showAppBar: false,
+                  ),
                 ),
               ),
             ],

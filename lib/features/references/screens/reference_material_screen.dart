@@ -172,6 +172,8 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(referenceMaterialProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPadding = screenWidth > 600 ? 24.0 : 16.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -186,7 +188,7 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
         children: [
           // Search bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
             child: TextField(
               controller: _searchController,
               onChanged: (value) {
@@ -199,6 +201,17 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
                 hintText: 'Search materials...',
                 hintStyle: TextStyle(color: Colors.grey.shade600),
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear, color: Colors.grey.shade600),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
                 filled: true,
                 fillColor: const Color(0xFF2A2A2A),
                 border: OutlineInputBorder(
@@ -213,7 +226,7 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
           // Filter chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
             child: Row(
               children: [
                 _buildFilterChip('All', null, Icons.grid_on),
@@ -231,15 +244,15 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
           
           // Materials count and sort
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Materials (${_filterMaterials(state.materials).length})',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: screenWidth > 600 ? 18.0 : 16.0,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -309,6 +322,8 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     }
 
     final filteredMaterials = _filterMaterials(state.materials);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final horizontalPadding = screenWidth > 600 ? 24.0 : 16.0;
 
     if (filteredMaterials.isEmpty) {
       return Center(
@@ -334,7 +349,11 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 80),
+      padding: EdgeInsets.only(
+        left: horizontalPadding,
+        right: horizontalPadding,
+        bottom: 80,
+      ),
       itemCount: filteredMaterials.length,
       itemBuilder: (context, index) {
         final material = filteredMaterials[index];
@@ -468,8 +487,13 @@ class _MaterialCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final iconSize = screenWidth > 600 ? 64.0 : 56.0;
+    final titleFontSize = screenWidth > 600 ? 18.0 : 16.0;
+    final descFontSize = screenWidth > 600 ? 14.0 : 13.0;
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF2A2A2A),
         borderRadius: BorderRadius.circular(16),
@@ -487,8 +511,8 @@ class _MaterialCard extends StatelessWidget {
                 children: [
                   // File type icon
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: iconSize,
+                    height: iconSize,
                     decoration: BoxDecoration(
                       color: _getFileIconColor().withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
@@ -496,7 +520,7 @@ class _MaterialCard extends StatelessWidget {
                     child: Icon(
                       _getFileIcon(),
                       color: _getFileIconColor(),
-                      size: 32,
+                      size: iconSize * 0.55,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -508,8 +532,8 @@ class _MaterialCard extends StatelessWidget {
                       children: [
                         Text(
                           material.title,
-                          style: const TextStyle(
-                            fontSize: 16,
+                          style: TextStyle(
+                            fontSize: titleFontSize,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                           ),
@@ -517,9 +541,12 @@ class _MaterialCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 6),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            if (material.topic != null) ...[
+                            if (material.topic != null)
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
@@ -535,8 +562,6 @@ class _MaterialCard extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                            ],
                             Text(
                               material.timeAgo,
                               style: TextStyle(
@@ -571,7 +596,7 @@ class _MaterialCard extends StatelessWidget {
                   material.description!,
                   style: TextStyle(
                     color: Colors.grey.shade400,
-                    fontSize: 13,
+                    fontSize: descFontSize,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
