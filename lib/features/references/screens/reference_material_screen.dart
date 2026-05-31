@@ -25,8 +25,6 @@ class ReferenceMaterialScreen extends ConsumerStatefulWidget {
 
 class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScreen> {
   String? _selectedFilter;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
   String _sortBy = 'newest'; // newest, oldest, alphabetical
 
   @override
@@ -35,12 +33,6 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(referenceMaterialProvider.notifier).fetchMaterials(songId: widget.songId);
     });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   void _showCreateDialog() {
@@ -129,18 +121,10 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
   }
 
   List<ReferenceMaterial> _filterMaterials(List<ReferenceMaterial> materials) {
-    // First apply search filter
-    var filtered = materials.toList(); // Create a mutable copy
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((material) {
-        final titleMatch = material.title.toLowerCase().contains(_searchQuery.toLowerCase());
-        final descMatch = material.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false;
-        final topicMatch = material.topic?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false;
-        return titleMatch || descMatch || topicMatch;
-      }).toList();
-    }
+    // Create a mutable copy and apply sorting
+    var filtered = materials.toList();
 
-    // Then apply sorting
+    // Apply sorting
     switch (_sortBy) {
       case 'newest':
         filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -184,49 +168,13 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
               elevation: 0,
             )
           : null,
+      resizeToAvoidBottomInset: true,
       body: Column(
         children: [
-          // Search bar
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Search materials...',
-                hintStyle: TextStyle(color: Colors.grey.shade600),
-                prefixIcon: Icon(Icons.search, color: Colors.grey.shade600),
-                suffixIcon: _searchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(Icons.clear, color: Colors.grey.shade600),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() {
-                            _searchQuery = '';
-                          });
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: const Color(0xFF2A2A2A),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              ),
-            ),
-          ),
-          
           // Filter chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
             child: Row(
               children: [
                 _buildFilterChip('All', null, Icons.grid_on),
@@ -285,8 +233,8 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
       floatingActionButton: FloatingActionButton(
         heroTag: 'referenceMaterialFAB',
         onPressed: _showCreateDialog,
-        backgroundColor: const Color(0xFF7C4DFF),
-        child: const Icon(Icons.book, color: Colors.white),
+        backgroundColor: AppColors.primary,
+        child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
@@ -332,17 +280,15 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
           children: [
             Icon(Icons.folder_open, size: 64, color: Colors.grey.shade700),
             const SizedBox(height: 16),
-            Text(
-              _searchQuery.isNotEmpty ? 'No materials found' : 'No materials yet',
-              style: const TextStyle(color: Colors.white70, fontSize: 16),
+            const Text(
+              'No materials yet',
+              style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
-            if (_searchQuery.isEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Tap + to add your first material',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-              ),
-            ],
+            const SizedBox(height: 8),
+            Text(
+              'Tap + to add your first material',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
           ],
         ),
       );
