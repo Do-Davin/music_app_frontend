@@ -733,8 +733,23 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    final dialogWidth = isTablet ? 500.0 : screenWidth * 0.9;
+
     return AlertDialog(
-      title: Text(widget.material == null ? 'Add Material' : 'Edit Material'),
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+      contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+      title: Text(
+        widget.material == null ? 'Add Material' : 'Edit Material',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: isTablet ? 20.0 : 18.0,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
       content: DropTarget(
         onDragDone: (detail) {
           if (detail.files.isNotEmpty) {
@@ -743,134 +758,204 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
         },
         onDragEntered: (_) => setState(() => _isDragging = true),
         onDragExited: (_) => setState(() => _isDragging = false),
-        child: Container(
-          width: 400, // Fixed width for better layout on desktop
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: _isDragging ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
-            border: _isDragging ? Border.all(color: AppColors.primary, width: 2) : null,
-          ),
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Title',
-                      hintText: 'Enter material title',
-                    ),
-                    validator: (value) => value?.isEmpty ?? true ? 'Title is required' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: _selectedType,
-                    decoration: const InputDecoration(labelText: 'Type'),
-                    items: _materialTypes
-                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                        .toList(),
-                    onChanged: (value) => setState(() => _selectedType = value!),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      hintText: 'Optional description',
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _topicController,
-                    decoration: const InputDecoration(
-                      labelText: 'Topic',
-                      hintText: 'e.g., Music Theory, Practice Tips',
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  
-                  // Drop Zone
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: _pickFile,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: _isDragging ? AppColors.primary : Colors.grey.withValues(alpha: 0.3),
-                            style: BorderStyle.solid,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          color: _isDragging 
-                              ? AppColors.primary.withValues(alpha: 0.05) 
-                              : Colors.white.withValues(alpha: 0.02),
+        child: SizedBox(
+          width: dialogWidth,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: _isDragging ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
+              border: _isDragging ? Border.all(color: AppColors.primary, width: 2) : null,
+            ),
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _titleController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Title',
+                        hintText: 'Enter material title',
+                        labelStyle: TextStyle(color: Colors.grey.shade400),
+                        hintStyle: TextStyle(color: Colors.grey.shade600),
+                        filled: true,
+                        fillColor: const Color(0xFF2A2A2A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
                         ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.cloud_upload_outlined, 
-                              size: 48, 
-                              color: _isDragging ? AppColors.primary : Colors.grey,
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF7C4DFF)),
+                        ),
+                      ),
+                      validator: (value) => value?.isEmpty ?? true ? 'Title is required' : null,
+                    ),
+                    const SizedBox(height: 14),
+                    DropdownButtonFormField<String>(
+                      value: _selectedType,
+                      dropdownColor: const Color(0xFF2A2A2A),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Type',
+                        labelStyle: TextStyle(color: Colors.grey.shade400),
+                        filled: true,
+                        fillColor: const Color(0xFF2A2A2A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF7C4DFF)),
+                        ),
+                      ),
+                      items: _materialTypes
+                          .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                          .toList(),
+                      onChanged: (value) => setState(() => _selectedType = value!),
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _descriptionController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Description',
+                        hintText: 'Optional description',
+                        labelStyle: TextStyle(color: Colors.grey.shade400),
+                        hintStyle: TextStyle(color: Colors.grey.shade600),
+                        filled: true,
+                        fillColor: const Color(0xFF2A2A2A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF7C4DFF)),
+                        ),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _topicController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Topic',
+                        hintText: 'e.g., Music Theory, Practice Tips',
+                        labelStyle: TextStyle(color: Colors.grey.shade400),
+                        hintStyle: TextStyle(color: Colors.grey.shade600),
+                        filled: true,
+                        fillColor: const Color(0xFF2A2A2A),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF7C4DFF)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Drop Zone
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: _pickFile,
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(isTablet ? 28.0 : 20.0),
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: _isDragging ? AppColors.primary : Colors.grey.withValues(alpha: 0.3),
+                              style: BorderStyle.solid,
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _selectedFile == null 
-                                  ? 'Drag and drop file here or click to browse'
-                                  : 'File selected (Click to change)',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
+                            borderRadius: BorderRadius.circular(12),
+                            color: _isDragging
+                                ? AppColors.primary.withValues(alpha: 0.05)
+                                : Colors.white.withValues(alpha: 0.02),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.cloud_upload_outlined,
+                                size: isTablet ? 56.0 : 44.0,
                                 color: _isDragging ? AppColors.primary : Colors.grey,
-                                fontWeight: _isDragging ? FontWeight.bold : FontWeight.normal,
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Allowed: PDF, PPT, Word, Images',
-                              style: TextStyle(fontSize: 10, color: Colors.grey.withValues(alpha: 0.6)),
+                              const SizedBox(height: 10),
+                              Text(
+                                _selectedFile == null
+                                    ? 'Tap to browse or drag a file here'
+                                    : 'File selected (Tap to change)',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: _isDragging ? AppColors.primary : Colors.grey,
+                                  fontWeight: _isDragging ? FontWeight.bold : FontWeight.normal,
+                                  fontSize: isTablet ? 14.0 : 13.0,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Allowed: PDF, PPT, Word, Images',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey.withValues(alpha: 0.6),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    if (_selectedFile != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _selectedFile!.path.split(Platform.pathSeparator).last,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                  
-                  if (_selectedFile != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    ] else if (widget.material?.fileName != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Current file: ${widget.material!.fileName}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle, size: 16, color: Colors.green),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _selectedFile!.path.split(Platform.pathSeparator).last,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ] else if (widget.material?.fileName != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'Current file: ${widget.material!.fileName}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
-                    ),
+                    ],
+                    const SizedBox(height: 8),
                   ],
-                ],
+                ),
               ),
             ),
           ),
@@ -879,15 +964,28 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: Colors.grey.shade400),
+          ),
         ),
         ElevatedButton(
           onPressed: _submit,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: const Color(0xFF7C4DFF),
             foregroundColor: Colors.white,
+            padding: EdgeInsets.symmetric(
+              horizontal: isTablet ? 28.0 : 20.0,
+              vertical: 12,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
-          child: Text(widget.material == null ? 'Create Material' : 'Update Material'),
+          child: Text(
+            widget.material == null ? 'Create' : 'Update',
+            style: TextStyle(fontSize: isTablet ? 15.0 : 14.0),
+          ),
         ),
       ],
     );
