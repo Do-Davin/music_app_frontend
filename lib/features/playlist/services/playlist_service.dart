@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import '../../../core/network/graphql_config.dart';
 import '../models/playlist.dart';
@@ -41,7 +42,9 @@ class PlaylistService {
       }
 
       final Map<String, dynamic> data = result.data?['playlist'];
-      return Playlist.fromJson(data);
+      final playlist = Playlist.fromJson(data);
+      debugPrint('PlaylistService: getPlaylistById(${playlist.name}) returned ${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs');
+      return playlist;
     } catch (e) {
       rethrow;
     }
@@ -89,7 +92,9 @@ class PlaylistService {
       }
 
       final Map<String, dynamic> data = result.data?['addSongToPlaylist'];
-      return Playlist.fromJson(data);
+      final playlist = Playlist.fromJson(data);
+      debugPrint('PlaylistService: addSongToPlaylist returned ${playlist.name} with ${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs');
+      return playlist;
     } catch (e) {
       rethrow;
     }

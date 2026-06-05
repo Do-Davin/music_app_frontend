@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:music_app_frontend/core/constants/app_colors.dart';
 import '../controllers/karaoke_controller.dart';
 import '../../data/models/karaoke_song.dart';
 import 'lyric_editor_screen.dart';
@@ -14,13 +15,13 @@ class SongListScreen extends StatelessWidget {
       builder: (context, controller, _) {
         if (controller.isLoading) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+            child: CircularProgressIndicator(color: AppColors.primary),
           );
         }
 
         if (controller.songs.isEmpty) {
           return RefreshIndicator(
-            color: const Color(0xFF7C4DFF),
+            color: AppColors.primary,
             onRefresh: controller.loadSongs,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -46,7 +47,7 @@ class SongListScreen extends StatelessWidget {
         }
 
         return RefreshIndicator(
-          color: const Color(0xFF7C4DFF),
+          color: AppColors.primary,
           onRefresh: controller.loadSongs,
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -56,6 +57,7 @@ class SongListScreen extends StatelessWidget {
               final song = controller.songs[index];
               return _SongCard(
                 song: song,
+                controller: controller,
                 onTap: () {
                   if (song.lyrics.isEmpty) {
                     Navigator.push(
@@ -91,14 +93,49 @@ class SongListScreen extends StatelessWidget {
 
 class _SongCard extends StatelessWidget {
   final KaraokeSong song;
+  final KaraokeController controller;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
   const _SongCard({
     required this.song,
+    required this.controller,
     required this.onTap,
     required this.onDelete,
   });
+
+  void _showDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text(
+          'Delete?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Delete "${song.title}"?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              onDelete();
+              Navigator.pop(ctx);
+            },
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +153,7 @@ class _SongCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: song.source == SongSource.youtube
                 ? Colors.red.withValues(alpha: 0.2)
-                : const Color(0xFF7C4DFF).withValues(alpha: 0.2),
+                : AppColors.primary.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
@@ -125,7 +162,7 @@ class _SongCard extends StatelessWidget {
                 : Icons.music_note,
             color: song.source == SongSource.youtube
                 ? Colors.red
-                : const Color(0xFF7C4DFF),
+                : AppColors.primary,
           ),
         ),
         title: Text(
@@ -160,59 +197,58 @@ class _SongCard extends StatelessWidget {
             ),
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (hasLyrics)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF7C4DFF),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'PLAY',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+        trailing: PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: Colors.white70),
+          color: const Color(0xFF2C2C2C),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          onSelected: (value) {
+            if (value == 'play') {
+              onTap();
+            } else if (value == 'edit') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => LyricEditorScreen(
+                    song: song,
+                    controller: controller,
                   ),
+                ),
+              );
+            } else if (value == 'delete') {
+              _showDeleteDialog(context);
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            if (hasLyrics)
+              const PopupMenuItem<String>(
+                value: 'play',
+                child: Row(
+                  children: [
+                    Icon(Icons.play_arrow_rounded, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text('Play Karaoke', style: TextStyle(color: Colors.white)),
+                  ],
                 ),
               ),
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.grey),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: const Color(0xFF1E1E1E),
-                    title: const Text(
-                      'Delete?',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    content: Text(
-                      'Delete "${song.title}"?',
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          onDelete();
-                          Navigator.pop(ctx);
-                        },
-                        child: const Text(
-                          'Delete',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+            const PopupMenuItem<String>(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit_rounded, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('Edit Lyrics', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Delete Song', style: TextStyle(color: Colors.white)),
+                ],
+              ),
             ),
           ],
         ),

@@ -10,14 +10,14 @@ import 'package:music_app_frontend/features/playlist/models/playlist.dart'
     as model;
 import 'create_library_screen.dart';
 
-class LibraryScreen extends StatefulWidget {
+class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
 
   @override
-  State<LibraryScreen> createState() => _LibraryScreenState();
+  ConsumerState<LibraryScreen> createState() => _LibraryScreenState();
 }
 
-class _LibraryScreenState extends State<LibraryScreen> {
+class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   bool isGridView = false;
   String selectedFilter = 'All';
   String searchQuery = '';
@@ -29,7 +29,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => CreateLibrarySheet(parentContext: context),
+      builder: (_) => CreateLibrarySheet(parentContext: context, parentRef: ref),
     );
   }
 

@@ -29,7 +29,7 @@ class Playlist {
     return Playlist(
       id: json['_id'] as String,
       userId: json['userId'] as String?,
-      name: json['name'] as String,
+      name: json['name'] as String? ?? '',
       description: json['description'] as String?,
       coverImageUrl: json['coverImageUrl'] as String?,
       songIds: (json['songIds'] as List<dynamic>?)?.cast<String>(),

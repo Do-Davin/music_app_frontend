@@ -11,6 +11,8 @@ import 'package:music_app_frontend/features/song/services/song_service.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:music_app_frontend/features/karaoke/data/repositories/karaoke_repository.dart';
+import 'package:music_app_frontend/features/karaoke/data/models/karaoke_song.dart';
 
 class SongPlayerScreen extends ConsumerStatefulWidget {
   final Song song;
@@ -36,12 +38,59 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   Duration _position = Duration.zero;
   Song? _currentSong;
 
+  bool _hasKaraokeLyrics = false;
+
   @override
   void initState() {
     _currentSong = widget.song;
     _loadLatestSongDetails();
+    _checkKaraokeLyricsStatus();
     super.initState();
     _initPlayer();
+  }
+
+  bool _isSongMatch(KaraokeSong karaoke, Song song) {
+    if (karaoke.id == song.id) return true;
+
+    final titleMatches = karaoke.title.trim().toLowerCase() == song.title.trim().toLowerCase();
+    if (!titleMatches) return false;
+
+    final songUrl = song.audioUrl;
+    if (songUrl == null) return false;
+
+    if (song.isYoutube) {
+      final songYtId = YoutubePlayer.convertUrlToId(songUrl) ?? (songUrl.length == 11 ? songUrl : null);
+      final karaokeYtId = YoutubePlayer.convertUrlToId(karaoke.sourcePath) ?? karaoke.sourcePath;
+      if (songYtId != null && songYtId == karaokeYtId) {
+        return true;
+      }
+    } else {
+      final songFilename = songUrl.split('/').last.split('\\').last;
+      final karaokeFilename = karaoke.sourcePath.split('/').last.split('\\').last;
+      if (songFilename == karaokeFilename) {
+        return true;
+      }
+    }
+
+    final artistMatches = (karaoke.artist?.trim().toLowerCase() ?? '') == song.artist.trim().toLowerCase();
+    return artistMatches;
+  }
+
+  void _checkKaraokeLyricsStatus() async {
+    try {
+      final repo = KaraokeRepository();
+      final karaokeSongs = await repo.getAllSongs();
+      final hasSaved = karaokeSongs.any(
+        (s) => _isSongMatch(s, widget.song) && s.lyrics.isNotEmpty,
+      );
+      if (mounted) {
+        setState(() {
+          _hasKaraokeLyrics = hasSaved;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error checking karaoke lyrics status: $e");
+    }
   }
 
   void _loadLatestSongDetails() async {
@@ -73,7 +122,9 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   void _initYoutubePlayer(String url) {
-    final videoId = YoutubePlayer.convertUrlToId(url);
+    final videoId = (url.length == 11 && !url.contains('/') && !url.contains('?'))
+        ? url
+        : YoutubePlayer.convertUrlToId(url);
     if (videoId == null) {
       debugPrint("Could not extract YouTube ID from URL: $url");
       _showPlaybackError('Unable to play this YouTube song.');
@@ -186,8 +237,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   bool get _hasLyrics =>
-      _lyricsReadyOverride ||
-      (_currentSong?.lyrics != null && _currentSong!.lyrics!.trim().isNotEmpty);
+      _lyricsReadyOverride || _hasKaraokeLyrics;
 
   void _openMaterial() {
     showModalBottomSheet(
@@ -286,7 +336,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           IconButton(
             icon: Icon(
               Icons.mic,
-              color: _hasLyrics ? const Color(0xFF7C4DFF) : Colors.grey,
+              color: _hasLyrics ? AppColors.primary : Colors.grey,
               size: 28,
             ),
             tooltip: _hasLyrics ? 'Sing Karaoke' : 'Add lyrics first',
@@ -346,31 +396,10 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                       ],
                     ),
                   ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: _hasLyrics
-                            ? 'Karaoke lyrics ready'
-                            : 'Set up lyrics',
-                        icon: Icon(
-                          Icons.lyrics,
-                          color: _hasLyrics
-                              ? Colors.grey.shade600
-                              : const Color(0xFF7C4DFF),
-                          size: 28,
-                        ),
-                        onPressed: _hasLyrics || _isPreparingKaraoke
-                            ? null
-                            : () => _startLyricSetup(context, widget.song),
-                      ),
-                      const SizedBox(height: 10),
-                      const Icon(
-                        Icons.favorite,
-                        color: AppColors.primary,
-                        size: 30,
-                      ),
-                    ],
+                  const Icon(
+                    Icons.favorite,
+                    color: AppColors.primary,
+                    size: 30,
                   ),
                 ],
               ),
@@ -404,8 +433,11 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           icon: Icons.mic_outlined,
           label: 'Karaoke',
           onTap: _hasLyrics
-              ? () => _startKaraokeConversion(context, widget.song)
-              : () => _startLyricSetup(context, widget.song),
+              ? null
+              : () {
+                  if (_isPreparingKaraoke) return;
+                  _startLyricSetup(context, widget.song);
+                },
         ),
         const SizedBox(width: 10),
         _ActionButton(
@@ -439,7 +471,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           style: ElevatedButton.styleFrom(
             disabledBackgroundColor: const Color(0xFF2A2A2A),
             disabledForegroundColor: Colors.white38,
-            backgroundColor: const Color(0xFF7C4DFF),
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             minimumSize: const Size(0, 52),
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
@@ -447,7 +479,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
               borderRadius: BorderRadius.circular(30),
             ),
             elevation: 8,
-            shadowColor: const Color(0xFF7C4DFF).withValues(alpha: 0.5),
+            shadowColor: AppColors.primary.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -619,7 +651,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+        child: CircularProgressIndicator(color: AppColors.primary),
       ),
     );
 
@@ -648,9 +680,12 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       if (mounted) {
         final savedSongs = controller.songs;
         final hasSaved = savedSongs.any(
-          (s) => s.id == karaokeSong.id && s.lyrics.isNotEmpty,
+          (s) => _isSongMatch(s, widget.song) && s.lyrics.isNotEmpty,
         );
-        setState(() => _lyricsReadyOverride = hasSaved);
+        setState(() {
+          _lyricsReadyOverride = hasSaved;
+          _hasKaraokeLyrics = hasSaved;
+        });
       }
     } catch (e) {
       if (context.mounted) {
@@ -677,7 +712,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       context: context,
       barrierDismissible: false,
       builder: (_) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+        child: CircularProgressIndicator(color: AppColors.primary),
       ),
     );
 
@@ -722,7 +757,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                               ),
                             ),
                       ),
-                    );
+                    ).then((_) => _checkKaraokeLyricsStatus());
                   },
                   child: const Text(
                     'Edit/Verify Lyrics',
@@ -746,10 +781,10 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                               ),
                             ),
                       ),
-                    );
+                    ).then((_) => _checkKaraokeLyricsStatus());
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C4DFF),
+                    backgroundColor: AppColors.primary,
                     minimumSize: const Size(0, 40),
                   ),
                   child: const Text('Play Karaoke'),
@@ -776,7 +811,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                     ),
                   ),
             ),
-          );
+          ).then((_) => _checkKaraokeLyricsStatus());
         }
       }
     } catch (e) {
@@ -793,16 +828,17 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _ActionButton({
     required this.icon,
     required this.label,
-    required this.onTap,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isEnabled = onTap != null;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -810,17 +846,24 @@ class _ActionButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: AppColors.primary, width: 1.5),
+          border: Border.all(
+            color: isEnabled ? AppColors.primary : Colors.white24,
+            width: 1.5,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppColors.primary, size: 18),
+            Icon(
+              icon,
+              color: isEnabled ? AppColors.primary : Colors.white24,
+              size: 18,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.primary,
+              style: TextStyle(
+                color: isEnabled ? AppColors.primary : Colors.white38,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),

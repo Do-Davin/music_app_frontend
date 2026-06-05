@@ -28,15 +28,21 @@ class PlaylistQueries {
           _id
           title
           artist
+          albumName
           coverImageUrl
           duration
           source
           sourcePath
           fileUrl
           videoUrl
+          difficulty
+          key
+          tempo
+          tags
           lyrics
         }
         createdAt
+        updatedAt
       }
     }
   ''';
@@ -76,13 +82,33 @@ class PlaylistQueries {
 
   static const String createPlaylist = r'''
     mutation CreatePlaylist($input: CreatePlaylistInput!) {
-      createPlaylist(createPlaylistInput: $input) {
+      createPlaylist(input: $input) {
         _id
-        name
         userId
+        name
         description
+        coverImageUrl
         isPublic
         songIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          coverImageUrl
+          duration
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          difficulty
+          key
+          tempo
+          tags
+          lyrics
+        }
+        createdAt
+        updatedAt
       }
     }
   ''';
@@ -109,19 +135,31 @@ class PlaylistQueries {
     mutation AddSongToPlaylist($playlistId: ID!, $songId: ID!) {
       addSongToPlaylist(playlistId: $playlistId, songId: $songId) {
         _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
         songIds
         songs {
           _id
           title
           artist
+          albumName
           coverImageUrl
           duration
           source
           sourcePath
           fileUrl
           videoUrl
+          difficulty
+          key
+          tempo
+          tags
           lyrics
         }
+        createdAt
+        updatedAt
       }
     }
   ''';
@@ -130,7 +168,31 @@ class PlaylistQueries {
     mutation RemoveSongFromPlaylist($playlistId: ID!, $songId: ID!) {
       removeSongFromPlaylist(playlistId: $playlistId, songId: $songId) {
         _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
         songIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          coverImageUrl
+          duration
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          difficulty
+          key
+          tempo
+          tags
+          lyrics
+        }
+        createdAt
+        updatedAt
       }
     }
   ''';
