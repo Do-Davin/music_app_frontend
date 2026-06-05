@@ -8,6 +8,7 @@ import 'player_screen.dart';
 import '../../../references/screens/reference_material_screen.dart';
 import '../../../../features/song/providers/song_provider.dart';
 import '../../../../features/playlist/providers/playlist_provider.dart';
+import '../../../../core/constants/app_colors.dart';
 
 class LyricEditorScreen extends StatefulWidget {
   final KaraokeSong song;
@@ -140,7 +141,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             },
             child: const Text(
               'Load',
-              style: TextStyle(color: Color(0xFF7C4DFF)),
+              style: TextStyle(color: AppColors.primary),
             ),
           ),
         ],
@@ -246,14 +247,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               songId: widget.sourceSongId!,
               lyrics: serializedLyrics,
             );
+        ref.invalidate(songsProvider);
+        ref.invalidate(songByIdProvider(widget.sourceSongId!));
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Karaoke saved, but song lyrics update failed: $e'),
-            ),
-          );
-        }
+        debugPrint('Karaoke saved, but song lyrics update failed: $e');
       }
     }
 
@@ -263,7 +260,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
 
@@ -279,15 +276,17 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           lyrics: serializedLyrics,
         );
 
+        ref.invalidate(songsProvider);
+
         // Close loading
         Navigator.pop(context);
 
         if (widget.targetPlaylistId != null) {
-          await playlistService.addSongToPlaylist(
+          final updatedPlaylist = await playlistService.addSongToPlaylist(
             widget.targetPlaylistId!,
             backendSong.id,
           );
-          ref.refresh(playlistByIdProvider(widget.targetPlaylistId!));
+          ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -354,7 +353,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   ),
                   const SizedBox(height: 16),
                   ListTile(
-                    leading: const Icon(Icons.add, color: Color(0xFF7C4DFF)),
+                    leading: const Icon(Icons.add, color: AppColors.primary),
                     title: const Text(
                       'Create New Playlist',
                       style: TextStyle(color: Colors.white),
@@ -397,7 +396,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                             return ListTile(
                               leading: const Icon(
                                 Icons.playlist_play,
-                                color: Color(0xFF7C4DFF),
+                                color: AppColors.primary,
                               ),
                               title: Text(
                                 playlist.name,
@@ -417,7 +416,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                       },
                       loading: () => const Center(
                         child: CircularProgressIndicator(
-                          color: Color(0xFF7C4DFF),
+                          color: AppColors.primary,
                         ),
                       ),
                       error: (err, _) => Center(
@@ -460,14 +459,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+        child: CircularProgressIndicator(color: AppColors.primary),
       ),
     );
 
     try {
       final playlistService = ref.read(playlistServiceProvider);
-      await playlistService.addSongToPlaylist(playlistId, songId);
-      ref.invalidate(myPlaylistsProvider);
+      final updatedPlaylist = await playlistService.addSongToPlaylist(playlistId, songId);
+      ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
 
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
@@ -503,11 +502,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           controller: nameController,
           autofocus: true,
           style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Playlist Name',
-            hintStyle: TextStyle(color: Colors.grey),
+            hintStyle: const TextStyle(color: Colors.grey),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF7C4DFF)),
+              borderSide: BorderSide(color: AppColors.primary),
             ),
           ),
         ),
@@ -527,7 +526,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   context: context,
                   barrierDismissible: false,
                   builder: (context) => const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+                    child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 );
 
@@ -536,11 +535,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   final newPlaylist = await playlistService.createPlaylist(
                     name,
                   );
-                  await playlistService.addSongToPlaylist(
+                  final updatedPlaylist = await playlistService.addSongToPlaylist(
                     newPlaylist.id,
                     songId,
                   );
-                  ref.invalidate(myPlaylistsProvider);
+                  ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
 
                   if (mounted) {
                     Navigator.pop(context); // Close loading dialog
@@ -566,7 +565,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             child: const Text(
               'Create & Add',
               style: TextStyle(
-                color: Color(0xFF7C4DFF),
+                color: AppColors.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -612,7 +611,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                 child: const Text(
                   'SAVE',
                   style: TextStyle(
-                    color: Color(0xFF7C4DFF),
+                    color: AppColors.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

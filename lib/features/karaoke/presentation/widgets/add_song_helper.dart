@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../controllers/karaoke_controller.dart';
 import '../screens/lyric_editor_screen.dart';
 import '../screens/player_screen.dart';
+import 'package:music_app_frontend/core/constants/app_colors.dart';
 
 class AddSongHelper {
   static void showAddSongDialog(
@@ -32,7 +33,7 @@ class AddSongHelper {
               ),
               const SizedBox(height: 24),
               ListTile(
-                leading: const Icon(Icons.link, color: Color(0xFF7C4DFF)),
+                leading: const Icon(Icons.link, color: AppColors.primary),
                 title: const Text('YouTube URL', style: TextStyle(color: Colors.white)),
                 tileColor: const Color(0xFF2A2A2A),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -48,7 +49,7 @@ class AddSongHelper {
               ),
               const SizedBox(height: 12),
               ListTile(
-                leading: const Icon(Icons.folder, color: Color(0xFF7C4DFF)),
+                leading: const Icon(Icons.folder, color: AppColors.primary),
                 title: const Text('Local MP3 File', style: TextStyle(color: Colors.white)),
                 tileColor: const Color(0xFF2A2A2A),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -149,7 +150,7 @@ class AddSongHelper {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C4DFF),
+              backgroundColor: AppColors.primary,
             ),
             child: const Text('Next: Add Lyrics'),
           ),
@@ -210,7 +211,7 @@ class AddSongHelper {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF7C4DFF),
+              backgroundColor: AppColors.primary,
             ),
             child: const Text('Select File & Add Lyrics'),
           ),

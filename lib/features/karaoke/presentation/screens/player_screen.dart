@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:music_app_frontend/core/constants/app_colors.dart';
 import '../../data/models/karaoke_song.dart';
 import '../../data/models/lrc_line.dart';
 import '../../domain/utils/word_timing_generator.dart';
@@ -78,9 +80,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
               children: [
                 Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   'Error Loading Song',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -96,7 +98,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7C4DFF),
+                    backgroundColor: AppColors.primary,
                   ),
                   child: const Text('Go Back'),
                 ),
@@ -123,11 +125,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   _buildYoutubePlayer()
                 else if (widget.song.source == SongSource.local)
                   _buildLocalPlayerIndicator(),
-
-                const SizedBox(height: 8),
-
-                // Lead-time offset controls
-                _buildOffsetControls(),
 
                 const SizedBox(height: 8),
 
@@ -176,29 +173,158 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ),
           ),
           IconButton(
-            icon: Icon(
-              _isAdvancedMode ? Icons.bolt : Icons.bolt_outlined,
-              color: _isAdvancedMode ? const Color(0xFF7C4DFF) : Colors.white,
-            ),
-            tooltip: 'Advanced Editing Mode',
-            onPressed: () {
-              setState(() {
-                _isAdvancedMode = !_isAdvancedMode;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    _isAdvancedMode
-                        ? 'Advanced Mode ON: Pause & Hold words to edit'
-                        : 'Advanced Mode OFF',
-                  ),
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            },
+            icon: const Icon(Icons.settings, color: Colors.white),
+            tooltip: 'Playback Settings',
+            onPressed: () => _showSettingsSheet(context),
           ),
         ],
       ),
+    );
+  }
+
+  void _showSettingsSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Playback Settings',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const Divider(color: Colors.white24),
+                    const SizedBox(height: 12),
+                    
+                    // Offset section
+                    const Text(
+                      'Timing Offset',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Offset highlights lyrics slightly ahead of audio (default 0ms)',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                    ),
+                    const SizedBox(height: 12),
+                    ValueListenableBuilder<int>(
+                      valueListenable: widget.controller.leadTimeMs,
+                      builder: (context, currentMs, _) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Current: ${currentMs}ms',
+                              style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Wrap(
+                              spacing: 6,
+                              children: [0, 200, 300, 500, 800].map((ms) {
+                                final isActive = currentMs == ms;
+                                return GestureDetector(
+                                  onTap: () {
+                                    widget.controller.setLeadTime(ms);
+                                    setModalState(() {});
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isActive
+                                          ? AppColors.primary
+                                          : const Color(0xFF2D2D2D),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '${ms}ms',
+                                      style: TextStyle(
+                                        color: isActive
+                                            ? Colors.black
+                                            : Colors.white70,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    
+                    const SizedBox(height: 24),
+                    const Divider(color: Colors.white24),
+                    const SizedBox(height: 12),
+
+                    // Advanced editing mode section
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text(
+                        'Advanced Word Editing Mode',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Pause playback & long press any word to edit its start time',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                      ),
+                      value: _isAdvancedMode,
+                      activeThumbColor: AppColors.primary,
+                      onChanged: (val) {
+                        setModalState(() {
+                          _isAdvancedMode = val;
+                        });
+                        setState(() {
+                          _isAdvancedMode = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -215,7 +341,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+              CircularProgressIndicator(color: AppColors.primary),
               SizedBox(height: 12),
               Text('Loading video...', style: TextStyle(color: Colors.white70)),
             ],
@@ -236,7 +362,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: YoutubePlayer(
           controller: widget.controller.youtubeController!,
           showVideoProgressIndicator: true,
-          progressIndicatorColor: const Color(0xFF7C4DFF),
+          progressIndicatorColor: AppColors.primary,
           onReady: () {
             debugPrint('✅ YouTube player ready');
           },
@@ -257,7 +383,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.music_note, size: 48, color: Color(0xFF7C4DFF)),
+            const Icon(Icons.music_note, size: 48, color: AppColors.primary),
             const SizedBox(height: 8),
             Text(
               widget.controller.currentSong?.title ?? 'Playing...',
@@ -268,69 +394,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
     );
   }
-
-  // ==================== OFFSET CONTROLS ====================
-
-  Widget _buildOffsetControls() {
-    return ValueListenableBuilder<int>(
-      valueListenable: widget.controller.leadTimeMs,
-      builder: (context, currentMs, _) {
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.timer, color: Color(0xFF7C4DFF), size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Offset: ${currentMs}ms',
-                style: TextStyle(
-                  color: Colors.grey[300],
-                  fontSize: 12,
-                  fontFamily: 'monospace',
-                ),
-              ),
-              const Spacer(),
-              _offsetBtn('0', 0, currentMs),
-              _offsetBtn('200', 200, currentMs),
-              _offsetBtn('300', 300, currentMs),
-              _offsetBtn('500', 500, currentMs),
-              _offsetBtn('800', 800, currentMs),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _offsetBtn(String label, int ms, int currentMs) {
-    final isActive = currentMs == ms;
-    return GestureDetector(
-      onTap: () => widget.controller.setLeadTime(ms),
-      child: Container(
-        margin: const EdgeInsets.only(left: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF7C4DFF) : const Color(0xFF2A2A2A),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isActive ? Colors.white : Colors.grey[500],
-            fontSize: 11,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ==================== LYRICS ====================
 
   Widget _buildLyrics() {
     final lyrics = _lyricsWithWords;
@@ -368,16 +431,45 @@ class _PlayerScreenState extends State<PlayerScreen> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: _LyricScroller(
-          controller: widget.controller,
-          lyrics: lyrics,
-          onWordLongPress: _isAdvancedMode ? _showWordEditDialog : null,
+        child: Stack(
+          children: [
+            _LyricScroller(
+              controller: widget.controller,
+              lyrics: lyrics,
+              onWordLongPress: _isAdvancedMode ? _showWordEditDialog : null,
+            ),
+            if (_isAdvancedMode)
+              Positioned(
+                top: 12,
+                left: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.edit_note, color: AppColors.primary, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Editing Mode Active: Pause playback & long press any word to edit its start time.',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
-
-  // ==================== PLAYBACK CONTROLS ====================
 
   Widget _buildControls() {
     return Padding(
@@ -385,74 +477,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Progress bar for local audio
-          if (widget.controller.audioPlayer != null)
-            StreamBuilder<Duration>(
-              stream: widget.controller.audioPlayer!.positionStream,
-              builder: (context, snapshot) {
-                final position = snapshot.data ?? Duration.zero;
-                final duration =
-                    widget.controller.audioPlayer!.duration ?? Duration.zero;
+          // Slides unified progress bar
+          _ProgressBar(controller: widget.controller),
 
-                return Column(
-                  children: [
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        trackHeight: 4,
-                        thumbShape: const RoundSliderThumbShape(
-                          enabledThumbRadius: 6,
-                        ),
-                        overlayShape: const RoundSliderOverlayShape(
-                          overlayRadius: 14,
-                        ),
-                        activeTrackColor: const Color(0xFF7C4DFF),
-                        inactiveTrackColor: Colors.grey[800],
-                        thumbColor: const Color(0xFF7C4DFF),
-                        overlayColor: const Color(
-                          0xFF7C4DFF,
-                        ).withValues(alpha: 0.2),
-                      ),
-                      child: Slider(
-                        min: 0,
-                        max: duration.inMilliseconds.toDouble(),
-                        value: position.inMilliseconds
-                            .clamp(0, duration.inMilliseconds)
-                            .toDouble(),
-                        onChanged: (value) => widget.controller.seek(
-                          Duration(milliseconds: value.toInt()),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _formatTime(position),
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                          Text(
-                            _formatTime(duration),
-                            style: TextStyle(
-                              color: Colors.grey[500],
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
           // Play/Pause button
           ValueListenableBuilder<bool>(
@@ -480,12 +508,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       height: 72,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF7C4DFF),
+                        color: AppColors.primary,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(
-                              0xFF7C4DFF,
-                            ).withValues(alpha: 0.4),
+                            color: AppColors.primary.withValues(alpha: 0.4),
                             blurRadius: 20,
                             spreadRadius: 2,
                           ),
@@ -496,7 +522,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             ? Icons.pause_rounded
                             : Icons.play_arrow_rounded,
                         size: 40,
-                        color: Colors.white,
+                        color: Colors.black,
                       ),
                     ),
                   ),
@@ -520,12 +546,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
         ],
       ),
     );
-  }
-
-  String _formatTime(Duration d) {
-    final m = d.inMinutes.toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$m:$s';
   }
 
   void _showWordEditDialog(int lineIndex, int wordIndex) {
@@ -561,7 +581,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     labelText: 'Word Text',
                     labelStyle: TextStyle(color: Colors.grey),
                     enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: Color(0xFF7C4DFF)),
+                      borderSide: BorderSide(color: AppColors.primary),
                     ),
                   ),
                 ),
@@ -569,7 +589,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 Text(
                   'Timestamp: ${_formatTimeWithMs(currentTimestamp)}',
                   style: const TextStyle(
-                    color: Color(0xFF7C4DFF),
+                    color: AppColors.primary,
                     fontFamily: 'monospace',
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -632,11 +652,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7C4DFF),
+                  backgroundColor: AppColors.primary,
                 ),
                 child: const Text(
                   'Save Change',
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: Colors.black),
                 ),
               ),
             ],
@@ -702,10 +722,123 @@ class _PlayerScreenState extends State<PlayerScreen> {
 }
 
 // ============================================
+// Unified Progress Bar for Audio and YouTube
+// ============================================
+class _ProgressBar extends StatefulWidget {
+  final KaraokeController controller;
+  const _ProgressBar({required this.controller});
+
+  @override
+  State<_ProgressBar> createState() => _ProgressBarState();
+}
+
+class _ProgressBarState extends State<_ProgressBar> {
+  Timer? _timer;
+  Duration _position = Duration.zero;
+  Duration _duration = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (!mounted) return;
+      final ap = widget.controller.audioPlayer;
+      final yt = widget.controller.youtubeController;
+      Duration pos = Duration.zero;
+      Duration dur = Duration.zero;
+
+      if (ap != null) {
+        pos = ap.position;
+        dur = ap.duration ?? Duration.zero;
+      } else if (yt != null) {
+        pos = yt.value.position;
+        dur = yt.value.metaData.duration;
+      }
+
+      if (pos != _position || dur != _duration) {
+        setState(() {
+          _position = pos;
+          _duration = dur;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalMs = _duration.inMilliseconds;
+    final currentMs = _position.inMilliseconds;
+    final sliderValue = totalMs > 0 ? currentMs.clamp(0, totalMs).toDouble() : 0.0;
+    final maxSlider = totalMs > 0 ? totalMs.toDouble() : 1.0;
+
+    return Column(
+      children: [
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 4,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+            activeTrackColor: AppColors.primary,
+            inactiveTrackColor: Colors.grey[800],
+            thumbColor: AppColors.primary,
+            overlayColor: AppColors.primary.withValues(alpha: 0.2),
+          ),
+          child: Slider(
+            min: 0,
+            max: maxSlider,
+            value: sliderValue,
+            onChanged: (value) {
+              widget.controller.seek(Duration(milliseconds: value.toInt()));
+              setState(() {
+                _position = Duration(milliseconds: value.toInt());
+              });
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatTime(_position),
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                ),
+              ),
+              Text(
+                _formatTime(_duration),
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 12,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatTime(Duration d) {
+    final min = d.inMinutes.toString().padLeft(2, '0');
+    final sec = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$min:$sec';
+  }
+}
+
+// ============================================
 // Lyric scroller: active line always centered
 // with word-by-word highlighting.
-// Heights are dynamic — adapts to text that wraps
-// to multiple lines (e.g. YouTube auto-generated lyrics).
 // ============================================
 class _LyricScroller extends StatefulWidget {
   final KaraokeController controller;
