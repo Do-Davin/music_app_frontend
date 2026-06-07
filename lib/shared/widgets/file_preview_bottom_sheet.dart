@@ -1,8 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ─────────────────────────────────────────────────────────
 //  pubspec.yaml — add these packages:
@@ -95,16 +96,12 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
 
   void _onShare() {
     if (widget.file.localPath != null) {
-      SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(widget.file.localPath!)],
-          text: widget.file.name,
-        ),
+      Share.shareXFiles(
+        [XFile(widget.file.localPath!)],
+        text: widget.file.name,
       );
     } else if (widget.file.remoteUrl != null) {
-      SharePlus.instance.share(
-        ShareParams(text: widget.file.remoteUrl!, subject: widget.file.name),
-      );
+      Share.share(widget.file.remoteUrl!, subject: widget.file.name);
     }
   }
 
@@ -208,36 +205,33 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
     final path = widget.file.localPath;
     final url = widget.file.remoteUrl;
 
-    Widget viewer;
-    if (path != null) {
-      viewer = SfPdfViewer.file(
-        File(path),
-        controller: _pdfController,
-        pageLayoutMode: PdfPageLayoutMode.single,
-        initialZoomLevel: _zoom,
-        onPageChanged: (d) => setState(() {
-          _pdfCurrentPage = d.newPageNumber;
-          _pdfTotalPages = _pdfController.pageCount;
-        }),
-      );
-    } else if (url != null) {
-      viewer = SfPdfViewer.network(
-        url,
-        controller: _pdfController,
-        pageLayoutMode: PdfPageLayoutMode.single,
-        initialZoomLevel: _zoom,
-        onPageChanged: (d) => setState(() {
-          _pdfCurrentPage = d.newPageNumber;
-          _pdfTotalPages = _pdfController.pageCount;
-        }),
-      );
-    } else {
-      return _unsupportedViewer();
-    }
+    if (path == null && url == null) return _unsupportedViewer();
 
     return Stack(
       children: [
-        viewer,
+        path != null
+            ? SfPdfViewer.file(
+                File(path),
+                controller: _pdfController,
+                pageLayoutMode: PdfPageLayoutMode.single,
+                initialZoomLevel: _zoom,
+                onDocumentLoadFailed: (details) => _showError('Failed to load PDF: ${details.description}'),
+                onPageChanged: (d) => setState(() {
+                  _pdfCurrentPage = d.newPageNumber;
+                  _pdfTotalPages = _pdfController.pageCount;
+                }),
+              )
+            : SfPdfViewer.network(
+                url!,
+                controller: _pdfController,
+                pageLayoutMode: PdfPageLayoutMode.single,
+                initialZoomLevel: _zoom,
+                onDocumentLoadFailed: (details) => _showError('Failed to load PDF: ${details.description}'),
+                onPageChanged: (d) => setState(() {
+                  _pdfCurrentPage = d.newPageNumber;
+                  _pdfTotalPages = _pdfController.pageCount;
+                }),
+              ),
         Positioned(bottom: 16, right: 16, child: _bottomBar(showPageNav: true)),
       ],
     );
@@ -263,6 +257,9 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
                 javaScriptEnabled: true,
                 transparentBackground: true,
               ),
+              onReceivedError: (controller, request, error) {
+                debugPrint('WebView Error: ${error.description}');
+              },
             ),
           ),
         ),
@@ -284,12 +281,59 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
         minScale: 0.5,
         maxScale: 4.0,
         child: path != null
-            ? Image.file(File(path))
+            ? Image.file(
+                File(path),
+                errorBuilder: (context, error, stackTrace) => _showError('Failed to load local image'),
+              )
             : url != null
-            ? Image.network(url)
-            : const SizedBox(),
+                ? Image.network(
+                    url,
+                    errorBuilder: (context, error, stackTrace) => _showError('Failed to load remote image'),
+                  )
+                : const SizedBox(),
       ),
     );
+  }
+
+  Widget _showError(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(color: _textPrimary, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            if (widget.file.remoteUrl != null) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => _launchInBrowser(widget.file.remoteUrl!),
+                icon: const Icon(Icons.open_in_browser, size: 18),
+                label: const Text('Open in Browser'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _gold,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchInBrowser(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      debugPrint('Could not launch $url');
+    }
   }
 
   // ── Unsupported type ──────────────────────────────────

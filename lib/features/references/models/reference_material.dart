@@ -32,19 +32,23 @@ class ReferenceMaterial {
 
   factory ReferenceMaterial.fromJson(Map<String, dynamic> json) {
     return ReferenceMaterial(
-      id: json['_id'],
-      title: json['title'],
-      type: json['type'],
-      description: json['description'],
-      filePath: json['filePath'],
-      fileUrl: json['fileUrl'],
-      fileName: json['fileName'],
-      fileSize: json['fileSize'],
-      mimeType: json['mimeType'],
-      songId: json['songId'],
-      topic: json['topic'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      title: json['title']?.toString() ?? 'Untitled',
+      type: json['type']?.toString() ?? 'Other',
+      description: json['description']?.toString(),
+      filePath: json['filePath']?.toString(),
+      fileUrl: json['fileUrl']?.toString(),
+      fileName: json['fileName']?.toString(),
+      fileSize: (json['fileSize'] as num?)?.toInt(),
+      mimeType: json['mimeType']?.toString(),
+      songId: json['songId']?.toString(),
+      topic: json['topic']?.toString(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 

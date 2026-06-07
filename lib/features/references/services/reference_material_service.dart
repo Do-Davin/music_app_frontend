@@ -44,10 +44,10 @@ class ReferenceMaterialService {
   ''';
 
   // Query all reference materials
-  Future<List<ReferenceMaterial>> fetchAll({String? type}) async {
+  Future<List<ReferenceMaterial>> fetchAll({String? type, String? songId}) async {
     const String query = r'''
-      query GetReferenceMaterials($type: String) {
-        referenceMaterials(type: $type) {
+      query GetReferenceMaterials($type: String, $songId: String) {
+        referenceMaterials(type: $type, songId: $songId) {
           _id
           title
           type
@@ -68,7 +68,10 @@ class ReferenceMaterialService {
     final result = await _client.query(
       QueryOptions(
         document: gql(query),
-        variables: type != null ? {'type': type} : {},
+        variables: {
+          if (type != null) 'type': type,
+          if (songId != null) 'songId': songId,
+        },
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     );
