@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/network/graphql_config.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/controllers/karaoke_controller.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_editor_screen.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/screens/player_screen.dart';
@@ -368,6 +369,12 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
     final artistFontSize = screenWidth > 600 ? 20.0 : 18.0;
     final lyricsFontSize = screenWidth > 600 ? 16.0 : 14.0;
 
+    final meAsync = ref.watch(meProvider);
+    final isOwner = meAsync.maybeWhen(
+      data: (user) => user.id == widget.song.userId,
+      orElse: () => false,
+    );
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -460,22 +467,23 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                       Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          IconButton(
-                            tooltip: _hasLyrics
-                                ? 'Karaoke lyrics ready'
-                                : 'Set up lyrics',
-                            icon: Icon(
-                              Icons.lyrics,
-                              color: _hasLyrics
-                                  ? Colors.grey.shade600
-                                  : AppColors.primary,
-                              size: 28,
+                          if (isOwner)
+                            IconButton(
+                              tooltip: _hasLyrics
+                                  ? 'Karaoke lyrics ready'
+                                  : 'Set up lyrics',
+                              icon: Icon(
+                                Icons.lyrics,
+                                color: _hasLyrics
+                                    ? Colors.grey.shade600
+                                    : AppColors.primary,
+                                size: 28,
+                              ),
+                              onPressed: _hasLyrics || _isPreparingKaraoke
+                                  ? null
+                                  : () => _startLyricSetup(context, widget.song),
                             ),
-                            onPressed: _hasLyrics || _isPreparingKaraoke
-                                ? null
-                                : () => _startLyricSetup(context, widget.song),
-                          ),
-                          const SizedBox(height: 10),
+                          if (isOwner) const SizedBox(height: 10),
                           const Icon(
                             Icons.favorite,
                             color: AppColors.primary,
@@ -486,7 +494,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  _buildActionButtons(),
+                  _buildActionButtons(isOwner),
                   const SizedBox(height: 24),
                   _buildProgressBar(),
                   const SizedBox(height: 20),
@@ -503,7 +511,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(bool isOwner) {
     return Wrap(
       spacing: 10,
       runSpacing: 8,
@@ -514,15 +522,19 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           label: 'Material',
           onTap: _openMaterial,
         ),
+        // Karaoke button is visible to everyone — owner can set up lyrics,
+        // anyone can sing if lyrics are already ready.
         _ActionButton(
           icon: Icons.mic_outlined,
           label: 'Karaoke',
           onTap: _hasLyrics
-              ? null
-              : () {
-                  if (_isPreparingKaraoke) return;
-                  _startLyricSetup(context, widget.song);
-                },
+              ? () => _startKaraokeConversion(context, widget.song)
+              : isOwner
+                  ? () {
+                      if (_isPreparingKaraoke) return;
+                      _startLyricSetup(context, widget.song);
+                    }
+                  : null, // non-owner, no lyrics yet → greyed out
         ),
         _ActionButton(
           icon: Icons.grid_on_outlined,

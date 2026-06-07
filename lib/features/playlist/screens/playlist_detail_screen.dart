@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/playlist/models/playlist.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
@@ -73,6 +74,12 @@ class _PlaylistDetailContent extends ConsumerWidget {
     final songs = playlist.songs ?? [];
     final songCount = songs.length;
 
+    final meAsync = ref.watch(meProvider);
+    final isPlaylistOwner = meAsync.maybeWhen(
+      data: (user) => user.id == playlist.userId,
+      orElse: () => false,
+    );
+
     return CustomScrollView(
       slivers: [
         // ── Sliver App Bar with playlist art ──────────────────────────────
@@ -94,7 +101,6 @@ class _PlaylistDetailContent extends ConsumerWidget {
             background: Stack(
               fit: StackFit.expand,
               children: [
-                // Cover art or gradient placeholder
                 if (playlist.coverImageUrl != null &&
                     playlist.coverImageUrl!.isNotEmpty)
                   Image.network(
@@ -105,7 +111,6 @@ class _PlaylistDetailContent extends ConsumerWidget {
                   )
                 else
                   _buildGradientPlaceholder(),
-                // Gradient overlay so text is readable
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -226,28 +231,29 @@ class _PlaylistDetailContent extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                if (isPlaylistOwner) const SizedBox(height: 10),
                 // Add Song to Playlist button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showAddSongToPlaylistDialog(context, ref, playlist.id),
-                    icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
-                    label: const Text('Add Song to Playlist'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary, width: 1.5),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                if (isPlaylistOwner)
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showAddSongToPlaylistDialog(context, ref, playlist.id),
+                      icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                      label: const Text('Add Song to Playlist'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary, width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                   ),
-                ),
                 const SizedBox(height: 24),
                 Text(
                   'Songs',
@@ -291,6 +297,7 @@ class _PlaylistDetailContent extends ConsumerWidget {
                     song: song,
                     index: index,
                     playlistId: playlist.id,
+                    isPlaylistOwner: isPlaylistOwner,
                   );
                 }, childCount: songs.length),
               ),
@@ -503,18 +510,15 @@ class _PlaylistDetailContent extends ConsumerWidget {
         Navigator.pop(dialogContext!);
       }
 
-      // Find Personal playlist
       final playlists = ref.read(myPlaylistsProvider).value ?? [];
       final personalPlaylist = playlists.firstWhere(
         (p) => p.name == 'Personal',
         orElse: () => throw Exception('Personal playlist not found'),
       );
 
-      // Add to this specific playlist — use returned data for immediate update
       final updatedPlaylist = await playlistService.addSongToPlaylist(playlistId, backendSong.id);
       ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
       
-      // If not adding to Personal, also add it to Personal!
       if (playlistId != personalPlaylist.id) {
         final updatedPersonal = await playlistService.addSongToPlaylist(personalPlaylist.id, backendSong.id);
         ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPersonal);
@@ -522,9 +526,6 @@ class _PlaylistDetailContent extends ConsumerWidget {
       
       if (context.mounted) {
         ref.invalidate(songsProvider);
-      }
-
-      if (context.mounted) {
         SuccessPopup.show(
           context,
           title: 'Song Added!',
@@ -566,11 +567,13 @@ class _SongTile extends ConsumerWidget {
   final Song song;
   final int index;
   final String playlistId;
+  final bool isPlaylistOwner;
 
   const _SongTile({
     required this.song,
     required this.index,
     required this.playlistId,
+    required this.isPlaylistOwner,
   });
 
   String _formatDuration(int? seconds) {
@@ -607,14 +610,15 @@ class _SongTile extends ConsumerWidget {
                 ),
               ),
               const Divider(color: Colors.white24, height: 1),
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: AppColors.error),
-                title: const Text('Remove from playlist', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _removeSongFromPlaylist(context, ref);
-                },
-              ),
+              if (isPlaylistOwner)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                  title: const Text('Remove from playlist', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _removeSongFromPlaylist(context, ref);
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.playlist_add, color: AppColors.primary),
                 title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
@@ -623,17 +627,18 @@ class _SongTile extends ConsumerWidget {
                   _showAddToPlaylistSheet(context, ref);
                 },
               ),
+              if (isPlaylistOwner)
+                ListTile(
+                  leading: const Icon(Icons.drive_file_move_outlined, color: Colors.orangeAccent),
+                  title: const Text('Move to playlist', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showMoveToPlaylistSheet(context, ref);
+                  },
+                ),
               const ListTile(
                 leading: Icon(Icons.queue_music, color: Colors.grey),
                 title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
-              ),
-              const ListTile(
-                leading: Icon(Icons.play_arrow_outlined, color: Colors.grey),
-                title: Text('Go to queue', style: TextStyle(color: Colors.grey)),
-              ),
-              const ListTile(
-                leading: Icon(Icons.share_outlined, color: Colors.grey),
-                title: Text('Share', style: TextStyle(color: Colors.grey)),
               ),
             ],
           ),
@@ -718,7 +723,6 @@ class _SongTile extends ConsumerWidget {
                   const SizedBox(height: 12),
                   playlistsAsync.when(
                     data: (playlists) {
-                      // Filter out current playlist to avoid adding to same playlist
                       final otherPlaylists = playlists.where((p) => p.id != playlistId).toList();
                       if (otherPlaylists.isEmpty) {
                         return const Padding(
@@ -762,7 +766,6 @@ class _SongTile extends ConsumerWidget {
   }
 
   Future<void> _addSongToTargetPlaylist(BuildContext context, WidgetRef ref, Playlist targetPlaylist) async {
-    // Show a loading indicator
     BuildContext? dialogContext;
     showDialog(
       context: context,
@@ -775,14 +778,10 @@ class _SongTile extends ConsumerWidget {
 
     try {
       final updatedPlaylist = await ref.read(playlistServiceProvider).addSongToPlaylist(targetPlaylist.id, song.id);
-
       if (dialogContext != null && dialogContext!.mounted) {
         Navigator.pop(dialogContext!);
       }
-
-      // Immediately update the target playlist in state — no refetch needed
       ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
-
       if (context.mounted) {
         SuccessPopup.show(
           context,
@@ -803,6 +802,118 @@ class _SongTile extends ConsumerWidget {
     }
   }
 
+  void _showMoveToPlaylistSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Consumer(
+          builder: (ctx, ref, _) {
+            final playlistsAsync = ref.watch(myPlaylistsProvider);
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Move to Playlist',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  playlistsAsync.when(
+                    data: (playlists) {
+                      final otherPlaylists = playlists.where((p) => p.id != playlistId).toList();
+                      if (otherPlaylists.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('No other playlists yet.', style: TextStyle(color: Colors.grey)),
+                        );
+                      }
+                      return ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: otherPlaylists.length,
+                          itemBuilder: (context, index) {
+                            final p = otherPlaylists[index];
+                            return ListTile(
+                              leading: const Icon(Icons.drive_file_move_outlined, color: Colors.orangeAccent),
+                              title: Text(p.name, style: const TextStyle(color: Colors.white)),
+                              subtitle: Text(
+                                '${p.songs?.length ?? p.songIds?.length ?? 0} songs',
+                                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                              ),
+                              onTap: () async {
+                                Navigator.pop(ctx);
+                                _moveSongToTargetPlaylist(context, ref, p);
+                              },
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _moveSongToTargetPlaylist(BuildContext context, WidgetRef ref, Playlist targetPlaylist) async {
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final updatedPlaylist = await ref.read(playlistServiceProvider).moveSongBetweenPlaylists(
+            fromPlaylistId: playlistId,
+            toPlaylistId: targetPlaylist.id,
+            songId: song.id,
+          );
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
+      await ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: 'Moved to "${targetPlaylist.name}"',
+          subtitle: '"${song.title}" was moved successfully',
+          icon: Icons.drive_file_move_outlined,
+          iconColor: Colors.orangeAccent,
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to move: $e')),
+        );
+      }
+    }
+  }
+
   void _showNewPlaylistAndAddSong(BuildContext context, WidgetRef ref) {
     final nameCtrl = TextEditingController();
     showDialog(
@@ -814,9 +925,9 @@ class _SongTile extends ConsumerWidget {
           controller: nameCtrl,
           autofocus: true,
           style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             hintText: 'Playlist Name',
-            hintStyle: const TextStyle(color: Colors.grey),
+            hintStyle: TextStyle(color: Colors.grey),
             enabledBorder: UnderlineInputBorder(
               borderSide: BorderSide(color: AppColors.primary),
             ),
@@ -832,7 +943,6 @@ class _SongTile extends ConsumerWidget {
               final name = nameCtrl.text.trim();
               if (name.isEmpty) return;
               Navigator.pop(ctx);
-
               try {
                 final playlistService = ref.read(playlistServiceProvider);
                 final newPlaylist = await playlistService.createPlaylist(name);
@@ -863,9 +973,7 @@ class _SongTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bool hasImage =
-        song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
-
+    final bool hasImage = song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
@@ -874,16 +982,9 @@ class _SongTile extends ConsumerWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           color: AppColors.surface,
-          image: hasImage
-              ? DecorationImage(
-                  image: NetworkImage(song.coverImageUrl!),
-                  fit: BoxFit.cover,
-                )
-              : null,
+          image: hasImage ? DecorationImage(image: NetworkImage(song.coverImageUrl!), fit: BoxFit.cover) : null,
         ),
-        child: !hasImage
-            ? const Icon(Icons.music_note, color: AppColors.hint, size: 24)
-            : null,
+        child: !hasImage ? const Icon(Icons.music_note, color: AppColors.hint, size: 24) : null,
       ),
       title: Text(
         song.title,
@@ -896,19 +997,12 @@ class _SongTile extends ConsumerWidget {
           if (song.isYoutube)
             const Padding(
               padding: EdgeInsets.only(right: 4),
-              child: Icon(
-                Icons.smart_display,
-                color: Color(0xFFFF0000),
-                size: 13,
-              ),
+              child: Icon(Icons.smart_display, color: Color(0xFFFF0000), size: 13),
             ),
           Expanded(
             child: Text(
               song.artist,
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.hint,
-                fontSize: 12,
-              ),
+              style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -918,10 +1012,7 @@ class _SongTile extends ConsumerWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            _formatDuration(song.duration),
-            style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
-          ),
+          Text(_formatDuration(song.duration), style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12)),
           const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.more_vert, color: AppColors.hint, size: 20),
@@ -930,10 +1021,7 @@ class _SongTile extends ConsumerWidget {
         ],
       ),
       onTap: () {
-        context.push(
-          Routes.songById(song.id),
-          extra: SongPlayerRouteData(song: song, category: 'PLAYLIST'),
-        );
+        context.push(Routes.songById(song.id), extra: SongPlayerRouteData(song: song, category: 'PLAYLIST'));
       },
     );
   }

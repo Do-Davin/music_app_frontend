@@ -1,12 +1,10 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:music_app_frontend/core/network/graphql_config.dart';
 import '../models/reference_material.dart';
 import '../services/reference_material_service.dart';
 
 final referenceMaterialServiceProvider = Provider<ReferenceMaterialService>((ref) {
-  // Use authenticated client for mutations
-  return ReferenceMaterialService(GraphQLConfig.clientToQuery(authenticated: true));
+  return ReferenceMaterialService();
 });
 
 class ReferenceMaterialState {

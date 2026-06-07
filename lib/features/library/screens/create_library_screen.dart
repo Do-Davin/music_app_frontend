@@ -117,6 +117,7 @@ class CreateLibrarySheet extends ConsumerWidget {
     final titleCtrl = TextEditingController();
     final artistCtrl = TextEditingController();
     String? selectedPlaylistId;
+    bool isPublic = false;
 
     showDialog(
       context: parentContext,
@@ -134,6 +135,18 @@ class CreateLibrarySheet extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _buildTextField(artistCtrl, 'Artist'),
                 const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('Public Song', style: TextStyle(color: Colors.white)),
+                    const Spacer(),
+                    Switch(
+                      value: isPublic,
+                      onChanged: (val) => setState(() => isPublic = val),
+                      activeColor: AppColors.primary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Consumer(
                   builder: (context, ref, child) {
                     final playlistsAsync = ref.watch(myPlaylistsProvider);
@@ -220,6 +233,7 @@ class CreateLibrarySheet extends ConsumerWidget {
                   source: 'youtube',
                   sourcePath: videoId,
                   targetPlaylistId: selectedPlaylistId,
+                  isPublic: isPublic,
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
@@ -235,6 +249,7 @@ class CreateLibrarySheet extends ConsumerWidget {
     final titleCtrl = TextEditingController();
     final artistCtrl = TextEditingController();
     String? selectedPlaylistId;
+    bool isPublic = false;
 
     showDialog(
       context: parentContext,
@@ -250,6 +265,18 @@ class CreateLibrarySheet extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _buildTextField(artistCtrl, 'Artist'),
                 const SizedBox(height: 16),
+                Row(
+                  children: [
+                    const Text('Public Song', style: TextStyle(color: Colors.white)),
+                    const Spacer(),
+                    Switch(
+                      value: isPublic,
+                      onChanged: (val) => setState(() => isPublic = val),
+                      activeColor: AppColors.primary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 Consumer(
                   builder: (context, ref, child) {
                     final playlistsAsync = ref.watch(myPlaylistsProvider);
@@ -327,6 +354,7 @@ class CreateLibrarySheet extends ConsumerWidget {
                   source: 'mp3',
                   sourcePath: '',
                   targetPlaylistId: selectedPlaylistId,
+                  isPublic: isPublic,
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
@@ -346,6 +374,7 @@ class CreateLibrarySheet extends ConsumerWidget {
     required String source,
     required String sourcePath,
     String? targetPlaylistId,
+    bool isPublic = false,
   }) async {
     // Show loading with dedicated context capture
     BuildContext? dialogContext;
@@ -366,6 +395,7 @@ class CreateLibrarySheet extends ConsumerWidget {
         artist: artist,
         source: source,
         sourcePath: sourcePath,
+        isPublic: isPublic,
       );
       
       // Invalidate the songs lists provider

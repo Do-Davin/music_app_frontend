@@ -1,11 +1,11 @@
-import '../services/reference_material_service.dart';
-
 class ReferenceMaterial {
   final String id;
   final String title;
   final String type;
   final String? description;
   final String? filePath;
+  /// Full URL returned by the backend (includes BASE_URL prefix).
+  final String? fileUrl;
   final String? fileName;
   final int? fileSize;
   final String? mimeType;
@@ -20,6 +20,7 @@ class ReferenceMaterial {
     required this.type,
     this.description,
     this.filePath,
+    this.fileUrl,
     this.fileName,
     this.fileSize,
     this.mimeType,
@@ -36,6 +37,7 @@ class ReferenceMaterial {
       type: json['type'],
       description: json['description'],
       filePath: json['filePath'],
+      fileUrl: json['fileUrl'],
       fileName: json['fileName'],
       fileSize: json['fileSize'],
       mimeType: json['mimeType'],
@@ -44,12 +46,6 @@ class ReferenceMaterial {
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
     );
-  }
-
-  // Helper to get full file URL
-  String? get fileUrl {
-    if (filePath == null) return null;
-    return '${ReferenceMaterialService.baseUrl}$filePath';
   }
 
   // Helper to format file size

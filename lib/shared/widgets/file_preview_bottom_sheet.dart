@@ -32,9 +32,24 @@ class PreviewFile {
 
   String get extension => name.split('.').last.toLowerCase();
 
-  bool get isPdf => extension == 'pdf';
-  bool get isPpt => extension == 'ppt' || extension == 'pptx';
-  bool get isImage => ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension);
+  bool get isPdf {
+    // Check filename extension first, then fall back to type string
+    if (extension == 'pdf') return true;
+    return type.toLowerCase() == 'pdf';
+  }
+
+  bool get isPpt {
+    if (extension == 'ppt' || extension == 'pptx') return true;
+    return type.toLowerCase() == 'ppt';
+  }
+
+  bool get isImage {
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(extension)) return true;
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(type.toLowerCase());
+  }
+
+  /// True when there is content to show (URL or local file exists).
+  bool get hasContent => localPath != null || remoteUrl != null;
 }
 
 // ─────────────────────────────────────────────────────────
@@ -164,10 +179,28 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
 
   // ── Route to the right viewer ─────────────────────────
   Widget _body() {
+    // No content at all — show a clear message instead of blank screen
+    if (!widget.file.hasContent) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.folder_open, size: 64, color: _gold.withValues(alpha: 0.4)),
+            const SizedBox(height: 16),
+            const Text(
+              'No file attached to this material.',
+              style: TextStyle(color: _textSecondary, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
     if (widget.file.isPdf) return _pdfViewer();
     if (widget.file.isPpt) return _pptViewer();
     if (widget.file.isImage) return _imageViewer();
-    return _unsupportedViewer();
+    // Has a URL/file but unknown type — open via in-app browser
+    return _genericWebViewer();
   }
 
   // ── PDF viewer ────────────────────────────────────────
@@ -180,6 +213,8 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
       viewer = SfPdfViewer.file(
         File(path),
         controller: _pdfController,
+        pageLayoutMode: PdfPageLayoutMode.single,
+        initialZoomLevel: _zoom,
         onPageChanged: (d) => setState(() {
           _pdfCurrentPage = d.newPageNumber;
           _pdfTotalPages = _pdfController.pageCount;
@@ -189,6 +224,8 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
       viewer = SfPdfViewer.network(
         url,
         controller: _pdfController,
+        pageLayoutMode: PdfPageLayoutMode.single,
+        initialZoomLevel: _zoom,
         onPageChanged: (d) => setState(() {
           _pdfCurrentPage = d.newPageNumber;
           _pdfTotalPages = _pdfController.pageCount;
@@ -283,6 +320,30 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
     );
   }
 
+  // ── Generic web viewer — for doc/txt/other files with a URL ──
+  Widget _genericWebViewer() {
+    final url = widget.file.remoteUrl;
+    if (url == null) return _unsupportedViewer();
+
+    // Use Google Docs viewer as a universal fallback
+    final viewerUrl =
+        'https://docs.google.com/viewer?url=${Uri.encodeComponent(url)}&embedded=true';
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: InAppWebView(
+          initialUrlRequest: URLRequest(url: WebUri(viewerUrl)),
+          initialSettings: InAppWebViewSettings(
+            javaScriptEnabled: true,
+            transparentBackground: true,
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── Bottom control bar (zoom + page nav) ──────────────
   Widget _bottomBar({required bool showPageNav}) {
     return Container(
@@ -297,7 +358,11 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
         children: [
           // ── Zoom minus
           GestureDetector(
-            onTap: () => setState(() => _zoom = (_zoom - 0.1).clamp(0.5, 3.0)),
+            onTap: () {
+              final newZoom = (_zoom - 0.25).clamp(0.5, 3.0);
+              setState(() => _zoom = newZoom);
+              _pdfController.zoomLevel = newZoom;
+            },
             child: const Icon(Icons.remove, color: _textPrimary, size: 16),
           ),
 
@@ -317,7 +382,10 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
                 value: _zoom,
                 min: 0.5,
                 max: 3.0,
-                onChanged: (v) => setState(() => _zoom = v),
+                onChanged: (v) {
+                  setState(() => _zoom = v);
+                  _pdfController.zoomLevel = v;
+                },
               ),
             ),
           ),

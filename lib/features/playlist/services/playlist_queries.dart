@@ -29,17 +29,21 @@ class PlaylistQueries {
           title
           artist
           albumName
-          coverImageUrl
           duration
+          key
+          tempo
+          difficulty
+          tags
           source
           sourcePath
           fileUrl
           videoUrl
-          difficulty
-          key
-          tempo
-          tags
+          coverImageUrl
           lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
         createdAt
         updatedAt
@@ -62,17 +66,21 @@ class PlaylistQueries {
           title
           artist
           albumName
-          coverImageUrl
           duration
+          key
+          tempo
+          difficulty
+          tags
           source
           sourcePath
           fileUrl
           videoUrl
-          difficulty
-          key
-          tempo
-          tags
+          coverImageUrl
           lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
         createdAt
         updatedAt
@@ -82,7 +90,7 @@ class PlaylistQueries {
 
   static const String createPlaylist = r'''
     mutation CreatePlaylist($input: CreatePlaylistInput!) {
-      createPlaylist(input: $input) {
+      createPlaylist(createPlaylistInput: $input) {
         _id
         userId
         name
@@ -95,17 +103,21 @@ class PlaylistQueries {
           title
           artist
           albumName
-          coverImageUrl
           duration
+          key
+          tempo
+          difficulty
+          tags
           source
           sourcePath
           fileUrl
           videoUrl
-          difficulty
-          key
-          tempo
-          tags
+          coverImageUrl
           lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
         createdAt
         updatedAt
@@ -146,17 +158,21 @@ class PlaylistQueries {
           title
           artist
           albumName
-          coverImageUrl
           duration
+          key
+          tempo
+          difficulty
+          tags
           source
           sourcePath
           fileUrl
           videoUrl
-          difficulty
-          key
-          tempo
-          tags
+          coverImageUrl
           lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
         createdAt
         updatedAt
@@ -179,17 +195,58 @@ class PlaylistQueries {
           title
           artist
           albumName
-          coverImageUrl
           duration
+          key
+          tempo
+          difficulty
+          tags
           source
           sourcePath
           fileUrl
           videoUrl
-          difficulty
+          coverImageUrl
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
+        }
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  static const String moveSongBetweenPlaylists = r'''
+    mutation MoveSongBetweenPlaylists($fromPlaylistId: ID!, $toPlaylistId: ID!, $songId: ID!) {
+      moveSongBetweenPlaylists(fromPlaylistId: $fromPlaylistId, toPlaylistId: $toPlaylistId, songId: $songId) {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          duration
           key
           tempo
+          difficulty
           tags
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          coverImageUrl
           lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
         createdAt
         updatedAt

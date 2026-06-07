@@ -20,12 +20,13 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
   }
 
   Future<void> loadPlaylists() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
     try {
       final playlists = await _service.getMyPlaylists();
-      state = AsyncValue.data(playlists);
+      if (mounted) state = AsyncValue.data(playlists);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted) state = AsyncValue.error(e, st);
     }
   }
 
@@ -44,17 +45,16 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
   }
 
   /// Replace a single playlist in the current state with an updated version.
-  /// This is used after mutations (add/remove song) to immediately reflect
-  /// changes without a full network refetch.
   void updatePlaylist(Playlist updated) {
+    if (!mounted) return;
     state.whenData((playlists) {
+      if (!mounted) return;
       final index = playlists.indexWhere((p) => p.id == updated.id);
       if (index != -1) {
         final newList = [...playlists];
         newList[index] = updated;
         state = AsyncValue.data(newList);
       } else {
-        // Playlist not in list yet (e.g. just created), append it
         state = AsyncValue.data([...playlists, updated]);
       }
     });
@@ -66,10 +66,9 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
         name,
         description: description,
       );
-
+      if (!mounted) return;
       final currentPlaylists = state.value ?? [];
       state = AsyncValue.data([...currentPlaylists, newPlaylist]);
-
       debugPrint('Successfully created playlist: ${newPlaylist.name}');
     } catch (e, st) {
       debugPrint('Error creating playlist: $e');
@@ -80,9 +79,11 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
   Future<void> deletePlaylist(String id) async {
     try {
       final success = await _service.removePlaylist(id);
-      if (success) {
+      if (success && mounted) {
         state.whenData((playlists) {
-          state = AsyncValue.data(playlists.where((p) => p.id != id).toList());
+          if (mounted) {
+            state = AsyncValue.data(playlists.where((p) => p.id != id).toList());
+          }
         });
       }
     } catch (e) {
