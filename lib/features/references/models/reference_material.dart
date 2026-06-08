@@ -1,3 +1,5 @@
+import 'package:music_app_frontend/core/network/graphql_config.dart';
+
 class ReferenceMaterial {
   final String id;
   final String title;
@@ -37,7 +39,7 @@ class ReferenceMaterial {
       type: json['type']?.toString() ?? 'Other',
       description: json['description']?.toString(),
       filePath: json['filePath']?.toString(),
-      fileUrl: json['fileUrl']?.toString(),
+      fileUrl: _rewriteUrl(json['fileUrl']?.toString()),
       fileName: json['fileName']?.toString(),
       fileSize: (json['fileSize'] as num?)?.toInt(),
       mimeType: json['mimeType']?.toString(),
@@ -50,6 +52,28 @@ class ReferenceMaterial {
           ? DateTime.tryParse(json['updatedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
+  }
+
+  /// Rewrites the host in a backend-returned URL to match the runtime server
+  /// the app is actually talking to.
+  /// Fixes the localhost vs 10.0.2.2 vs real device IP mismatch: the backend
+  /// builds fileUrl using BASE_URL (defaults to localhost:3000), but a physical
+  /// device or a different emulator host can't reach localhost on the PC.
+  static String? _rewriteUrl(String? url) {
+    if (url == null || url.isEmpty) return null;
+    final serverBase = GraphQLConfig.serverBaseUrl;
+    if (serverBase.isEmpty) return url;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return url;
+    final serverUri = Uri.tryParse(serverBase);
+    if (serverUri == null) return url;
+    return uri
+        .replace(
+          scheme: serverUri.scheme,
+          host: serverUri.host,
+          port: serverUri.hasPort ? serverUri.port : -1,
+        )
+        .toString();
   }
 
   // Helper to format file size
