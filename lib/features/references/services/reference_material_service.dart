@@ -69,8 +69,8 @@ class ReferenceMaterialService {
       QueryOptions(
         document: gql(query),
         variables: {
-          if (type != null) 'type': type,
-          if (songId != null) 'songId': songId,
+          'type': ?type,
+          'songId': ?songId,
         },
         fetchPolicy: FetchPolicy.networkOnly,
       ),
