@@ -21,6 +21,15 @@ class GraphQLConfig {
     return endpoint.url;
   }
 
+  /// The base server URL (scheme + host + port), derived from [httpEndpoint].
+  /// Used to rewrite file URLs returned by the backend so they point to the
+  /// correct host on the current device (avoids localhost vs 10.0.2.2 mismatch).
+  static String get serverBaseUrl {
+    final uri = Uri.tryParse(httpEndpoint);
+    if (uri == null) return '';
+    return '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+  }
+
   static _ResolvedEndpoint _resolveHttpEndpoint() {
     final dartDefineUrl = _dartDefineGraphqlUrl.trim();
     if (dartDefineUrl.isNotEmpty) {
