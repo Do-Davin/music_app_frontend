@@ -255,11 +255,12 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
     }
 
     if (widget.targetPlaylistId != null || widget.selectPlaylistAfterSave) {
+      if (!mounted) return;
       // Show loading
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
+        builder: (loadingContext) => const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
@@ -278,6 +279,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
         ref.invalidate(songsProvider);
 
+        if (!mounted) return;
         // Close loading
         Navigator.pop(context);
 
@@ -300,12 +302,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           _showPlaylistSelectionSheet(backendSong.id, ref);
         }
       } catch (e) {
+        if (!mounted) return;
         Navigator.pop(context); // Close loading
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save to playlist backend: $e')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save to playlist backend: $e')),
+        );
       }
     } else {
       if (mounted) {
@@ -489,10 +490,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   void _showCreateAndAddPlaylistDialog(String songId, WidgetRef ref) {
     final TextEditingController nameController = TextEditingController();
+    final screenContext = context;
 
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: screenContext,
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         title: const Text(
           'New Playlist',
@@ -512,20 +514,21 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () async {
               final name = nameController.text.trim();
               if (name.isNotEmpty) {
-                Navigator.pop(context); // Close dialog
+                Navigator.pop(dialogContext); // Close dialog
 
+                if (!screenContext.mounted) return;
                 // Show loading
                 showDialog(
-                  context: context,
+                  context: screenContext,
                   barrierDismissible: false,
-                  builder: (context) => const Center(
+                  builder: (loadingContext) => const Center(
                     child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 );
@@ -541,21 +544,21 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   );
                   ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
 
-                  if (mounted) {
-                    Navigator.pop(context); // Close loading dialog
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (screenContext.mounted) {
+                    Navigator.pop(screenContext); // Close loading dialog
+                    ScaffoldMessenger.of(screenContext).showSnackBar(
                       SnackBar(
                         content: Text(
                           '✅ Playlist "$name" created and song added!',
                         ),
                       ),
                     );
-                    Navigator.pop(context); // Close LyricEditorScreen
+                    Navigator.pop(screenContext); // Close LyricEditorScreen
                   }
                 } catch (e) {
-                  if (mounted) {
-                    Navigator.pop(context); // Close loading dialog
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (screenContext.mounted) {
+                    Navigator.pop(screenContext); // Close loading dialog
+                    ScaffoldMessenger.of(screenContext).showSnackBar(
                       SnackBar(content: Text('Failed to create playlist: $e')),
                     );
                   }

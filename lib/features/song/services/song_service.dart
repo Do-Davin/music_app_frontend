@@ -137,4 +137,33 @@ class SongService {
       rethrow;
     }
   }
+
+  Future<Song> updateSongVisibility({
+    required String songId,
+    required bool isPublic,
+  }) async {
+    try {
+      final result = await _authClient.mutate(
+        MutationOptions(
+          document: gql(SongQueries.updateSong),
+          variables: {
+            'input': {
+              'id': songId,
+              'isPublic': isPublic,
+            }
+          },
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final data = result.data?['updateSong'];
+      if (data == null) throw Exception('Failed to update song');
+      return Song.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

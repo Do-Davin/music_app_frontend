@@ -636,6 +636,15 @@ class _SongTile extends ConsumerWidget {
                     _showMoveToPlaylistSheet(context, ref);
                   },
                 ),
+              if (isPlaylistOwner)
+                ListTile(
+                  leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
+                  title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _toggleSongPrivacy(context, ref);
+                  },
+                ),
               const ListTile(
                 leading: Icon(Icons.queue_music, color: Colors.grey),
                 title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
@@ -648,6 +657,38 @@ class _SongTile extends ConsumerWidget {
   }
 
   Future<void> _removeSongFromPlaylist(BuildContext context, WidgetRef ref) async {
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+    
+    // Optimistic UI update: instantly remove from current playlist
+    myPlaylistsNotifier.removeSongLocally(playlistId, song.id);
+
+    try {
+      final updatedPlaylist = await playlistService.removeSongFromPlaylist(playlistId, song.id);
+      
+      myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: 'Song Removed',
+          subtitle: 'Removed from this playlist',
+          icon: Icons.remove_circle_outline_rounded,
+          iconColor: AppColors.error,
+        );
+      }
+    } catch (e) {
+      // Revert on error
+      await myPlaylistsNotifier.refreshPlaylists();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to remove song: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleSongPrivacy(BuildContext context, WidgetRef ref) async {
     BuildContext? dialogContext;
     showDialog(
       context: context,
@@ -659,21 +700,27 @@ class _SongTile extends ConsumerWidget {
     );
 
     try {
-      final playlistService = ref.read(playlistServiceProvider);
-      final updatedPlaylist = await playlistService.removeSongFromPlaylist(playlistId, song.id);
-      
+      final songService = ref.read(songServiceProvider);
+      final newIsPublic = !song.isPublic;
+      await songService.updateSongVisibility(
+        songId: song.id,
+        isPublic: newIsPublic,
+      );
+
       if (dialogContext != null && dialogContext!.mounted) {
         Navigator.pop(dialogContext!);
       }
 
+      // Refresh the current playlist to see updated song state
+      await ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+
       if (context.mounted) {
-        ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
         SuccessPopup.show(
           context,
-          title: 'Song Removed',
-          subtitle: 'Removed from this playlist',
-          icon: Icons.remove_circle_outline_rounded,
-          iconColor: AppColors.error,
+          title: newIsPublic ? 'Song is now Public' : 'Song is now Private',
+          subtitle: 'Visibility updated successfully',
+          icon: newIsPublic ? Icons.public : Icons.lock,
+          iconColor: Colors.blue,
         );
       }
     } catch (e) {
@@ -682,7 +729,7 @@ class _SongTile extends ConsumerWidget {
       }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to remove song: $e')),
+          SnackBar(content: Text('Failed to update visibility: $e')),
         );
       }
     }
@@ -869,29 +916,20 @@ class _SongTile extends ConsumerWidget {
   }
 
   Future<void> _moveSongToTargetPlaylist(BuildContext context, WidgetRef ref, Playlist targetPlaylist) async {
-    BuildContext? dialogContext;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        dialogContext = ctx;
-        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-      },
-    );
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
+    // Optimistic UI update: instantly remove from current playlist
+    myPlaylistsNotifier.removeSongLocally(playlistId, song.id);
 
     try {
-      final updatedPlaylist = await ref.read(playlistServiceProvider).moveSongBetweenPlaylists(
+      final updatedPlaylist = await playlistService.moveSongBetweenPlaylists(
             fromPlaylistId: playlistId,
             toPlaylistId: targetPlaylist.id,
             songId: song.id,
           );
 
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.pop(dialogContext!);
-      }
-
-      ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
-      await ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+      myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
 
       if (context.mounted) {
         SuccessPopup.show(
@@ -903,9 +941,8 @@ class _SongTile extends ConsumerWidget {
         );
       }
     } catch (e) {
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.pop(dialogContext!);
-      }
+      // Revert on error
+      await myPlaylistsNotifier.refreshPlaylists();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to move: $e')),

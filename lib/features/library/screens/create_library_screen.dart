@@ -142,7 +142,7 @@ class CreateLibrarySheet extends ConsumerWidget {
                     Switch(
                       value: isPublic,
                       onChanged: (val) => setState(() => isPublic = val),
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
                     ),
                   ],
                 ),
@@ -160,7 +160,7 @@ class CreateLibrarySheet extends ConsumerWidget {
                           selectedPlaylistId = personal.id;
                         }
                         return DropdownButtonFormField<String>(
-                          value: selectedPlaylistId,
+                          initialValue: selectedPlaylistId,
                           dropdownColor: const Color(0xFF2A2A2A),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
@@ -272,7 +272,7 @@ class CreateLibrarySheet extends ConsumerWidget {
                     Switch(
                       value: isPublic,
                       onChanged: (val) => setState(() => isPublic = val),
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
                     ),
                   ],
                 ),
@@ -290,7 +290,7 @@ class CreateLibrarySheet extends ConsumerWidget {
                           selectedPlaylistId = personal.id;
                         }
                         return DropdownButtonFormField<String>(
-                          value: selectedPlaylistId,
+                          initialValue: selectedPlaylistId,
                           dropdownColor: const Color(0xFF2A2A2A),
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(

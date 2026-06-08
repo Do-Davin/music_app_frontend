@@ -96,12 +96,19 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
 
   void _onShare() {
     if (widget.file.localPath != null) {
-      Share.shareXFiles(
-        [XFile(widget.file.localPath!)],
-        text: widget.file.name,
+      SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(widget.file.localPath!)],
+          text: widget.file.name,
+        ),
       );
     } else if (widget.file.remoteUrl != null) {
-      Share.share(widget.file.remoteUrl!, subject: widget.file.name);
+      SharePlus.instance.share(
+        ShareParams(
+          text: widget.file.remoteUrl!,
+          subject: widget.file.name,
+        ),
+      );
     }
   }
 

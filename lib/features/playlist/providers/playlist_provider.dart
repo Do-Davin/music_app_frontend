@@ -60,6 +60,23 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
     });
   }
 
+  void removeSongLocally(String playlistId, String songId) {
+    if (!mounted) return;
+    state.whenData((playlists) {
+      if (!mounted) return;
+      final index = playlists.indexWhere((p) => p.id == playlistId);
+      if (index != -1) {
+        final p = playlists[index];
+        final newSongs = p.songs?.where((s) => s.id != songId).toList();
+        final newSongIds = p.songIds?.where((id) => id != songId).toList();
+        final updated = p.copyWith(songs: newSongs, songIds: newSongIds);
+        final newList = [...playlists];
+        newList[index] = updated;
+        state = AsyncValue.data(newList);
+      }
+    });
+  }
+
   Future<void> createPlaylist(String name, {String? description}) async {
     try {
       final newPlaylist = await _service.createPlaylist(
