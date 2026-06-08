@@ -8,7 +8,7 @@ import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
 
-// Provider to manage the search query state
+// Provider to manage the raw (un-debounced) search query for the text field UI.
 final searchQueryProvider = StateProvider<String>((ref) => "");
 
 class SearchScreen extends ConsumerWidget {
@@ -17,6 +17,8 @@ class SearchScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final query = ref.watch(searchQueryProvider);
+    // Use the debounced query to trigger actual API calls
+    final debouncedQuery = ref.watch(debouncedSearchQueryProvider);
     final isSearching = query.isNotEmpty;
 
     return Scaffold(
@@ -31,7 +33,7 @@ class SearchScreen extends ConsumerWidget {
               const SizedBox(height: 20),
               Expanded(
                 child: isSearching
-                    ? _buildSearchResults(context, ref, query)
+                    ? _buildSearchResults(context, ref, debouncedQuery)
                     : _buildInitialView(context, ref),
               ),
             ],
@@ -48,7 +50,10 @@ class SearchScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             GestureDetector(
-              onTap: () => ref.read(searchQueryProvider.notifier).state = "",
+              onTap: () {
+                ref.read(searchQueryProvider.notifier).state = "";
+                ref.read(debouncedSearchQueryProvider.notifier).update("");
+              },
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: const BoxDecoration(
@@ -71,8 +76,10 @@ class SearchScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 20),
         TextField(
-          onChanged: (val) =>
-              ref.read(searchQueryProvider.notifier).state = val,
+          onChanged: (val) {
+            ref.read(searchQueryProvider.notifier).state = val;
+            ref.read(debouncedSearchQueryProvider.notifier).update(val);
+          },
           style: AppTextStyles.body,
           decoration: InputDecoration(
             hintText: "Artist, Lyrics, Song and more",
@@ -84,8 +91,10 @@ class SearchScreen extends ConsumerWidget {
             suffixIcon: query.isNotEmpty
                 ? IconButton(
                     icon: const Icon(Icons.close, color: AppColors.onSurface),
-                    onPressed: () =>
-                        ref.read(searchQueryProvider.notifier).state = "",
+                    onPressed: () {
+                      ref.read(searchQueryProvider.notifier).state = "";
+                      ref.read(debouncedSearchQueryProvider.notifier).update("");
+                    },
                   )
                 : null,
             contentPadding: const EdgeInsets.symmetric(vertical: 0),
@@ -268,9 +277,17 @@ class SearchScreen extends ConsumerWidget {
         child: CircularProgressIndicator(color: AppColors.primary),
       ),
       error: (error, stack) => Center(
-        child: Text(
-          'Error: $error',
-          style: AppTextStyles.body.copyWith(color: Colors.red),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.error, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              error.toString().replaceAll('Exception: ', ''),
+              style: AppTextStyles.body.copyWith(color: AppColors.error),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       ),
     );

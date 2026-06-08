@@ -233,8 +233,9 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
-                                    'Failed to load library',
+                                    err.toString().replaceAll('Exception: ', ''),
                                     style: AppTextStyles.body,
+                                    textAlign: TextAlign.center,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(

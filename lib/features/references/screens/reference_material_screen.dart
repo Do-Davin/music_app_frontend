@@ -5,6 +5,8 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/shared/widgets/file_preview_bottom_sheet.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
+import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import '../providers/reference_material_provider.dart';
 import '../models/reference_material.dart';
 
@@ -121,10 +123,7 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
   }
 
   List<ReferenceMaterial> _filterMaterials(List<ReferenceMaterial> materials) {
-    // Create a mutable copy and apply sorting
     var filtered = materials.toList();
-
-    // Apply sorting
     switch (_sortBy) {
       case 'newest':
         filtered.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -136,7 +135,6 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
         filtered.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
         break;
     }
-
     return filtered;
   }
 
@@ -159,6 +157,14 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     final screenWidth = MediaQuery.of(context).size.width;
     final horizontalPadding = screenWidth > 600 ? 24.0 : 16.0;
 
+    final meAsync = ref.watch(meProvider);
+    final songAsync = widget.songId != null ? ref.watch(songByIdProvider(widget.songId!)) : null;
+
+    final currentUserId = meAsync.valueOrNull?.id;
+    final songUserId = songAsync?.valueOrNull?.userId;
+
+    final bool canManage = currentUserId != null && songUserId != null && currentUserId == songUserId;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: widget.showAppBar
@@ -171,7 +177,6 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
       resizeToAvoidBottomInset: true,
       body: Column(
         children: [
-          // Filter chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
@@ -189,8 +194,6 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
               ],
             ),
           ),
-          
-          // Materials count and sort
           Padding(
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
             child: Row(
@@ -223,23 +226,21 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
               ],
             ),
           ),
-          
-          // Materials list
           Expanded(
-            child: _buildList(state),
+            child: _buildList(state, canManage),
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: canManage ? FloatingActionButton(
         heroTag: 'referenceMaterialFAB',
         onPressed: _showCreateDialog,
         backgroundColor: AppColors.primary,
         child: const Icon(Icons.add, color: Colors.white),
-      ),
+      ) : null,
     );
   }
 
-  Widget _buildList(ReferenceMaterialState state) {
+  Widget _buildList(ReferenceMaterialState state, bool canManage) {
     if (state.isLoading && state.materials.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -284,11 +285,13 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
               'No materials yet',
               style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap + to add your first material',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
-            ),
+            if (canManage) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Tap + to add your first material',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+              ),
+            ],
           ],
         ),
       );
@@ -305,6 +308,7 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
         final material = filteredMaterials[index];
         return _MaterialCard(
           material: material,
+          canManage: canManage,
           onEdit: () => _showEditDialog(material),
           onDelete: () => _confirmDelete(material.id),
         );
@@ -380,11 +384,13 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
 
 class _MaterialCard extends StatelessWidget {
   final ReferenceMaterial material;
+  final bool canManage;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   const _MaterialCard({
     required this.material,
+    required this.canManage,
     required this.onEdit,
     required this.onDelete,
   });
@@ -421,13 +427,11 @@ class _MaterialCard extends StatelessWidget {
 
   void _showPreview(BuildContext context) {
     if (material.fileUrl == null && material.fileName == null) return;
-
     final previewFile = PreviewFile(
       name: material.fileName ?? material.title,
       type: material.type,
       remoteUrl: material.fileUrl,
     );
-
     showFilePreview(context, file: previewFile);
   }
 
@@ -452,10 +456,8 @@ class _MaterialCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header with icon, title, and actions
               Row(
                 children: [
-                  // File type icon
                   Container(
                     width: iconSize,
                     height: iconSize,
@@ -470,8 +472,6 @@ class _MaterialCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  
-                  // Title and topic
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,22 +520,20 @@ class _MaterialCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
-                  // Action buttons
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 22),
-                    onPressed: onEdit,
-                    tooltip: 'Edit',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
-                    onPressed: onDelete,
-                    tooltip: 'Delete',
-                  ),
+                  if (canManage) ...[
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 22),
+                      onPressed: onEdit,
+                      tooltip: 'Edit',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                      onPressed: onDelete,
+                      tooltip: 'Delete',
+                    ),
+                  ],
                 ],
               ),
-              
-              // Description
               if (material.description != null && material.description!.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -548,8 +546,6 @@ class _MaterialCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
-
-              // File preview section
               if (material.fileName != null) ...[
                 const SizedBox(height: 12),
                 InkWell(
@@ -655,8 +651,6 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
     _titleController = TextEditingController(text: widget.material?.title ?? '');
     _descriptionController = TextEditingController(text: widget.material?.description ?? '');
     _topicController = TextEditingController(text: widget.material?.topic ?? '');
-    
-    // Ensure selected type is in the list of allowed types
     final initialType = widget.material?.type ?? 'PDF';
     _selectedType = _materialTypes.contains(initialType) ? initialType : 'Other';
   }
@@ -671,7 +665,6 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
 
   void _handleFileSelection(String? path) {
     if (path == null) return;
-
     final extension = path.split('.').last.toLowerCase();
     if (_allowedExtensions.contains(extension)) {
       setState(() {
@@ -685,11 +678,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: _allowedExtensions,
-    );
-
+    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: _allowedExtensions);
     if (result != null && result.files.single.path != null) {
       _handleFileSelection(result.files.single.path);
     }
@@ -697,9 +686,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
     final notifier = ref.read(referenceMaterialProvider.notifier);
-
     try {
       if (widget.material == null) {
         await notifier.createMaterial(
@@ -724,9 +711,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -737,14 +722,12 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
       title: Text(widget.material == null ? 'Add Material' : 'Edit Material'),
       content: DropTarget(
         onDragDone: (detail) {
-          if (detail.files.isNotEmpty) {
-            _handleFileSelection(detail.files.first.path);
-          }
+          if (detail.files.isNotEmpty) _handleFileSelection(detail.files.first.path);
         },
         onDragEntered: (_) => setState(() => _isDragging = true),
         onDragExited: (_) => setState(() => _isDragging = false),
         child: Container(
-          width: 400, // Fixed width for better layout on desktop
+          width: 400,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: _isDragging ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
@@ -759,41 +742,28 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                 children: [
                   TextFormField(
                     controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Title',
-                      hintText: 'Enter material title',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Title', hintText: 'Enter material title'),
                     validator: (value) => value?.isEmpty ?? true ? 'Title is required' : null,
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: _selectedType,
                     decoration: const InputDecoration(labelText: 'Type'),
-                    items: _materialTypes
-                        .map((type) => DropdownMenuItem(value: type, child: Text(type)))
-                        .toList(),
+                    items: _materialTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
                     onChanged: (value) => setState(() => _selectedType = value!),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
-                      hintText: 'Optional description',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Description', hintText: 'Optional description'),
                     maxLines: 3,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _topicController,
-                    decoration: const InputDecoration(
-                      labelText: 'Topic',
-                      hintText: 'e.g., Music Theory, Practice Tips',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Topic', hintText: 'e.g., Music Theory, Practice Tips'),
                   ),
                   const SizedBox(height: 24),
-                  
-                  // Drop Zone
                   MouseRegion(
                     cursor: SystemMouseCursors.click,
                     child: GestureDetector(
@@ -807,68 +777,40 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                             style: BorderStyle.solid,
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          color: _isDragging 
-                              ? AppColors.primary.withValues(alpha: 0.05) 
-                              : Colors.white.withValues(alpha: 0.02),
+                          color: _isDragging ? AppColors.primary.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.02),
                         ),
                         child: Column(
                           children: [
-                            Icon(
-                              Icons.cloud_upload_outlined, 
-                              size: 48, 
-                              color: _isDragging ? AppColors.primary : Colors.grey,
-                            ),
+                            Icon(Icons.cloud_upload_outlined, size: 48, color: _isDragging ? AppColors.primary : Colors.grey),
                             const SizedBox(height: 12),
                             Text(
-                              _selectedFile == null 
-                                  ? 'Drag and drop file here or click to browse'
-                                  : 'File selected (Click to change)',
+                              _selectedFile == null ? 'Drag and drop file here or click to browse' : 'File selected (Click to change)',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: _isDragging ? AppColors.primary : Colors.grey,
-                                fontWeight: _isDragging ? FontWeight.bold : FontWeight.normal,
-                              ),
+                              style: TextStyle(color: _isDragging ? AppColors.primary : Colors.grey, fontWeight: _isDragging ? FontWeight.bold : FontWeight.normal),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              'Allowed: PDF, PPT, Word, Images',
-                              style: TextStyle(fontSize: 10, color: Colors.grey.withValues(alpha: 0.6)),
-                            ),
+                            Text('Allowed: PDF, PPT, Word, Images', style: TextStyle(fontSize: 10, color: Colors.grey.withValues(alpha: 0.6))),
                           ],
                         ),
                       ),
                     ),
                   ),
-                  
                   if (_selectedFile != null) ...[
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                      ),
+                      decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.green.withValues(alpha: 0.3))),
                       child: Row(
                         children: [
                           const Icon(Icons.check_circle, size: 16, color: Colors.green),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _selectedFile!.path.split(Platform.pathSeparator).last,
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          Expanded(child: Text(_selectedFile!.path.split(Platform.pathSeparator).last, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green), overflow: TextOverflow.ellipsis)),
                         ],
                       ),
                     ),
                   ] else if (widget.material?.fileName != null) ...[
                     const SizedBox(height: 12),
-                    Text(
-                      'Current file: ${widget.material!.fileName}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
-                    ),
+                    Text('Current file: ${widget.material!.fileName}', style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic)),
                   ],
                 ],
               ),
@@ -877,18 +819,8 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        ElevatedButton(
-          onPressed: _submit,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-          ),
-          child: Text(widget.material == null ? 'Create Material' : 'Update Material'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white), child: Text(widget.material == null ? 'Create Material' : 'Update Material')),
       ],
     );
   }

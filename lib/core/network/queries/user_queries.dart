@@ -31,6 +31,8 @@ class UserQueries {
         tempo
         difficulty
         tags
+        source
+        sourcePath
         fileUrl
         videoUrl
         coverImageUrl
@@ -38,6 +40,7 @@ class UserQueries {
         chordNotationStyle
         isPublic
         playCount
+        userId
       }
     }
   ''';

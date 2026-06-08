@@ -1,11 +1,11 @@
-import '../services/reference_material_service.dart';
-
 class ReferenceMaterial {
   final String id;
   final String title;
   final String type;
   final String? description;
   final String? filePath;
+  /// Full URL returned by the backend (includes BASE_URL prefix).
+  final String? fileUrl;
   final String? fileName;
   final int? fileSize;
   final String? mimeType;
@@ -20,6 +20,7 @@ class ReferenceMaterial {
     required this.type,
     this.description,
     this.filePath,
+    this.fileUrl,
     this.fileName,
     this.fileSize,
     this.mimeType,
@@ -31,25 +32,24 @@ class ReferenceMaterial {
 
   factory ReferenceMaterial.fromJson(Map<String, dynamic> json) {
     return ReferenceMaterial(
-      id: json['_id'],
-      title: json['title'],
-      type: json['type'],
-      description: json['description'],
-      filePath: json['filePath'],
-      fileName: json['fileName'],
-      fileSize: json['fileSize'],
-      mimeType: json['mimeType'],
-      songId: json['songId'],
-      topic: json['topic'],
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      title: json['title']?.toString() ?? 'Untitled',
+      type: json['type']?.toString() ?? 'Other',
+      description: json['description']?.toString(),
+      filePath: json['filePath']?.toString(),
+      fileUrl: json['fileUrl']?.toString(),
+      fileName: json['fileName']?.toString(),
+      fileSize: (json['fileSize'] as num?)?.toInt(),
+      mimeType: json['mimeType']?.toString(),
+      songId: json['songId']?.toString(),
+      topic: json['topic']?.toString(),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
-  }
-
-  // Helper to get full file URL
-  String? get fileUrl {
-    if (filePath == null) return null;
-    return '${ReferenceMaterialService.baseUrl}$filePath';
   }
 
   // Helper to format file size

@@ -27,21 +27,27 @@ class Playlist {
 
   factory Playlist.fromJson(Map<String, dynamic> json) {
     return Playlist(
-      id: json['_id'] as String,
-      userId: json['userId'] as String?,
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String?,
-      coverImageUrl: json['coverImageUrl'] as String?,
-      songIds: (json['songIds'] as List<dynamic>?)?.cast<String>(),
-      songs: (json['songs'] as List<dynamic>?)
-          ?.map((song) => Song.fromJson(song as Map<String, dynamic>))
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      userId: (json['userId'] ?? json['ownerId'])?.toString(),
+      name: json['name']?.toString() ?? 'Unnamed Playlist',
+      description: json['description']?.toString(),
+      coverImageUrl: json['coverImageUrl']?.toString(),
+      songIds: (json['songIds'] as List<dynamic>?)
+          ?.map((e) => e?.toString())
+          .whereType<String>()
           .toList(),
-      isPublic: json['isPublic'] as bool? ?? false,
+      songs: (json['songs'] as List<dynamic>?)
+          ?.map((song) => song != null
+              ? Song.fromJson(song as Map<String, dynamic>)
+              : null)
+          .whereType<Song>()
+          .toList(),
+      isPublic: json['isPublic'] == true,
       createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
+          ? DateTime.tryParse(json['createdAt'].toString())
           : null,
       updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
+          ? DateTime.tryParse(json['updatedAt'].toString())
           : null,
     );
   }
