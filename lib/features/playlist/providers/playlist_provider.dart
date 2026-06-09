@@ -20,13 +20,61 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
   }
 
   Future<void> loadPlaylists() async {
+    if (!mounted) return;
     state = const AsyncValue.loading();
     try {
       final playlists = await _service.getMyPlaylists();
-      state = AsyncValue.data(playlists);
+      if (mounted) state = AsyncValue.data(playlists);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (mounted) state = AsyncValue.error(e, st);
     }
+  }
+
+  /// Reload playlists from network without setting loading state first.
+  /// This avoids flicker and keeps the current data visible while refreshing.
+  Future<void> refreshPlaylists() async {
+    try {
+      final playlists = await _service.getMyPlaylists();
+      if (mounted) {
+        state = AsyncValue.data(playlists);
+      }
+    } catch (e) {
+      debugPrint('Error refreshing playlists: $e');
+      // Keep current state on error during refresh
+    }
+  }
+
+  /// Replace a single playlist in the current state with an updated version.
+  void updatePlaylist(Playlist updated) {
+    if (!mounted) return;
+    state.whenData((playlists) {
+      if (!mounted) return;
+      final index = playlists.indexWhere((p) => p.id == updated.id);
+      if (index != -1) {
+        final newList = [...playlists];
+        newList[index] = updated;
+        state = AsyncValue.data(newList);
+      } else {
+        state = AsyncValue.data([...playlists, updated]);
+      }
+    });
+  }
+
+  void removeSongLocally(String playlistId, String songId) {
+    if (!mounted) return;
+    state.whenData((playlists) {
+      if (!mounted) return;
+      final index = playlists.indexWhere((p) => p.id == playlistId);
+      if (index != -1) {
+        final p = playlists[index];
+        final newSongs = p.songs?.where((s) => s.id != songId).toList();
+        final newSongIds = p.songIds?.where((id) => id != songId).toList();
+        final updated = p.copyWith(songs: newSongs, songIds: newSongIds);
+        final newList = [...playlists];
+        newList[index] = updated;
+        state = AsyncValue.data(newList);
+      }
+    });
   }
 
   Future<void> createPlaylist(String name, {String? description}) async {
@@ -35,25 +83,24 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
         name,
         description: description,
       );
-
+      if (!mounted) return;
       final currentPlaylists = state.value ?? [];
       state = AsyncValue.data([...currentPlaylists, newPlaylist]);
-
       debugPrint('Successfully created playlist: ${newPlaylist.name}');
     } catch (e, st) {
       debugPrint('Error creating playlist: $e');
       debugPrint('$st');
-      // Optional: you could set state to error here, but usually better to keep
-      // existing list and show a toast.
     }
   }
 
   Future<void> deletePlaylist(String id) async {
     try {
       final success = await _service.removePlaylist(id);
-      if (success) {
+      if (success && mounted) {
         state.whenData((playlists) {
-          state = AsyncValue.data(playlists.where((p) => p.id != id).toList());
+          if (mounted) {
+            state = AsyncValue.data(playlists.where((p) => p.id != id).toList());
+          }
         });
       }
     } catch (e) {
@@ -62,11 +109,26 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
   }
 }
 
-final playlistByIdProvider = FutureProvider.family<Playlist, String>((
+/// Single source of truth: derives playlist details from the master list.
+/// When myPlaylistsProvider is updated (via updatePlaylist / refreshPlaylists),
+/// any screen watching this provider automatically gets the fresh data.
+final playlistByIdProvider = Provider.family<AsyncValue<Playlist>, String>((
   ref,
   id,
-) async {
-  return ref.watch(playlistServiceProvider).getPlaylistById(id);
+) {
+  final playlistsAsync = ref.watch(myPlaylistsProvider);
+  return playlistsAsync.when(
+    data: (playlists) {
+      try {
+        final playlist = playlists.firstWhere((p) => p.id == id);
+        return AsyncValue.data(playlist);
+      } catch (_) {
+        return AsyncValue.error('Playlist not found', StackTrace.current);
+      }
+    },
+    loading: () => const AsyncValue.loading(),
+    error: (err, stack) => AsyncValue.error(err, stack),
+  );
 });
 
 final likedSongsPlaylistProvider = FutureProvider<Playlist>((ref) async {

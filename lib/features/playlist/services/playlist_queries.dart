@@ -28,15 +28,25 @@ class PlaylistQueries {
           _id
           title
           artist
-          coverImageUrl
+          albumName
           duration
+          key
+          tempo
+          difficulty
+          tags
           source
           sourcePath
           fileUrl
           videoUrl
+          coverImageUrl
           lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
         createdAt
+        updatedAt
       }
     }
   ''';
@@ -56,17 +66,21 @@ class PlaylistQueries {
           title
           artist
           albumName
-          coverImageUrl
           duration
+          key
+          tempo
+          difficulty
+          tags
           source
           sourcePath
           fileUrl
           videoUrl
-          difficulty
-          key
-          tempo
-          tags
+          coverImageUrl
           lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
         createdAt
         updatedAt
@@ -78,11 +92,35 @@ class PlaylistQueries {
     mutation CreatePlaylist($input: CreatePlaylistInput!) {
       createPlaylist(createPlaylistInput: $input) {
         _id
-        name
         userId
+        name
         description
+        coverImageUrl
         isPublic
         songIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          duration
+          key
+          tempo
+          difficulty
+          tags
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          coverImageUrl
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
+        }
+        createdAt
+        updatedAt
       }
     }
   ''';
@@ -109,19 +147,35 @@ class PlaylistQueries {
     mutation AddSongToPlaylist($playlistId: ID!, $songId: ID!) {
       addSongToPlaylist(playlistId: $playlistId, songId: $songId) {
         _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
         songIds
         songs {
           _id
           title
           artist
-          coverImageUrl
+          albumName
           duration
+          key
+          tempo
+          difficulty
+          tags
           source
           sourcePath
           fileUrl
           videoUrl
+          coverImageUrl
           lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
+        createdAt
+        updatedAt
       }
     }
   ''';
@@ -130,7 +184,72 @@ class PlaylistQueries {
     mutation RemoveSongFromPlaylist($playlistId: ID!, $songId: ID!) {
       removeSongFromPlaylist(playlistId: $playlistId, songId: $songId) {
         _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
         songIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          duration
+          key
+          tempo
+          difficulty
+          tags
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          coverImageUrl
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
+        }
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  static const String moveSongBetweenPlaylists = r'''
+    mutation MoveSongBetweenPlaylists($fromPlaylistId: ID!, $toPlaylistId: ID!, $songId: ID!) {
+      moveSongBetweenPlaylists(fromPlaylistId: $fromPlaylistId, toPlaylistId: $toPlaylistId, songId: $songId) {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          duration
+          key
+          tempo
+          difficulty
+          tags
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          coverImageUrl
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
+        }
+        createdAt
+        updatedAt
       }
     }
   ''';

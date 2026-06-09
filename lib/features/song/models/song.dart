@@ -8,10 +8,8 @@ class Song {
   final int? tempo;
   final String? difficulty;
   final List<String>? tags;
-
   /// Source type: 'mp3' or 'youtube'
   final String? source;
-
   /// File path (mp3) or YouTube URL
   final String? sourcePath;
   final String? fileUrl;
@@ -21,7 +19,7 @@ class Song {
   final String? chordNotationStyle;
   final bool isPublic;
   final int playCount;
-  final bool isFavorite;
+  final String? userId;
 
   Song({
     required this.id,
@@ -42,30 +40,30 @@ class Song {
     this.chordNotationStyle,
     this.isPublic = false,
     this.playCount = 0,
-    this.isFavorite = false,
+    this.userId,
   });
 
   factory Song.fromJson(Map<String, dynamic> json) {
     return Song(
-      id: json['_id'] as String,
-      title: json['title'] as String,
-      artist: json['artist'] as String,
-      albumName: json['albumName'] as String?,
-      duration: json['duration'] as int?,
-      key: json['key'] as String?,
-      tempo: json['tempo'] as int?,
-      difficulty: json['difficulty'] as String?,
-      tags: (json['tags'] as List<dynamic>?)?.cast<String>(),
-      source: json['source'] as String?,
-      sourcePath: json['sourcePath'] as String?,
-      fileUrl: json['fileUrl'] as String?,
-      videoUrl: json['videoUrl'] as String?,
-      coverImageUrl: json['coverImageUrl'] as String?,
-      lyrics: json['lyrics'] as String?,
-      chordNotationStyle: json['chordNotationStyle'] as String?,
-      isPublic: json['isPublic'] as bool? ?? false,
-      playCount: json['playCount'] as int? ?? 0,
-      isFavorite: json['isFavorite'] as bool? ?? false,
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      title: json['title']?.toString() ?? 'Untitled',
+      artist: json['artist']?.toString() ?? 'Unknown Artist',
+      albumName: json['albumName']?.toString(),
+      duration: (json['duration'] as num?)?.toInt(),
+      key: json['key']?.toString(),
+      tempo: (json['tempo'] as num?)?.toInt(),
+      difficulty: json['difficulty']?.toString(),
+      tags: (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      source: json['source']?.toString(),
+      sourcePath: json['sourcePath']?.toString(),
+      fileUrl: json['fileUrl']?.toString(),
+      videoUrl: json['videoUrl']?.toString(),
+      coverImageUrl: json['coverImageUrl']?.toString(),
+      lyrics: json['lyrics']?.toString(),
+      chordNotationStyle: json['chordNotationStyle']?.toString(),
+      isPublic: json['isPublic'] == true,
+      playCount: (json['playCount'] as num?)?.toInt() ?? 0,
+      userId: json['userId']?.toString(),
     );
   }
 
@@ -109,52 +107,6 @@ class Song {
       'chordNotationStyle': chordNotationStyle,
       'isPublic': isPublic,
       'playCount': playCount,
-      'isFavorite': isFavorite,
     };
-  }
-
-  /// Create a copy of this Song with modified fields
-  Song copyWith({
-    String? id,
-    String? title,
-    String? artist,
-    String? albumName,
-    int? duration,
-    String? key,
-    int? tempo,
-    String? difficulty,
-    List<String>? tags,
-    String? source,
-    String? sourcePath,
-    String? fileUrl,
-    String? videoUrl,
-    String? coverImageUrl,
-    String? lyrics,
-    String? chordNotationStyle,
-    bool? isPublic,
-    int? playCount,
-    bool? isFavorite,
-  }) {
-    return Song(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      artist: artist ?? this.artist,
-      albumName: albumName ?? this.albumName,
-      duration: duration ?? this.duration,
-      key: key ?? this.key,
-      tempo: tempo ?? this.tempo,
-      difficulty: difficulty ?? this.difficulty,
-      tags: tags ?? this.tags,
-      source: source ?? this.source,
-      sourcePath: sourcePath ?? this.sourcePath,
-      fileUrl: fileUrl ?? this.fileUrl,
-      videoUrl: videoUrl ?? this.videoUrl,
-      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
-      lyrics: lyrics ?? this.lyrics,
-      chordNotationStyle: chordNotationStyle ?? this.chordNotationStyle,
-      isPublic: isPublic ?? this.isPublic,
-      playCount: playCount ?? this.playCount,
-      isFavorite: isFavorite ?? this.isFavorite,
-    );
   }
 }

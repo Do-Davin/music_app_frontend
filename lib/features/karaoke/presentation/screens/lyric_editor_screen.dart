@@ -8,6 +8,7 @@ import 'player_screen.dart';
 import '../../../references/screens/reference_material_screen.dart';
 import '../../../../features/song/providers/song_provider.dart';
 import '../../../../features/playlist/providers/playlist_provider.dart';
+import '../../../../core/constants/app_colors.dart';
 
 class LyricEditorScreen extends StatefulWidget {
   final KaraokeSong song;
@@ -140,7 +141,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             },
             child: const Text(
               'Load',
-              style: TextStyle(color: Color(0xFF7C4DFF)),
+              style: TextStyle(color: AppColors.primary),
             ),
           ),
         ],
@@ -246,24 +247,21 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
               songId: widget.sourceSongId!,
               lyrics: serializedLyrics,
             );
+        ref.invalidate(songsProvider);
+        ref.invalidate(songByIdProvider(widget.sourceSongId!));
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Karaoke saved, but song lyrics update failed: $e'),
-            ),
-          );
-        }
+        debugPrint('Karaoke saved, but song lyrics update failed: $e');
       }
     }
 
     if (widget.targetPlaylistId != null || widget.selectPlaylistAfterSave) {
+      if (!mounted) return;
       // Show loading
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+        builder: (loadingContext) => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
 
@@ -279,16 +277,18 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           lyrics: serializedLyrics,
         );
 
+        ref.invalidate(songsProvider);
+
+        if (!mounted) return;
         // Close loading
         Navigator.pop(context);
 
         if (widget.targetPlaylistId != null) {
-          await playlistService.addSongToPlaylist(
+          final updatedPlaylist = await playlistService.addSongToPlaylist(
             widget.targetPlaylistId!,
             backendSong.id,
           );
-          // ignore: unused_result
-          ref.refresh(playlistByIdProvider(widget.targetPlaylistId!));
+          ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -302,12 +302,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           _showPlaylistSelectionSheet(backendSong.id, ref);
         }
       } catch (e) {
+        if (!mounted) return;
         Navigator.pop(context); // Close loading
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save to playlist backend: $e')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save to playlist backend: $e')),
+        );
       }
     } else {
       if (mounted) {
@@ -355,7 +354,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   ),
                   const SizedBox(height: 16),
                   ListTile(
-                    leading: const Icon(Icons.add, color: Color(0xFF7C4DFF)),
+                    leading: const Icon(Icons.add, color: AppColors.primary),
                     title: const Text(
                       'Create New Playlist',
                       style: TextStyle(color: Colors.white),
@@ -398,7 +397,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                             return ListTile(
                               leading: const Icon(
                                 Icons.playlist_play,
-                                color: Color(0xFF7C4DFF),
+                                color: AppColors.primary,
                               ),
                               title: Text(
                                 playlist.name,
@@ -418,7 +417,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                       },
                       loading: () => const Center(
                         child: CircularProgressIndicator(
-                          color: Color(0xFF7C4DFF),
+                          color: AppColors.primary,
                         ),
                       ),
                       error: (err, _) => Center(
@@ -461,14 +460,14 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+        child: CircularProgressIndicator(color: AppColors.primary),
       ),
     );
 
     try {
       final playlistService = ref.read(playlistServiceProvider);
-      await playlistService.addSongToPlaylist(playlistId, songId);
-      ref.invalidate(myPlaylistsProvider);
+      final updatedPlaylist = await playlistService.addSongToPlaylist(playlistId, songId);
+      ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
 
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
@@ -491,10 +490,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
   void _showCreateAndAddPlaylistDialog(String songId, WidgetRef ref) {
     final TextEditingController nameController = TextEditingController();
+    final screenContext = context;
 
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: screenContext,
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
         title: const Text(
           'New Playlist',
@@ -504,31 +504,32 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
           controller: nameController,
           autofocus: true,
           style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             hintText: 'Playlist Name',
-            hintStyle: TextStyle(color: Colors.grey),
+            hintStyle: const TextStyle(color: Colors.grey),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: Color(0xFF7C4DFF)),
+              borderSide: BorderSide(color: AppColors.primary),
             ),
           ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           TextButton(
             onPressed: () async {
               final name = nameController.text.trim();
               if (name.isNotEmpty) {
-                Navigator.pop(context); // Close dialog
+                Navigator.pop(dialogContext); // Close dialog
 
+                if (!screenContext.mounted) return;
                 // Show loading
                 showDialog(
-                  context: context,
+                  context: screenContext,
                   barrierDismissible: false,
-                  builder: (context) => const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF7C4DFF)),
+                  builder: (loadingContext) => const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 );
 
@@ -537,27 +538,27 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   final newPlaylist = await playlistService.createPlaylist(
                     name,
                   );
-                  await playlistService.addSongToPlaylist(
+                  final updatedPlaylist = await playlistService.addSongToPlaylist(
                     newPlaylist.id,
                     songId,
                   );
-                  ref.invalidate(myPlaylistsProvider);
+                  ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
 
-                  if (mounted) {
-                    Navigator.pop(context); // Close loading dialog
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (screenContext.mounted) {
+                    Navigator.pop(screenContext); // Close loading dialog
+                    ScaffoldMessenger.of(screenContext).showSnackBar(
                       SnackBar(
                         content: Text(
                           '✅ Playlist "$name" created and song added!',
                         ),
                       ),
                     );
-                    Navigator.pop(context); // Close LyricEditorScreen
+                    Navigator.pop(screenContext); // Close LyricEditorScreen
                   }
                 } catch (e) {
-                  if (mounted) {
-                    Navigator.pop(context); // Close loading dialog
-                    ScaffoldMessenger.of(context).showSnackBar(
+                  if (screenContext.mounted) {
+                    Navigator.pop(screenContext); // Close loading dialog
+                    ScaffoldMessenger.of(screenContext).showSnackBar(
                       SnackBar(content: Text('Failed to create playlist: $e')),
                     );
                   }
@@ -567,7 +568,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             child: const Text(
               'Create & Add',
               style: TextStyle(
-                color: Color(0xFF7C4DFF),
+                color: AppColors.primary,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -613,7 +614,7 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                 child: const Text(
                   'SAVE',
                   style: TextStyle(
-                    color: Color(0xFF7C4DFF),
+                    color: AppColors.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

@@ -580,13 +580,37 @@ class KaraokeController extends ChangeNotifier {
 
   // ==================== CONVERT BACKEND SONG TO KARAOKE ====================
 
-  /// Convert a backend Song into a local KaraokeSong.
-  /// Auto-fetches YouTube captions if the song source is YouTube.
   Future<KaraokeSong> convertSongToKaraoke(backend.Song backendSong) async {
+    // Check if we already have a saved KaraokeSong matching this backend song
+    await loadSongs();
+    final existingIndex = _songs.indexWhere((s) {
+      if (s.id == backendSong.id) return true;
+      final titleMatches = s.title.trim().toLowerCase() == backendSong.title.trim().toLowerCase();
+      if (!titleMatches) return false;
+      final songUrl = backendSong.audioUrl;
+      if (songUrl == null) return false;
+      if (backendSong.isYoutube) {
+        final songYtId = YoutubePlayer.convertUrlToId(songUrl) ?? (songUrl.length == 11 ? songUrl : null);
+        final karaokeYtId = YoutubePlayer.convertUrlToId(s.sourcePath) ?? s.sourcePath;
+        if (songYtId != null && songYtId == karaokeYtId) return true;
+      } else {
+        final songFilename = songUrl.split('/').last.split('\\').last;
+        final karaokeFilename = s.sourcePath.split('/').last.split('\\').last;
+        if (songFilename == karaokeFilename) return true;
+      }
+      final artistMatches = (s.artist?.trim().toLowerCase() ?? '') == backendSong.artist.trim().toLowerCase();
+      return artistMatches;
+    });
+
+    if (existingIndex >= 0 && _songs[existingIndex].lyrics.isNotEmpty) {
+      debugPrint('✅ Found existing KaraokeSong in database with ${_songs[existingIndex].lyrics.length} lyric lines');
+      return _songs[existingIndex];
+    }
+
     List<LrcLine> fetchedLyrics = _parseBackendLyrics(backendSong.lyrics);
     final playbackUrl = backendSong.audioUrl ?? '';
     final youtubeVideoId = backendSong.isYoutube
-        ? YoutubePlayer.convertUrlToId(playbackUrl)
+        ? (YoutubePlayer.convertUrlToId(playbackUrl) ?? (playbackUrl.length == 11 ? playbackUrl : null))
         : null;
 
     if (fetchedLyrics.isEmpty &&
@@ -639,10 +663,6 @@ class KaraokeController extends ChangeNotifier {
       lyrics: fetchedLyrics,
     );
 
-    if (karaokeSong.lyrics.isNotEmpty) {
-      await _repository.saveSong(karaokeSong);
-      await loadSongs();
-    }
     return karaokeSong;
   }
 

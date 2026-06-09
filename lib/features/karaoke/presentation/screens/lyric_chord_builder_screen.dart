@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:music_app_frontend/core/constants/app_colors.dart';
 
 enum CanvasItemType { lyric, chord }
 
@@ -335,7 +336,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
               },
               child: const Text(
                 'Clear',
-                style: TextStyle(color: Color(0xFF7C4DFF)),
+                style: TextStyle(color: AppColors.primary),
               ),
             ),
           ],
@@ -376,7 +377,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C4DFF),
+                backgroundColor: AppColors.primary,
               ),
               onPressed: () {
                 final lyric = _lyricController.text.trim();
@@ -427,7 +428,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
                               });
                             }
                           },
-                          selectedColor: const Color(0xFF7C4DFF),
+                          selectedColor: AppColors.primary,
                           backgroundColor: const Color(0xFF222222),
                         ),
                       ),
@@ -447,7 +448,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
                               });
                             }
                           },
-                          selectedColor: const Color(0xFF7C4DFF),
+                          selectedColor: AppColors.primary,
                           backgroundColor: const Color(0xFF222222),
                         ),
                       ),
@@ -527,7 +528,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
                     icon: const Icon(Icons.text_fields),
                     label: const Text('Add Lyric'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C4DFF),
+                      backgroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
@@ -661,7 +662,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
 
   Widget _buildDraggableItem(LyricChordItem item) {
     final isChord = item.type == CanvasItemType.chord;
-    final accent = isChord ? const Color(0xFF6FA8FF) : const Color(0xFF7C4DFF);
+    final accent = isChord ? const Color(0xFF6FA8FF) : AppColors.primary;
     final background = isChord
         ? accent
         : const Color(0xFF2A2A2A).withAlpha(243);

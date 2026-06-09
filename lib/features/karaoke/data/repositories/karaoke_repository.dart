@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/core/network/graphql_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:music_app_frontend/features/auth/data/services/user_service.dart';
 import '../models/karaoke_song.dart';
 
 class KaraokeRepository {
@@ -48,10 +49,14 @@ class KaraokeRepository {
     await _saveLocalSong(song);
 
     try {
+      final user = await UserService().fetchMe();
+      final input = _toInput(song);
+      input['userId'] = user.id;
+
       final result = await _client.mutate(
         MutationOptions(
           document: gql(_createKaraokeSongMutation),
-          variables: {'input': _toInput(song)},
+          variables: {'input': input},
         ),
       );
 
@@ -78,6 +83,22 @@ class KaraokeRepository {
     final existing = await _getLocalSongs();
     existing.removeWhere((s) => s.id == id);
     await _saveLocalSongs(existing);
+
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(_removeKaraokeSongMutation),
+          variables: {'id': id},
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception('GraphQL Error: ${result.exception.toString()}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error deleting from backend: $e');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> _toInput(KaraokeSong song) {
@@ -87,19 +108,10 @@ class KaraokeRepository {
       'source': song.source.name,
       'sourcePath': song.sourcePath,
       'lyrics': song.lyrics.map((line) {
-        final lyricsMap = {
+        return {
           'timestamp': line.timestamp.inMilliseconds,
           'text': line.text,
         };
-        if (line.words != null && line.words!.isNotEmpty) {
-          lyricsMap['words'] = line.words!.map((word) {
-            return {
-              'timestamp': word.timestamp.inMilliseconds,
-              'text': word.text,
-            };
-          }).toList();
-        }
-        return lyricsMap;
       }).toList(),
       'duration': song.duration?.inMilliseconds,
     };
@@ -147,10 +159,6 @@ class KaraokeRepository {
         lyrics {
           timestamp
           text
-          words {
-            timestamp
-            text
-          }
         }
       }
     }
@@ -169,12 +177,14 @@ class KaraokeRepository {
         lyrics {
           timestamp
           text
-          words {
-            timestamp
-            text
-          }
         }
       }
+    }
+  ''';
+
+  static const String _removeKaraokeSongMutation = r'''
+    mutation RemoveKaraokeSong($id: ID!) {
+      removeKaraokeSong(id: $id)
     }
   ''';
 }

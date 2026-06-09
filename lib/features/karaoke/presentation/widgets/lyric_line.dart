@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_app_frontend/core/constants/app_colors.dart';
 import '../../data/models/lrc_line.dart';
 
 /// Displays a single lyric line.
@@ -58,12 +59,12 @@ class LyricLine extends StatelessWidget {
         shadows: isActive
             ? [
                 Shadow(
-                  color: const Color(0xFF7C4DFF).withValues(alpha: 0.6),
+                  color: AppColors.primary.withValues(alpha: 0.6),
                   blurRadius: 24,
                   offset: const Offset(0, 4),
                 ),
                 Shadow(
-                  color: const Color(0xFF7C4DFF).withValues(alpha: 0.3),
+                  color: AppColors.primary.withValues(alpha: 0.3),
                   blurRadius: 48,
                   offset: const Offset(0, 8),
                 ),
@@ -105,12 +106,12 @@ class LyricLine extends StatelessWidget {
         wordWeight = FontWeight.w900;
         wordShadows = [
           Shadow(
-            color: const Color(0xFF7C4DFF).withValues(alpha: 0.8),
+            color: AppColors.primary.withValues(alpha: 0.8),
             blurRadius: 20,
             offset: const Offset(0, 2),
           ),
           Shadow(
-            color: const Color(0xFFB388FF).withValues(alpha: 0.5),
+            color: AppColors.primary.withValues(alpha: 0.5),
             blurRadius: 40,
             offset: const Offset(0, 4),
           ),
@@ -121,7 +122,7 @@ class LyricLine extends StatelessWidget {
         wordWeight = FontWeight.w700;
         wordShadows = [
           Shadow(
-            color: const Color(0xFF7C4DFF).withValues(alpha: 0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 2),
           ),

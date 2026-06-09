@@ -3,6 +3,7 @@ import 'package:music_app_frontend/features/auth/data/services/auth_service.dart
 import 'package:music_app_frontend/features/auth/data/services/token_storage_service.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
+import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
@@ -92,8 +93,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       );
-      _resetUserScopedProviders();
+      // Invalidate non-playlist providers first (they don't auto-fetch)
+      _resetUserScopedProviders(includePlaylists: false);
       await _ref.read(meProvider.future);
+      // Now token is confirmed valid — invalidate playlists so they
+      // re-create and fetch with the correct token
+      _ref.invalidate(playlistServiceProvider);
+      _ref.invalidate(myPlaylistsProvider);
 
       state = state.copyWith(
         isAuthenticated: true,
@@ -132,8 +138,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       );
-      _resetUserScopedProviders();
+      _resetUserScopedProviders(includePlaylists: false);
       await _ref.read(meProvider.future);
+      _ref.invalidate(playlistServiceProvider);
+      _ref.invalidate(myPlaylistsProvider);
 
       state = state.copyWith(
         isAuthenticated: true,
@@ -185,7 +193,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.setBool('isLoggedIn', false);
   }
 
-  void _resetUserScopedProviders() {
+  void _resetUserScopedProviders({bool includePlaylists = true}) {
     _ref.invalidate(userServiceProvider);
     _ref.invalidate(friendServiceProvider);
     _ref.invalidate(meProvider);
@@ -196,6 +204,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _ref.invalidate(userSearchProvider);
     _ref.invalidate(friendSearchQueryProvider);
     _ref.invalidate(friendActionsProvider);
+    if (includePlaylists) {
+      _ref.invalidate(playlistServiceProvider);
+      _ref.invalidate(myPlaylistsProvider);
+    }
   }
 
   String _normalizeError(Object error) {

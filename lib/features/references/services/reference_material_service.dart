@@ -1,33 +1,59 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
 import 'package:music_app_frontend/core/network/graphql_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/reference_material.dart';
 
 class ReferenceMaterialService {
-  final GraphQLClient client;
-  
-  // Extract base URL from GraphQLConfig
-  static String get baseUrl {
-    final endpoint = GraphQLConfig.httpEndpoint;
-    return endpoint.replaceAll('/graphql', '');
+  // Always build a fresh authenticated client so the latest token is used.
+  GraphQLClient get _client => GraphQLConfig.clientToQuery(authenticated: true);
+
+  /// Read the stored access token for use in raw HTTP requests (multipart).
+  Future<String?> _readToken() async {
+    const key = 'access_token';
+    try {
+      const storage = FlutterSecureStorage();
+      return await storage.read(key: key);
+    } on MissingPluginException {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(key);
+    }
   }
 
-  ReferenceMaterialService(this.client);
+  // Full selection set shared by all operations
+  static const String _materialFields = '''
+    _id
+    title
+    type
+    description
+    filePath
+    fileUrl
+    fileName
+    fileSize
+    mimeType
+    songId
+    topic
+    createdAt
+    updatedAt
+  ''';
 
   // Query all reference materials
-  Future<List<ReferenceMaterial>> fetchAll({String? type}) async {
+  Future<List<ReferenceMaterial>> fetchAll({String? type, String? songId}) async {
     const String query = r'''
-      query GetReferenceMaterials($type: String) {
-        referenceMaterials(type: $type) {
+      query GetReferenceMaterials($type: String, $songId: String) {
+        referenceMaterials(type: $type, songId: $songId) {
           _id
           title
           type
           description
           filePath
+          fileUrl
           fileName
           fileSize
           mimeType
@@ -39,10 +65,13 @@ class ReferenceMaterialService {
       }
     ''';
 
-    final result = await client.query(
+    final result = await _client.query(
       QueryOptions(
         document: gql(query),
-        variables: type != null ? {'type': type} : {},
+        variables: {
+          'type': ?type,
+          'songId': ?songId,
+        },
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     );
@@ -65,7 +94,7 @@ class ReferenceMaterialService {
     String? topic,
   }) async {
     if (file != null) {
-      return await _createWithMultipart(
+      return _createWithMultipart(
         title: title,
         type: type,
         description: description,
@@ -74,7 +103,7 @@ class ReferenceMaterialService {
         topic: topic,
       );
     } else {
-      return await _createWithoutFile(
+      return _createWithoutFile(
         title: title,
         type: type,
         description: description,
@@ -84,7 +113,7 @@ class ReferenceMaterialService {
     }
   }
 
-  // Create using GraphQL multipart request
+  // Create using GraphQL multipart request (includes Authorization header)
   Future<ReferenceMaterial> _createWithMultipart({
     required String title,
     required String type,
@@ -93,25 +122,22 @@ class ReferenceMaterialService {
     String? songId,
     String? topic,
   }) async {
-    final request = http.MultipartRequest('POST', Uri.parse(GraphQLConfig.httpEndpoint));
+    final token = await _readToken();
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(GraphQLConfig.httpEndpoint),
+    );
 
-    // GraphQL operation
+    // Attach Bearer token so the backend JwtAuthGuard accepts the request
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
+
     final operations = {
-      'query': r'''
-        mutation CreateReferenceMaterial($input: CreateReferenceMaterialInput!) {
-          createReferenceMaterial(input: $input) {
-            _id
-            title
-            type
-            description
-            filePath
-            fileName
-            fileSize
-            mimeType
-            songId
-            topic
-            createdAt
-            updatedAt
+      'query': '''
+        mutation CreateReferenceMaterial(\$input: CreateReferenceMaterialInput!) {
+          createReferenceMaterial(input: \$input) {
+            $_materialFields
           }
         }
       ''',
@@ -127,7 +153,6 @@ class ReferenceMaterialService {
       },
     };
 
-    // Map file to variable
     final map = {
       '0': ['variables.input.file'],
     };
@@ -135,7 +160,6 @@ class ReferenceMaterialService {
     request.fields['operations'] = jsonEncode(operations);
     request.fields['map'] = jsonEncode(map);
 
-    // Add file
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
     request.files.add(
       await http.MultipartFile.fromPath(
@@ -147,16 +171,19 @@ class ReferenceMaterialService {
 
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
-    final json = jsonDecode(responseBody);
+    final json = jsonDecode(responseBody) as Map<String, dynamic>;
 
     if (json['errors'] != null) {
-      throw Exception(json['errors'][0]['message']);
+      final errors = json['errors'] as List;
+      throw Exception(errors[0]['message']);
     }
 
-    return ReferenceMaterial.fromJson(json['data']['createReferenceMaterial']);
+    return ReferenceMaterial.fromJson(
+      json['data']['createReferenceMaterial'] as Map<String, dynamic>,
+    );
   }
 
-  // Create without file (fallback)
+  // Create without file using GraphQL client (token handled by AuthLink)
   Future<ReferenceMaterial> _createWithoutFile({
     required String title,
     required String type,
@@ -164,26 +191,15 @@ class ReferenceMaterialService {
     String? songId,
     String? topic,
   }) async {
-    const String mutation = r'''
-      mutation CreateReferenceMaterial($input: CreateReferenceMaterialInput!) {
-        createReferenceMaterial(input: $input) {
-          _id
-          title
-          type
-          description
-          filePath
-          fileName
-          fileSize
-          mimeType
-          songId
-          topic
-          createdAt
-          updatedAt
+    const String mutation = '''
+      mutation CreateReferenceMaterial(\$input: CreateReferenceMaterialInput!) {
+        createReferenceMaterial(input: \$input) {
+          $_materialFields
         }
       }
     ''';
 
-    final result = await client.mutate(
+    final result = await _client.mutate(
       MutationOptions(
         document: gql(mutation),
         variables: {
@@ -202,7 +218,9 @@ class ReferenceMaterialService {
       throw result.exception!;
     }
 
-    return ReferenceMaterial.fromJson(result.data!['createReferenceMaterial']);
+    return ReferenceMaterial.fromJson(
+      result.data!['createReferenceMaterial'] as Map<String, dynamic>,
+    );
   }
 
   // Update with optional file replacement
@@ -216,7 +234,7 @@ class ReferenceMaterialService {
     String? topic,
   }) async {
     if (file != null) {
-      return await _updateWithMultipart(
+      return _updateWithMultipart(
         id: id,
         title: title,
         type: type,
@@ -226,7 +244,7 @@ class ReferenceMaterialService {
         topic: topic,
       );
     } else {
-      return await _updateWithoutFile(
+      return _updateWithoutFile(
         id: id,
         title: title,
         type: type,
@@ -246,35 +264,32 @@ class ReferenceMaterialService {
     String? songId,
     String? topic,
   }) async {
-    final request = http.MultipartRequest('POST', Uri.parse(GraphQLConfig.httpEndpoint));
+    final token = await _readToken();
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(GraphQLConfig.httpEndpoint),
+    );
+
+    if (token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
+    }
 
     final operations = {
-      'query': r'''
-        mutation UpdateReferenceMaterial($id: ID!, $input: UpdateReferenceMaterialInput!) {
-          updateReferenceMaterial(id: $id, input: $input) {
-            _id
-            title
-            type
-            description
-            filePath
-            fileName
-            fileSize
-            mimeType
-            songId
-            topic
-            createdAt
-            updatedAt
+      'query': '''
+        mutation UpdateReferenceMaterial(\$id: ID!, \$input: UpdateReferenceMaterialInput!) {
+          updateReferenceMaterial(id: \$id, input: \$input) {
+            $_materialFields
           }
         }
       ''',
       'variables': {
         'id': id,
         'input': {
-          'title':? title,
-          'type':? type,
-          'description':? description,
-          'songId':? songId,
-          'topic':? topic,
+          'title': title,
+          'type': type,
+          'description': description,
+          'songId': songId,
+          'topic': topic,
           'file': null,
         },
       },
@@ -298,13 +313,16 @@ class ReferenceMaterialService {
 
     final response = await request.send();
     final responseBody = await response.stream.bytesToString();
-    final json = jsonDecode(responseBody);
+    final json = jsonDecode(responseBody) as Map<String, dynamic>;
 
     if (json['errors'] != null) {
-      throw Exception(json['errors'][0]['message']);
+      final errors = json['errors'] as List;
+      throw Exception(errors[0]['message']);
     }
 
-    return ReferenceMaterial.fromJson(json['data']['updateReferenceMaterial']);
+    return ReferenceMaterial.fromJson(
+      json['data']['updateReferenceMaterial'] as Map<String, dynamic>,
+    );
   }
 
   Future<ReferenceMaterial> _updateWithoutFile({
@@ -315,36 +333,25 @@ class ReferenceMaterialService {
     String? songId,
     String? topic,
   }) async {
-    const String mutation = r'''
-      mutation UpdateReferenceMaterial($id: ID!, $input: UpdateReferenceMaterialInput!) {
-        updateReferenceMaterial(id: $id, input: $input) {
-          _id
-          title
-          type
-          description
-          filePath
-          fileName
-          fileSize
-          mimeType
-          songId
-          topic
-          createdAt
-          updatedAt
+    const String mutation = '''
+      mutation UpdateReferenceMaterial(\$id: ID!, \$input: UpdateReferenceMaterialInput!) {
+        updateReferenceMaterial(id: \$id, input: \$input) {
+          $_materialFields
         }
       }
     ''';
 
-    final result = await client.mutate(
+    final result = await _client.mutate(
       MutationOptions(
         document: gql(mutation),
         variables: {
           'id': id,
           'input': {
-            'title':? title,
-            'type':? type,
-            'description':? description,
-            'songId':? songId,
-            'topic':? topic,
+            'title': title,
+            'type': type,
+            'description': description,
+            'songId': songId,
+            'topic': topic,
           },
         },
       ),
@@ -354,7 +361,9 @@ class ReferenceMaterialService {
       throw result.exception!;
     }
 
-    return ReferenceMaterial.fromJson(result.data!['updateReferenceMaterial']);
+    return ReferenceMaterial.fromJson(
+      result.data!['updateReferenceMaterial'] as Map<String, dynamic>,
+    );
   }
 
   // Delete reference material
@@ -365,7 +374,7 @@ class ReferenceMaterialService {
       }
     ''';
 
-    final result = await client.mutate(
+    final result = await _client.mutate(
       MutationOptions(
         document: gql(mutation),
         variables: {'id': id},

@@ -30,7 +30,7 @@ class User {
 
     return User(
       id: json['_id'] as String,
-      username: json['username'] as String,
+      username: (json['username'] as String?) ?? '',
       email: json['email'] as String,
       profileType: _parseProfileType(json['profileType']),
       profileImageUrl: json['profileImageUrl'] as String?,
