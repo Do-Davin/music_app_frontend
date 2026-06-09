@@ -51,7 +51,10 @@ class PlaylistService {
       final data = result.data?['playlist'] as Map<String, dynamic>?;
       if (data == null) throw Exception('Playlist not found');
       final playlist = Playlist.fromJson(data);
-      debugPrint('PlaylistService: getPlaylistById(${playlist.name}) returned ${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs');
+      debugPrint(
+        'PlaylistService: getPlaylistById(${playlist.name}) returned '
+        '${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs',
+      );
       return playlist;
     } catch (e) {
       rethrow;
@@ -63,10 +66,7 @@ class PlaylistService {
       final MutationOptions options = MutationOptions(
         document: gql(PlaylistQueries.createPlaylist),
         variables: {
-          'input': {
-            'name': name,
-            'description': description,
-          }
+          'input': {'name': name, 'description': description},
         },
       );
 
@@ -88,10 +88,7 @@ class PlaylistService {
     try {
       final MutationOptions options = MutationOptions(
         document: gql(PlaylistQueries.addSongToPlaylist),
-        variables: {
-          'playlistId': playlistId,
-          'songId': songId,
-        },
+        variables: {'playlistId': playlistId, 'songId': songId},
       );
 
       final QueryResult result = await _client.mutate(options);
@@ -103,21 +100,24 @@ class PlaylistService {
       final data = result.data?['addSongToPlaylist'] as Map<String, dynamic>?;
       if (data == null) throw Exception('Failed to add song to playlist');
       final playlist = Playlist.fromJson(data);
-      debugPrint('PlaylistService: addSongToPlaylist returned ${playlist.name} with ${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs');
+      debugPrint(
+        'PlaylistService: addSongToPlaylist returned ${playlist.name} '
+        'with ${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs',
+      );
       return playlist;
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<Playlist> removeSongFromPlaylist(String playlistId, String songId) async {
+  Future<Playlist> removeSongFromPlaylist(
+    String playlistId,
+    String songId,
+  ) async {
     try {
       final MutationOptions options = MutationOptions(
         document: gql(PlaylistQueries.removeSongFromPlaylist),
-        variables: {
-          'playlistId': playlistId,
-          'songId': songId,
-        },
+        variables: {'playlistId': playlistId, 'songId': songId},
       );
 
       final QueryResult result = await _client.mutate(options);
@@ -126,7 +126,8 @@ class PlaylistService {
         throw Exception(parseGraphQlException(result.exception!));
       }
 
-      final data = result.data?['removeSongFromPlaylist'] as Map<String, dynamic>?;
+      final data =
+          result.data?['removeSongFromPlaylist'] as Map<String, dynamic>?;
       if (data == null) throw Exception('Failed to remove song from playlist');
       return Playlist.fromJson(data);
     } catch (e) {
@@ -155,8 +156,10 @@ class PlaylistService {
         throw Exception(parseGraphQlException(result.exception!));
       }
 
-      final data = result.data?['moveSongBetweenPlaylists'] as Map<String, dynamic>?;
-      if (data == null) throw Exception('Failed to move song between playlists');
+      final data =
+          result.data?['moveSongBetweenPlaylists'] as Map<String, dynamic>?;
+      if (data == null)
+        throw Exception('Failed to move song between playlists');
       return Playlist.fromJson(data);
     } catch (e) {
       rethrow;
@@ -177,6 +180,71 @@ class PlaylistService {
       }
 
       return result.data?['removePlaylist'] ?? false;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ── Liked Songs methods ────────────────────────────────────────────────────
+  // These were removed from the dev branch but are still required by
+  // playlist_provider.dart, liked_songs_screen.dart, and favorite_icon_button.dart.
+
+  Future<Playlist> getLikedSongsPlaylist() async {
+    try {
+      final QueryOptions options = QueryOptions(
+        document: gql(PlaylistQueries.getLikedSongsPlaylist),
+        fetchPolicy: FetchPolicy.networkOnly,
+      );
+
+      final QueryResult result = await _client.query(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final data = result.data?['likedSongsPlaylist'] as Map<String, dynamic>?;
+      if (data == null) throw Exception('Liked songs playlist not found');
+      return Playlist.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> isSongInLikedSongs(String songId) async {
+    try {
+      final QueryOptions options = QueryOptions(
+        document: gql(PlaylistQueries.isSongInLikedSongs),
+        variables: {'songId': songId},
+        fetchPolicy: FetchPolicy.networkOnly,
+      );
+
+      final QueryResult result = await _client.query(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      return result.data?['isSongInLikedSongs'] as bool? ?? false;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> toggleSongInLikedSongs(String songId) async {
+    try {
+      final MutationOptions options = MutationOptions(
+        document: gql(PlaylistQueries.toggleSongInLikedSongs),
+        variables: {'songId': songId},
+      );
+
+      final QueryResult result = await _client.mutate(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      return result.data?['toggleSongInLikedSongs']['isLiked'] as bool? ??
+          false;
     } catch (e) {
       rethrow;
     }
