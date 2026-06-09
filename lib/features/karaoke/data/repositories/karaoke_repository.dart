@@ -49,9 +49,7 @@ class KaraokeRepository {
     await _saveLocalSong(song);
 
     try {
-      final user = await UserService().fetchMe();
       final input = _toInput(song);
-      input['userId'] = user.id;
 
       final result = await _client.mutate(
         MutationOptions(

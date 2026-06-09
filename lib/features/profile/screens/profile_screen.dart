@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+
 import 'package:music_app_frontend/core/routing/navigation_provider.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/auth/data/models/user.dart';
@@ -422,6 +423,8 @@ class _ProfileContent extends ConsumerWidget {
       ],
     );
   }
+
+
 
   Future<void> _switchToProfessionalAccount(
     BuildContext context,

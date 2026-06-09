@@ -166,4 +166,23 @@ class SongService {
       rethrow;
     }
   }
+
+  Future<bool> deleteSong(String id) async {
+    try {
+      final result = await _authClient.mutate(
+        MutationOptions(
+          document: gql(SongQueries.removeSong),
+          variables: {'id': id},
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      return result.data?['removeSong'] == true;
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

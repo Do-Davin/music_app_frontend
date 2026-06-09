@@ -12,6 +12,11 @@ import 'package:music_app_frontend/core/routing/app_router.dart';
 import 'package:music_app_frontend/shared/widgets/success_popup.dart';
 import 'package:go_router/go_router.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/controllers/karaoke_controller.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_editor_screen.dart';
+import 'package:music_app_frontend/features/song/services/song_service.dart';
+import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
+import 'package:provider/provider.dart' as provider;
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -293,10 +298,10 @@ class _PlaylistDetailContent extends ConsumerWidget {
             : SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final song = songs[index];
-                  return _SongTile(
+                  return SongTile(
                     song: song,
                     index: index,
-                    playlistId: playlist.id,
+                    playlist: playlist,
                     isPlaylistOwner: isPlaylistOwner,
                   );
                 }, childCount: songs.length),
@@ -512,8 +517,8 @@ class _PlaylistDetailContent extends ConsumerWidget {
 
       final playlists = ref.read(myPlaylistsProvider).value ?? [];
       final personalPlaylist = playlists.firstWhere(
-        (p) => p.name == 'Personal',
-        orElse: () => throw Exception('Personal playlist not found'),
+        (p) => p.name == 'My Uploading',
+        orElse: () => throw Exception('My Uploading playlist not found'),
       );
 
       final updatedPlaylist = await playlistService.addSongToPlaylist(playlistId, backendSong.id);
@@ -563,17 +568,19 @@ class _PlaylistDetailContent extends ConsumerWidget {
   }
 }
 
-class _SongTile extends ConsumerWidget {
+class SongTile extends ConsumerWidget {
   final Song song;
   final int index;
-  final String playlistId;
+  final Playlist? playlist;
   final bool isPlaylistOwner;
+  final VoidCallback? onTap;
 
-  const _SongTile({
+  const SongTile({
     required this.song,
     required this.index,
-    required this.playlistId,
-    required this.isPlaylistOwner,
+    this.playlist,
+    this.isPlaylistOwner = false,
+    this.onTap,
   });
 
   String _formatDuration(int? seconds) {
@@ -584,6 +591,13 @@ class _SongTile extends ConsumerWidget {
   }
 
   void _showSongOptionsSheet(BuildContext context, WidgetRef ref) {
+    final me = ref.read(meProvider).valueOrNull;
+    final isSongOwner = me != null && song.userId == me.id;
+
+    final isPersonalPlaylist = playlist?.name == 'My Uploading';
+    final isLikedSongsPlaylist = playlist?.name == 'Liked Songs';
+    final isNormalPlaylist = !isPersonalPlaylist && !isLikedSongsPlaylist;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1E1E1E),
@@ -610,24 +624,116 @@ class _SongTile extends ConsumerWidget {
                 ),
               ),
               const Divider(color: Colors.white24, height: 1),
-              if (isPlaylistOwner)
+
+              // ── NORMAL PLAYLIST ────────────────────────────────────────
+              if (isNormalPlaylist) ...[
+                // Owner of playlist can remove songs
+                if (isPlaylistOwner)
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                    title: const Text('Remove from playlist', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _removeSongFromPlaylist(context, ref);
+                    },
+                  ),
+                // Everyone can add to their own playlists
+                // But non-owners cannot add to "My Uploading"
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: AppColors.error),
-                  title: const Text('Remove from playlist', style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.playlist_add, color: AppColors.primary),
+                  title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _removeSongFromPlaylist(context, ref);
+                    _showAddToPlaylistSheet(context, ref, excludePersonal: !isSongOwner);
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.playlist_add, color: AppColors.primary),
-                title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showAddToPlaylistSheet(context, ref);
-                },
-              ),
-              if (isPlaylistOwner)
+                // Only song owner can toggle visibility
+                if (isSongOwner)
+                  ListTile(
+                    leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
+                    title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _toggleSongPrivacy(context, ref);
+                    },
+                  ),
+                // Only song owner can convert to karaoke
+                if (isSongOwner)
+                  ListTile(
+                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
+                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _startLyricSetup(context, ref);
+                    },
+                  ),
+                // Add to queue (feature placeholder)
+                const ListTile(
+                  leading: Icon(Icons.queue_music, color: Colors.grey),
+                  title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+
+              // ── MY UPLOADING PLAYLIST (personal / default) ─────────────
+              if (isPersonalPlaylist) ...[
+                // Only song owner can delete the song permanently
+                if (isSongOwner)
+                  ListTile(
+                    leading: const Icon(Icons.delete_forever, color: AppColors.error),
+                    title: const Text('Delete Song', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _deleteSongFromBackend(context, ref);
+                    },
+                  ),
+                // Add to another playlist
+                ListTile(
+                  leading: const Icon(Icons.playlist_add, color: AppColors.primary),
+                  title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showAddToPlaylistSheet(context, ref);
+                  },
+                ),
+                // Only song owner can toggle visibility
+                if (isSongOwner)
+                  ListTile(
+                    leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
+                    title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _toggleSongPrivacy(context, ref);
+                    },
+                  ),
+                // Only song owner can convert to karaoke
+                if (isSongOwner)
+                  ListTile(
+                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
+                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _startLyricSetup(context, ref);
+                    },
+                  ),
+                // Add to queue (feature placeholder)
+                const ListTile(
+                  leading: Icon(Icons.queue_music, color: Colors.grey),
+                  title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+
+              // ── LIKED SONGS PLAYLIST ───────────────────────────────────
+              if (isLikedSongsPlaylist) ...[
+                // Unlike
+                ListTile(
+                  leading: const Icon(Icons.favorite_border, color: AppColors.error),
+                  title: const Text('Unlike', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _unlikeSong(context, ref);
+                  },
+                ),
+                // Move to playlist
                 ListTile(
                   leading: const Icon(Icons.drive_file_move_outlined, color: Colors.orangeAccent),
                   title: const Text('Move to playlist', style: TextStyle(color: Colors.white)),
@@ -636,19 +742,45 @@ class _SongTile extends ConsumerWidget {
                     _showMoveToPlaylistSheet(context, ref);
                   },
                 ),
-              if (isPlaylistOwner)
+              ],
+
+              // ── NO PLAYLIST CONTEXT (e.g. search results) ──────────────
+              if (playlist == null) ...[
+                // Add to playlist (non-owners can't add to "My Uploading")
                 ListTile(
-                  leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
-                  title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.playlist_add, color: AppColors.primary),
+                  title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _toggleSongPrivacy(context, ref);
+                    _showAddToPlaylistSheet(context, ref, excludePersonal: !isSongOwner);
                   },
                 ),
-              const ListTile(
-                leading: Icon(Icons.queue_music, color: Colors.grey),
-                title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
-              ),
+                // Only song owner can toggle visibility
+                if (isSongOwner)
+                  ListTile(
+                    leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
+                    title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _toggleSongPrivacy(context, ref);
+                    },
+                  ),
+                // Only song owner can convert to karaoke
+                if (isSongOwner)
+                  ListTile(
+                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
+                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _startLyricSetup(context, ref);
+                    },
+                  ),
+                // Add to queue (feature placeholder)
+                const ListTile(
+                  leading: Icon(Icons.queue_music, color: Colors.grey),
+                  title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
+                ),
+              ],
             ],
           ),
         );
@@ -656,15 +788,152 @@ class _SongTile extends ConsumerWidget {
     );
   }
 
+  Future<void> _unlikeSong(BuildContext context, WidgetRef ref) async {
+    try {
+      await LikedSongsService().toggleLikeSong(song.id);
+      ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+      ref.invalidate(songsProvider);
+      
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: 'Unliked',
+          subtitle: 'Removed from liked songs',
+          icon: Icons.favorite_border,
+          iconColor: AppColors.error,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to unlike: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSongFromBackend(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Delete Song', style: TextStyle(color: Colors.white)),
+        content: Text('Are you sure you want to permanently delete "${song.title}" from the music platform?', style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final songService = SongService();
+      await songService.deleteSong(song.id);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      // Refresh playlists and songs list
+      ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+      ref.invalidate(songsProvider);
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: 'Song Deleted',
+          subtitle: 'Deleted from library permanently',
+          icon: Icons.delete_forever,
+          iconColor: AppColors.error,
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete song: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _startLyricSetup(BuildContext context, WidgetRef ref) async {
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final controller = KaraokeController();
+      final karaokeSong = await controller.convertSongToKaraoke(song);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      if (context.mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                provider.ChangeNotifierProvider<KaraokeController>.value(
+                  value: controller,
+                  child: LyricEditorScreen(
+                    song: karaokeSong,
+                    controller: controller,
+                    sourceSongId: song.id,
+                  ),
+                ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to start karaoke conversion: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _removeSongFromPlaylist(BuildContext context, WidgetRef ref) async {
+    if (playlist == null) return;
     final playlistService = ref.read(playlistServiceProvider);
     final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
     
     // Optimistic UI update: instantly remove from current playlist
-    myPlaylistsNotifier.removeSongLocally(playlistId, song.id);
+    myPlaylistsNotifier.removeSongLocally(playlist!.id, song.id);
 
     try {
-      final updatedPlaylist = await playlistService.removeSongFromPlaylist(playlistId, song.id);
+      final updatedPlaylist = await playlistService.removeSongFromPlaylist(playlist!.id, song.id);
       
       myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
 
@@ -735,7 +1004,7 @@ class _SongTile extends ConsumerWidget {
     }
   }
 
-  void _showAddToPlaylistSheet(BuildContext context, WidgetRef ref) {
+  void _showAddToPlaylistSheet(BuildContext context, WidgetRef ref, {bool excludePersonal = false}) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1E1E1E),
@@ -770,7 +1039,10 @@ class _SongTile extends ConsumerWidget {
                   const SizedBox(height: 12),
                   playlistsAsync.when(
                     data: (playlists) {
-                      final otherPlaylists = playlists.where((p) => p.id != playlistId).toList();
+                      var otherPlaylists = playlists.where((p) => p.id != playlist?.id).toList();
+                      if (excludePersonal) {
+                        otherPlaylists = otherPlaylists.where((p) => p.name != 'My Uploading').toList();
+                      }
                       if (otherPlaylists.isEmpty) {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -873,7 +1145,7 @@ class _SongTile extends ConsumerWidget {
                   const SizedBox(height: 16),
                   playlistsAsync.when(
                     data: (playlists) {
-                      final otherPlaylists = playlists.where((p) => p.id != playlistId).toList();
+                      final otherPlaylists = playlists.where((p) => p.id != playlist?.id).toList();
                       if (otherPlaylists.isEmpty) {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -916,15 +1188,16 @@ class _SongTile extends ConsumerWidget {
   }
 
   Future<void> _moveSongToTargetPlaylist(BuildContext context, WidgetRef ref, Playlist targetPlaylist) async {
+    if (playlist == null) return;
     final playlistService = ref.read(playlistServiceProvider);
     final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
 
     // Optimistic UI update: instantly remove from current playlist
-    myPlaylistsNotifier.removeSongLocally(playlistId, song.id);
+    myPlaylistsNotifier.removeSongLocally(playlist!.id, song.id);
 
     try {
       final updatedPlaylist = await playlistService.moveSongBetweenPlaylists(
-            fromPlaylistId: playlistId,
+            fromPlaylistId: playlist!.id,
             toPlaylistId: targetPlaylist.id,
             songId: song.id,
           );
@@ -1057,7 +1330,7 @@ class _SongTile extends ConsumerWidget {
           ),
         ],
       ),
-      onTap: () {
+      onTap: onTap ?? () {
         context.push(Routes.songById(song.id), extra: SongPlayerRouteData(song: song, category: 'PLAYLIST'));
       },
     );
