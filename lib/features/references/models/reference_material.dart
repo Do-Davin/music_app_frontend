@@ -76,6 +76,23 @@ class ReferenceMaterial {
         .toString();
   }
 
+  /// Returns the best available URL for downloading/previewing the file.
+  /// Prefers [fileUrl] (full URL from the backend), but falls back to
+  /// constructing a URL from [filePath] and the server base URL.
+  String? get downloadUrl {
+    if (fileUrl != null && fileUrl!.isNotEmpty) return fileUrl;
+    if (filePath != null && filePath!.isNotEmpty) {
+      final serverBase = GraphQLConfig.serverBaseUrl;
+      if (serverBase.isEmpty) return filePath;
+      final separator = filePath!.startsWith('/') ? '' : '/';
+      return '$serverBase$separator$filePath';
+    }
+    return null;
+  }
+
+  /// Whether this material has a file attached.
+  bool get hasFile => downloadUrl != null;
+
   // Helper to format file size
   String get formattedFileSize {
     if (fileSize == null) return 'Unknown';

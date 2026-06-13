@@ -17,9 +17,10 @@ final songByIdProvider = FutureProvider.family<Song, String>((ref, id) async {
 
 final searchSongsProvider =
     FutureProvider.family<List<Song>, String>((ref, query) async {
-  if (query.isEmpty) return [];
+  final cleanQuery = query.trim();
+  if (cleanQuery.isEmpty) return [];
   final service = ref.watch(songServiceProvider);
-  return service.searchSongs(query);
+  return service.searchSongs(cleanQuery);
 });
 
 /// Debounced search query — updates 400 ms after the user stops typing.
