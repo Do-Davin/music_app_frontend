@@ -129,10 +129,35 @@ class PlaylistQueries {
     mutation UpdatePlaylist($input: UpdatePlaylistInput!) {
       updatePlaylist(updatePlaylistInput: $input) {
         _id
+        userId
         name
         description
         coverImageUrl
         isPublic
+        songIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          duration
+          key
+          tempo
+          difficulty
+          tags
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          coverImageUrl
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
+        }
+        createdAt
+        updatedAt
       }
     }
   ''';
