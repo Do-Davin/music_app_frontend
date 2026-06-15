@@ -153,8 +153,8 @@ class CreateLibrarySheet extends ConsumerWidget {
                     return playlistsAsync.when(
                       data: (playlists) {
                         final personal = playlists.firstWhere(
-                          (p) => p.name == 'Personal',
-                          orElse: () => playlists.isNotEmpty ? playlists.first : Playlist(id: '', name: 'Personal'),
+                          (p) => p.name == 'My Uploading',
+                          orElse: () => playlists.isNotEmpty ? playlists.first : Playlist(id: '', name: 'My Uploading'),
                         );
                         if (selectedPlaylistId == null && personal.id.isNotEmpty) {
                           selectedPlaylistId = personal.id;
@@ -283,8 +283,8 @@ class CreateLibrarySheet extends ConsumerWidget {
                     return playlistsAsync.when(
                       data: (playlists) {
                         final personal = playlists.firstWhere(
-                          (p) => p.name == 'Personal',
-                          orElse: () => playlists.isNotEmpty ? playlists.first : Playlist(id: '', name: 'Personal'),
+                          (p) => p.name == 'My Uploading',
+                          orElse: () => playlists.isNotEmpty ? playlists.first : Playlist(id: '', name: 'My Uploading'),
                         );
                         if (selectedPlaylistId == null && personal.id.isNotEmpty) {
                           selectedPlaylistId = personal.id;
@@ -403,8 +403,8 @@ class CreateLibrarySheet extends ConsumerWidget {
 
       final playlists = parentRef.read(myPlaylistsProvider).value ?? [];
       final personalPlaylist = playlists.firstWhere(
-        (p) => p.name == 'Personal',
-        orElse: () => throw Exception('Personal playlist not found'),
+        (p) => p.name == 'My Uploading',
+        orElse: () => throw Exception('My Uploading playlist not found'),
       );
 
       // Always add to the Personal playlist

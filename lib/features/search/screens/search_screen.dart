@@ -7,6 +7,7 @@ import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
+import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 
 // Provider to manage the raw (un-debounced) search query for the text field UI.
 final searchQueryProvider = StateProvider<String>((ref) => "");

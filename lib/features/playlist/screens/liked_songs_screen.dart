@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
 import 'package:music_app_frontend/shared/widgets/app_empty_state_widget.dart';
+import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 
-class LikedSongsScreen extends StatelessWidget {
+class LikedSongsScreen extends ConsumerWidget {
   const LikedSongsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final future = LikedSongsService().fetchLikedSongsPlaylist();
 
     return Scaffold(
@@ -41,7 +43,8 @@ class LikedSongsScreen extends StatelessWidget {
           }
 
           final songs = snapshot.data?.songs ?? [];
-          if (songs.isEmpty) {
+          final playlist = snapshot.data?.playlist;
+          if (songs.isEmpty || playlist == null) {
             return AppEmptyStateWidget(
               icon: Icons.favorite_border_rounded,
               title: 'No liked songs yet',
@@ -53,45 +56,17 @@ class LikedSongsScreen extends StatelessWidget {
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             itemCount: songs.length,
-            separatorBuilder: (_, _) => Divider(
+            separatorBuilder: (context, index) => Divider(
               color: Colors.white.withValues(alpha: 0.10),
               height: 1,
             ),
             itemBuilder: (context, index) {
               final song = songs[index];
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                leading: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: Image.network(
-                    song.coverImageUrl ?? '',
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      width: 56,
-                      height: 56,
-                      color: AppColors.surface,
-                      child: const Icon(
-                        Icons.music_note_rounded,
-                        color: AppColors.hint,
-                      ),
-                    ),
-                  ),
-                ),
-                title: Text(
-                  song.title,
-                  style:
-                      AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  song.artist,
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.hint,
-                    fontSize: 13,
-                  ),
-                ),
-                trailing: const Icon(Icons.more_vert, color: AppColors.hint),
+              return SongTile(
+                song: song,
+                index: index,
+                playlist: playlist,
+                isPlaylistOwner: true,
               );
             },
           );
@@ -100,4 +75,3 @@ class LikedSongsScreen extends StatelessWidget {
     );
   }
 }
-
