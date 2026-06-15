@@ -4,6 +4,7 @@ import 'package:music_app_frontend/features/auth/data/services/token_storage_ser
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
+import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
@@ -160,6 +161,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Clear recent songs for the current user before clearing session
+    _ref.read(recentSongsProvider.notifier).reset();
     await _clearStoredSession();
     state = const AuthState(isValidatingSession: false);
     _resetUserScopedProviders();
@@ -204,6 +207,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _ref.invalidate(userSearchProvider);
     _ref.invalidate(friendSearchQueryProvider);
     _ref.invalidate(friendActionsProvider);
+    _ref.invalidate(recentSongsProvider);
     if (includePlaylists) {
       _ref.invalidate(playlistServiceProvider);
       _ref.invalidate(myPlaylistsProvider);

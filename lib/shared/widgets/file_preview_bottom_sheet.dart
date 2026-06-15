@@ -220,7 +220,7 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
             ? SfPdfViewer.file(
                 File(path),
                 controller: _pdfController,
-                pageLayoutMode: PdfPageLayoutMode.single,
+                pageLayoutMode: PdfPageLayoutMode.continuous,
                 initialZoomLevel: _zoom,
                 onDocumentLoadFailed: (details) => _showError('Failed to load PDF: ${details.description}'),
                 onPageChanged: (d) => setState(() {
@@ -231,7 +231,7 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
             : SfPdfViewer.network(
                 url!,
                 controller: _pdfController,
-                pageLayoutMode: PdfPageLayoutMode.single,
+                pageLayoutMode: PdfPageLayoutMode.continuous,
                 initialZoomLevel: _zoom,
                 onDocumentLoadFailed: (details) => _showError('Failed to load PDF: ${details.description}'),
                 onPageChanged: (d) => setState(() {

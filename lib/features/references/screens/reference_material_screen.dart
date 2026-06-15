@@ -426,11 +426,11 @@ class _MaterialCard extends StatelessWidget {
   }
 
   void _showPreview(BuildContext context) {
-    if (material.fileUrl == null && material.fileName == null) return;
+    if (!material.hasFile && material.fileName == null) return;
     final previewFile = PreviewFile(
       name: material.fileName ?? material.title,
       type: material.type,
-      remoteUrl: material.fileUrl,
+      remoteUrl: material.downloadUrl,
     );
     showFilePreview(context, file: previewFile);
   }
@@ -449,7 +449,7 @@ class _MaterialCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: InkWell(
-        onTap: material.fileUrl != null ? () => _showPreview(context) : null,
+        onTap: material.hasFile ? () => _showPreview(context) : null,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -747,7 +747,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    initialValue: _selectedType,
+                    value: _selectedType,
                     decoration: const InputDecoration(labelText: 'Type'),
                     items: _materialTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
                     onChanged: (value) => setState(() => _selectedType = value!),
