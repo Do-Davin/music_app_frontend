@@ -163,6 +163,35 @@ class PlaylistService {
     }
   }
 
+  Future<Playlist> updatePlaylistVisibility({
+    required String playlistId,
+    required bool isPublic,
+  }) async {
+    try {
+      final MutationOptions options = MutationOptions(
+        document: gql(PlaylistQueries.updatePlaylist),
+        variables: {
+          'input': {
+            'id': playlistId,
+            'isPublic': isPublic,
+          }
+        },
+      );
+
+      final QueryResult result = await _client.mutate(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final data = result.data?['updatePlaylist'] as Map<String, dynamic>?;
+      if (data == null) throw Exception('Failed to update playlist visibility');
+      return Playlist.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<bool> removePlaylist(String id) async {
     try {
       final MutationOptions options = MutationOptions(

@@ -128,4 +128,10 @@ class SongQueries {
       }
     }
   ''';
+
+  static const String removeSong = r'''
+    mutation RemoveSong($id: ID!) {
+      removeSong(id: $id)
+    }
+  ''';
 }
