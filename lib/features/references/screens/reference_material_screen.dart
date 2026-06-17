@@ -12,6 +12,7 @@ import '../models/reference_material.dart';
 
 class ReferenceMaterialScreen extends ConsumerStatefulWidget {
   final String? songId;
+
   /// Set to false when embedding inside a bottom sheet (hides the AppBar)
   final bool showAppBar;
 
@@ -22,10 +23,12 @@ class ReferenceMaterialScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ReferenceMaterialScreen> createState() => _ReferenceMaterialScreenState();
+  ConsumerState<ReferenceMaterialScreen> createState() =>
+      _ReferenceMaterialScreenState();
 }
 
-class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScreen> {
+class _ReferenceMaterialScreenState
+    extends ConsumerState<ReferenceMaterialScreen> {
   String? _selectedFilter;
   String _sortBy = 'newest'; // newest, oldest, alphabetical
 
@@ -33,7 +36,9 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(referenceMaterialProvider.notifier).fetchMaterials(songId: widget.songId);
+      ref
+          .read(referenceMaterialProvider.notifier)
+          .fetchMaterials(songId: widget.songId);
     });
   }
 
@@ -47,7 +52,8 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
   void _showEditDialog(ReferenceMaterial material) {
     showDialog(
       context: context,
-      builder: (context) => _MaterialFormDialog(material: material, songId: widget.songId),
+      builder: (context) =>
+          _MaterialFormDialog(material: material, songId: widget.songId),
     );
   }
 
@@ -55,7 +61,9 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     setState(() {
       _selectedFilter = filter;
     });
-    ref.read(referenceMaterialProvider.notifier).fetchMaterials(type: filter, songId: widget.songId);
+    ref
+        .read(referenceMaterialProvider.notifier)
+        .fetchMaterials(type: filter, songId: widget.songId);
   }
 
   void _showSortOptions() {
@@ -132,7 +140,9 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
         filtered.sort((a, b) => a.createdAt.compareTo(b.createdAt));
         break;
       case 'alphabetical':
-        filtered.sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        filtered.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
         break;
     }
     return filtered;
@@ -158,12 +168,17 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
     final horizontalPadding = screenWidth > 600 ? 24.0 : 16.0;
 
     final meAsync = ref.watch(meProvider);
-    final songAsync = widget.songId != null ? ref.watch(songByIdProvider(widget.songId!)) : null;
+    final songAsync = widget.songId != null
+        ? ref.watch(songByIdProvider(widget.songId!))
+        : null;
 
     final currentUserId = meAsync.valueOrNull?.id;
     final songUserId = songAsync?.valueOrNull?.userId;
 
-    final bool canManage = currentUserId != null && songUserId != null && currentUserId == songUserId;
+    final bool canManage =
+        currentUserId != null &&
+        songUserId != null &&
+        currentUserId == songUserId;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -179,7 +194,10 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
         children: [
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 12,
+            ),
             child: Row(
               children: [
                 _buildFilterChip('All', null, Icons.grid_on),
@@ -188,14 +206,21 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
                 const SizedBox(width: 8),
                 _buildFilterChip('PPT', 'PPT', Icons.slideshow),
                 const SizedBox(width: 8),
-                _buildFilterChip('Sheet Music', 'Sheet Music', Icons.music_note),
+                _buildFilterChip(
+                  'Sheet Music',
+                  'Sheet Music',
+                  Icons.music_note,
+                ),
                 const SizedBox(width: 8),
                 _buildFilterChip('Note', 'Note', Icons.note),
               ],
             ),
           ),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8),
+            padding: EdgeInsets.symmetric(
+              horizontal: horizontalPadding,
+              vertical: 8,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -211,14 +236,24 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
                   onTap: _showSortOptions,
                   borderRadius: BorderRadius.circular(8),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     child: Row(
                       children: [
                         Text(
                           _sortLabel,
-                          style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                          style: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 14,
+                          ),
                         ),
-                        Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade400, size: 20),
+                        Icon(
+                          Icons.keyboard_arrow_down,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ),
@@ -226,17 +261,17 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
               ],
             ),
           ),
-          Expanded(
-            child: _buildList(state, canManage),
-          ),
+          Expanded(child: _buildList(state, canManage)),
         ],
       ),
-      floatingActionButton: canManage ? FloatingActionButton(
-        heroTag: 'referenceMaterialFAB',
-        onPressed: _showCreateDialog,
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ) : null,
+      floatingActionButton: canManage
+          ? FloatingActionButton(
+              heroTag: 'referenceMaterialFAB',
+              onPressed: _showCreateDialog,
+              backgroundColor: AppColors.primary,
+              child: const Icon(Icons.add, color: Colors.white),
+            )
+          : null,
     );
   }
 
@@ -252,7 +287,11 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const Icon(
+                Icons.error_outline,
+                color: Colors.redAccent,
+                size: 48,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Error: ${state.error}',
@@ -261,7 +300,12 @@ class _ReferenceMaterialScreenState extends ConsumerState<ReferenceMaterialScree
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => ref.read(referenceMaterialProvider.notifier).fetchMaterials(type: _selectedFilter, songId: widget.songId),
+                onPressed: () => ref
+                    .read(referenceMaterialProvider.notifier)
+                    .fetchMaterials(
+                      type: _selectedFilter,
+                      songId: widget.songId,
+                    ),
                 child: const Text('Retry'),
               ),
             ],
@@ -494,9 +538,14 @@ class _MaterialCard extends StatelessWidget {
                           children: [
                             if (material.topic != null)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFF9800).withValues(alpha: 0.2),
+                                  color: const Color(
+                                    0xFFFF9800,
+                                  ).withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -522,19 +571,28 @@ class _MaterialCard extends StatelessWidget {
                   ),
                   if (canManage) ...[
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 22),
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        color: Colors.white70,
+                        size: 22,
+                      ),
                       onPressed: onEdit,
                       tooltip: 'Edit',
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Colors.redAccent,
+                        size: 22,
+                      ),
                       onPressed: onDelete,
                       tooltip: 'Delete',
                     ),
                   ],
                 ],
               ),
-              if (material.description != null && material.description!.isNotEmpty) ...[
+              if (material.description != null &&
+                  material.description!.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text(
                   material.description!,
@@ -630,7 +688,8 @@ class _MaterialFormDialog extends ConsumerStatefulWidget {
   const _MaterialFormDialog({this.material, this.songId});
 
   @override
-  ConsumerState<_MaterialFormDialog> createState() => _MaterialFormDialogState();
+  ConsumerState<_MaterialFormDialog> createState() =>
+      _MaterialFormDialogState();
 }
 
 class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
@@ -642,17 +701,40 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
   File? _selectedFile;
   bool _isDragging = false;
 
-  final List<String> _allowedExtensions = ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'txt', 'jpg', 'png'];
-  final List<String> _materialTypes = ['PDF', 'PPT', 'Sheet Music', 'Note', 'Other'];
+  final List<String> _allowedExtensions = [
+    'pdf',
+    'ppt',
+    'pptx',
+    'doc',
+    'docx',
+    'txt',
+    'jpg',
+    'png',
+  ];
+  final List<String> _materialTypes = [
+    'PDF',
+    'PPT',
+    'Sheet Music',
+    'Note',
+    'Other',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.material?.title ?? '');
-    _descriptionController = TextEditingController(text: widget.material?.description ?? '');
-    _topicController = TextEditingController(text: widget.material?.topic ?? '');
+    _titleController = TextEditingController(
+      text: widget.material?.title ?? '',
+    );
+    _descriptionController = TextEditingController(
+      text: widget.material?.description ?? '',
+    );
+    _topicController = TextEditingController(
+      text: widget.material?.topic ?? '',
+    );
     final initialType = widget.material?.type ?? 'PDF';
-    _selectedType = _materialTypes.contains(initialType) ? initialType : 'Other';
+    _selectedType = _materialTypes.contains(initialType)
+        ? initialType
+        : 'Other';
   }
 
   @override
@@ -672,13 +754,20 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
       });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid file type. Allowed: ${_allowedExtensions.join(', ')}')),
+        SnackBar(
+          content: Text(
+            'Invalid file type. Allowed: ${_allowedExtensions.join(', ')}',
+          ),
+        ),
       );
     }
   }
 
   Future<void> _pickFile() async {
-    final result = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: _allowedExtensions);
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: _allowedExtensions,
+    );
     if (result != null && result.files.single.path != null) {
       _handleFileSelection(result.files.single.path);
     }
@@ -692,7 +781,9 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
         await notifier.createMaterial(
           title: _titleController.text,
           type: _selectedType,
-          description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+          description: _descriptionController.text.isEmpty
+              ? null
+              : _descriptionController.text,
           file: _selectedFile,
           songId: widget.songId,
           topic: _topicController.text.isEmpty ? null : _topicController.text,
@@ -702,7 +793,9 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
           id: widget.material!.id,
           title: _titleController.text,
           type: _selectedType,
-          description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+          description: _descriptionController.text.isEmpty
+              ? null
+              : _descriptionController.text,
           file: _selectedFile,
           songId: widget.songId,
           topic: _topicController.text.isEmpty ? null : _topicController.text,
@@ -711,7 +804,9 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -722,7 +817,9 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
       title: Text(widget.material == null ? 'Add Material' : 'Edit Material'),
       content: DropTarget(
         onDragDone: (detail) {
-          if (detail.files.isNotEmpty) _handleFileSelection(detail.files.first.path);
+          if (detail.files.isNotEmpty) {
+            _handleFileSelection(detail.files.first.path);
+          }
         },
         onDragEntered: (_) => setState(() => _isDragging = true),
         onDragExited: (_) => setState(() => _isDragging = false),
@@ -730,8 +827,12 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
           width: 400,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            color: _isDragging ? AppColors.primary.withValues(alpha: 0.1) : Colors.transparent,
-            border: _isDragging ? Border.all(color: AppColors.primary, width: 2) : null,
+            color: _isDragging
+                ? AppColors.primary.withValues(alpha: 0.1)
+                : Colors.transparent,
+            border: _isDragging
+                ? Border.all(color: AppColors.primary, width: 2)
+                : null,
           ),
           child: Form(
             key: _formKey,
@@ -742,26 +843,42 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                 children: [
                   TextFormField(
                     controller: _titleController,
-                    decoration: const InputDecoration(labelText: 'Title', hintText: 'Enter material title'),
-                    validator: (value) => value?.isEmpty ?? true ? 'Title is required' : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Title',
+                      hintText: 'Enter material title',
+                    ),
+                    validator: (value) =>
+                        value?.isEmpty ?? true ? 'Title is required' : null,
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedType,
+                    initialValue: _selectedType,
                     decoration: const InputDecoration(labelText: 'Type'),
-                    items: _materialTypes.map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
-                    onChanged: (value) => setState(() => _selectedType = value!),
+                    items: _materialTypes
+                        .map(
+                          (type) =>
+                              DropdownMenuItem(value: type, child: Text(type)),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setState(() => _selectedType = value!),
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description', hintText: 'Optional description'),
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      hintText: 'Optional description',
+                    ),
                     maxLines: 3,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _topicController,
-                    decoration: const InputDecoration(labelText: 'Topic', hintText: 'e.g., Music Theory, Practice Tips'),
+                    decoration: const InputDecoration(
+                      labelText: 'Topic',
+                      hintText: 'e.g., Music Theory, Practice Tips',
+                    ),
                   ),
                   const SizedBox(height: 24),
                   MouseRegion(
@@ -773,23 +890,48 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: _isDragging ? AppColors.primary : Colors.grey.withValues(alpha: 0.3),
+                            color: _isDragging
+                                ? AppColors.primary
+                                : Colors.grey.withValues(alpha: 0.3),
                             style: BorderStyle.solid,
                           ),
                           borderRadius: BorderRadius.circular(12),
-                          color: _isDragging ? AppColors.primary.withValues(alpha: 0.05) : Colors.white.withValues(alpha: 0.02),
+                          color: _isDragging
+                              ? AppColors.primary.withValues(alpha: 0.05)
+                              : Colors.white.withValues(alpha: 0.02),
                         ),
                         child: Column(
                           children: [
-                            Icon(Icons.cloud_upload_outlined, size: 48, color: _isDragging ? AppColors.primary : Colors.grey),
+                            Icon(
+                              Icons.cloud_upload_outlined,
+                              size: 48,
+                              color: _isDragging
+                                  ? AppColors.primary
+                                  : Colors.grey,
+                            ),
                             const SizedBox(height: 12),
                             Text(
-                              _selectedFile == null ? 'Drag and drop file here or click to browse' : 'File selected (Click to change)',
+                              _selectedFile == null
+                                  ? 'Drag and drop file here or click to browse'
+                                  : 'File selected (Click to change)',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: _isDragging ? AppColors.primary : Colors.grey, fontWeight: _isDragging ? FontWeight.bold : FontWeight.normal),
+                              style: TextStyle(
+                                color: _isDragging
+                                    ? AppColors.primary
+                                    : Colors.grey,
+                                fontWeight: _isDragging
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
                             ),
                             const SizedBox(height: 4),
-                            Text('Allowed: PDF, PPT, Word, Images', style: TextStyle(fontSize: 10, color: Colors.grey.withValues(alpha: 0.6))),
+                            Text(
+                              'Allowed: PDF, PPT, Word, Images',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey.withValues(alpha: 0.6),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -798,19 +940,51 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                   if (_selectedFile != null) ...[
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.green.withValues(alpha: 0.3))),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.3),
+                        ),
+                      ),
                       child: Row(
                         children: [
-                          const Icon(Icons.check_circle, size: 16, color: Colors.green),
+                          const Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: Colors.green,
+                          ),
                           const SizedBox(width: 8),
-                          Expanded(child: Text(_selectedFile!.path.split(Platform.pathSeparator).last, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green), overflow: TextOverflow.ellipsis)),
+                          Expanded(
+                            child: Text(
+                              _selectedFile!.path
+                                  .split(Platform.pathSeparator)
+                                  .last,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                     ),
                   ] else if (widget.material?.fileName != null) ...[
                     const SizedBox(height: 12),
-                    Text('Current file: ${widget.material!.fileName}', style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic)),
+                    Text(
+                      'Current file: ${widget.material!.fileName}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -819,8 +993,20 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        ElevatedButton(onPressed: _submit, style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white), child: Text(widget.material == null ? 'Create Material' : 'Update Material')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: Text(
+            widget.material == null ? 'Create Material' : 'Update Material',
+          ),
+        ),
       ],
     );
   }
