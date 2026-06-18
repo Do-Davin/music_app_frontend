@@ -38,16 +38,21 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   Song? _currentSong;
-
   bool _hasKaraokeLyrics = false;
+  bool _isAccessDenied = false;
 
   @override
   void initState() {
     _currentSong = widget.song;
+    if (!widget.song.isPublic) {
+      _isAccessDenied = true;
+    }
     _loadLatestSongDetails();
     _checkKaraokeLyricsStatus();
     super.initState();
-    _initPlayer();
+    if (!_isAccessDenied) {
+      _initPlayer();
+    }
   }
 
   bool _isSongMatch(KaraokeSong karaoke, Song song) {
@@ -111,10 +116,30 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       if (mounted) {
         setState(() {
           _currentSong = freshSong;
+          if (!freshSong.isPublic) {
+            _isAccessDenied = true;
+            _stopPlayback();
+          }
         });
       }
     } catch (e) {
       debugPrint("Failed to fetch fresh song details in player: $e");
+      final errorStr = e.toString().toLowerCase();
+      if (errorStr.contains('private') || errorStr.contains('forbidden')) {
+        if (mounted) {
+          setState(() {
+            _isAccessDenied = true;
+            _stopPlayback();
+          });
+        }
+      }
+    }
+  }
+
+  void _stopPlayback() {
+    if (_isPlaying) {
+      _youtubeController?.pause();
+      _audioPlayer?.pause();
     }
   }
 
@@ -364,16 +389,75 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   Widget _buildScaffold(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final titleFontSize = screenWidth > 600 ? 30.0 : 26.0;
-    final artistFontSize = screenWidth > 600 ? 20.0 : 18.0;
-    final lyricsFontSize = screenWidth > 600 ? 16.0 : 14.0;
-
     final meAsync = ref.watch(meProvider);
     final isOwner = meAsync.maybeWhen(
       data: (user) => user.id == widget.song.userId,
       orElse: () => false,
     );
+
+    if (_isAccessDenied) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.keyboard_arrow_down,
+              color: Colors.white,
+              size: 32,
+            ),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(
+            widget.category,
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          centerTitle: true,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.lock_outline,
+                color: AppColors.primary,
+                size: 80,
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'This song is Private',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Text(
+                  isOwner
+                      ? 'You cannot listen to or modify this song while it is private. Please make it public from your Library to access it again.'
+                      : 'The creator has made this song private. It is currently unavailable for listening.',
+                  style: const TextStyle(color: Colors.grey, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final titleFontSize = screenWidth > 600 ? 30.0 : 26.0;
+    final artistFontSize = screenWidth > 600 ? 20.0 : 18.0;
+    final lyricsFontSize = screenWidth > 600 ? 16.0 : 14.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -481,7 +565,8 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                               ),
                               onPressed: _hasLyrics || _isPreparingKaraoke
                                   ? null
-                                  : () => _startLyricSetup(context, widget.song),
+                                  : () =>
+                                        _startLyricSetup(context, widget.song),
                             ),
                           if (isOwner) const SizedBox(height: 10),
                           const Icon(
@@ -530,11 +615,11 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           onTap: _hasLyrics
               ? () => _startKaraokeConversion(context, widget.song)
               : isOwner
-                  ? () {
-                      if (_isPreparingKaraoke) return;
-                      _startLyricSetup(context, widget.song);
-                    }
-                  : null, // non-owner, no lyrics yet → greyed out
+              ? () {
+                  if (_isPreparingKaraoke) return;
+                  _startLyricSetup(context, widget.song);
+                }
+              : null, // non-owner, no lyrics yet → greyed out
         ),
         _ActionButton(
           icon: Icons.grid_on_outlined,

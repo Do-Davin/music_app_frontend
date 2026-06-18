@@ -6,7 +6,8 @@ import 'package:music_app_frontend/features/song/models/song.dart';
 
 class SongService {
   GraphQLClient get _client => GraphQLConfig.clientToQuery();
-  GraphQLClient get _authClient => GraphQLConfig.clientToQuery(authenticated: true);
+  GraphQLClient get _authClient =>
+      GraphQLConfig.clientToQuery(authenticated: true);
 
   Future<List<Song>> fetchSongs() async {
     try {
@@ -22,6 +23,26 @@ class SongService {
       }
 
       final List<dynamic> data = result.data?['songs'] ?? [];
+      return data.map((json) => Song.fromJson(json)).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<Song>> fetchMySongs() async {
+    try {
+      final result = await _authClient.query(
+        QueryOptions(
+          document: gql(SongQueries.getMySongs),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final List<dynamic> data = result.data?['mySongs'] ?? [];
       return data.map((json) => Song.fromJson(json)).toList();
     } catch (e) {
       rethrow;
@@ -92,7 +113,7 @@ class SongService {
               'sourcePath': sourcePath,
               'lyrics': lyrics,
               'isPublic': isPublic,
-            }
+            },
           },
         ),
       );
@@ -118,10 +139,7 @@ class SongService {
         MutationOptions(
           document: gql(SongQueries.updateSong),
           variables: {
-            'input': {
-              'id': songId,
-              'lyrics': lyrics,
-            }
+            'input': {'id': songId, 'lyrics': lyrics},
           },
         ),
       );
@@ -147,10 +165,7 @@ class SongService {
         MutationOptions(
           document: gql(SongQueries.updateSong),
           variables: {
-            'input': {
-              'id': songId,
-              'isPublic': isPublic,
-            }
+            'input': {'id': songId, 'isPublic': isPublic},
           },
         ),
       );

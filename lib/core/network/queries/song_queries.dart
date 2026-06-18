@@ -134,4 +134,30 @@ class SongQueries {
       removeSong(id: $id)
     }
   ''';
+
+  static const String getMySongs = r'''
+    query GetMySongs {
+      mySongs {
+        _id
+        title
+        artist
+        albumName
+        duration
+        key
+        tempo
+        difficulty
+        tags
+        source
+        sourcePath
+        fileUrl
+        videoUrl
+        coverImageUrl
+        lyrics
+        chordNotationStyle
+        isPublic
+        playCount
+        userId
+      }
+    }
+  ''';
 }

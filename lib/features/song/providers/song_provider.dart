@@ -10,13 +10,20 @@ final songsProvider = FutureProvider<List<Song>>((ref) async {
   return service.fetchSongs();
 });
 
+final mySongsProvider = FutureProvider<List<Song>>((ref) async {
+  final service = ref.watch(songServiceProvider);
+  return service.fetchMySongs();
+});
+
 final songByIdProvider = FutureProvider.family<Song, String>((ref, id) async {
   final service = ref.watch(songServiceProvider);
   return service.fetchSongById(id);
 });
 
-final searchSongsProvider =
-    FutureProvider.family<List<Song>, String>((ref, query) async {
+final searchSongsProvider = FutureProvider.family<List<Song>, String>((
+  ref,
+  query,
+) async {
   final cleanQuery = query.trim();
   if (cleanQuery.isEmpty) return [];
   final service = ref.watch(songServiceProvider);
@@ -28,8 +35,8 @@ final searchSongsProvider =
 /// request on every keystroke.
 final debouncedSearchQueryProvider =
     StateNotifierProvider<DebouncedSearchNotifier, String>(
-  (ref) => DebouncedSearchNotifier(),
-);
+      (ref) => DebouncedSearchNotifier(),
+    );
 
 class DebouncedSearchNotifier extends StateNotifier<String> {
   Timer? _timer;
