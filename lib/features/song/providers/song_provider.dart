@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/features/song/services/song_service.dart';
 
@@ -18,6 +19,10 @@ final mySongsProvider = FutureProvider<List<Song>>((ref) async {
 final songByIdProvider = FutureProvider.family<Song, String>((ref, id) async {
   final service = ref.watch(songServiceProvider);
   return service.fetchSongById(id);
+});
+
+final likedSongsProvider = FutureProvider<List<Song>>((ref) async {
+  return LikedSongsService().fetchLikedSongs();
 });
 
 final searchSongsProvider = FutureProvider.family<List<Song>, String>((
