@@ -87,6 +87,17 @@ class FriendActionsNotifier extends StateNotifier<AsyncValue<void>> {
     });
   }
 
+  Future<void> cancelFriendRequest(String userId) async {
+    await _run(() async {
+      final cancelled = await _service.cancelFriendRequest(userId);
+      if (cancelled) {
+        _ref.invalidate(relationshipStatusProvider(userId));
+        _ref.invalidate(outgoingFriendRequestsProvider);
+        _ref.invalidate(userSearchProvider);
+      }
+    });
+  }
+
   Future<void> _run(Future<void> Function() action) async {
     state = const AsyncLoading();
     try {

@@ -17,6 +17,7 @@ import 'package:music_app_frontend/features/playlist/screens/no_playlists_screen
 import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 import 'package:music_app_frontend/features/relationships/screens/follow_list_screen.dart';
 import 'package:music_app_frontend/features/relationships/screens/user_detail_screen.dart';
+import 'package:music_app_frontend/features/playlist/screens/liked_songs_screen.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/song/screens/no_results_screen.dart';
 import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
@@ -123,6 +124,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: Routes.noResults,
       builder: (context, state) => const NoResultsScreen(),
+    ),
+    GoRoute(
+      path: Routes.likedSongs,
+      builder: (context, state) => const LikedSongsScreen(),
     ),
     GoRoute(
       path: Routes.song,

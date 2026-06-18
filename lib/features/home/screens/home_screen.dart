@@ -1,167 +1,186 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:music_app_frontend/core/constants/mock_data.dart' as mock;
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/routing/app_router.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
-import 'package:music_app_frontend/shared/widgets/widgets.dart';
-import 'package:music_app_frontend/features/song/models/song.dart' as real_song;
+import 'package:music_app_frontend/features/playlist/models/playlist.dart';
+import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
+import 'package:music_app_frontend/features/song/models/song.dart';
+import 'package:music_app_frontend/features/song/providers/recently_played_provider.dart';
+import 'package:music_app_frontend/features/song/providers/song_provider.dart';
+import 'package:music_app_frontend/shared/widgets/app_error_widget.dart';
+import 'package:music_app_frontend/shared/widgets/app_loading_widget.dart';
 
-// ── Changed from StatelessWidget to StatefulWidget ────────────────────────────
-// We need State so we can track _isLoading and call setState after the delay
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  static const Color backgroundColor = AppColors.background;
-  static const Color accentColor = AppColors.primary;
-
-  // Tracks whether we are still in the loading phase
-  bool _isLoading = true;
+  static const Color _backgroundColor = AppColors.background;
+  static const Color _accentColor = AppColors.primary;
 
   @override
-  void initState() {
-    super.initState();
-    // Simulate a 2-second API delay so the skeleton is visible
-    // TODO: Replace this with a real API call later
-    Future.delayed(const Duration(seconds: 2), () {
-      // mounted check prevents setState being called after widget is destroyed
-      if (mounted) setState(() => _isLoading = false);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final meState = ref.watch(meProvider);
     final username = meState.maybeWhen(
       data: (user) => _displayName(user.username, user.email),
       orElse: () => 'there',
     );
 
+    final recentlyPlayedAsync = ref.watch(recentlyPlayedProvider);
+    final mySongsAsync = ref.watch(mySongsProvider);
+    final likedSongsAsync = ref.watch(likedSongsProvider);
+    final myPlaylistsAsync = ref.watch(myPlaylistsProvider);
+
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: _backgroundColor,
       body: SafeArea(
-        // If still loading → show skeleton, otherwise → show real content
-        child: _isLoading
-            ? const HomeSkeletonLoader()
-            : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 24.0,
+        child: RefreshIndicator(
+          onRefresh: () => _refresh(ref),
+          color: _accentColor,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(context, username),
+                const SizedBox(height: 32),
+
+                // ── Continue Listening ─────────────────────────────────────
+                ..._buildContinueListening(context, recentlyPlayedAsync),
+
+                // ── Recently Played ────────────────────────────────────────
+                ..._buildAsyncSection<List<RecentlyPlayedEntry>>(
+                  title: 'Recently Played',
+                  asyncValue: recentlyPlayedAsync,
+                  onRetry: () => ref.invalidate(recentlyPlayedProvider),
+                  builder: (entries) => entries.isEmpty
+                      ? const SizedBox.shrink()
+                      : _buildRecentlyPlayedList(context, entries),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(username),
-                    const SizedBox(height: 32),
 
-                    _buildSectionTitle('Continue Listening'),
-                    _buildContinueListeningCard(),
-                    const SizedBox(height: 32),
-
-                    _buildSectionTitle('Your Favorites'),
-                    _buildFavoritesGrid(),
-                    const SizedBox(height: 32),
-
-                    _buildSectionTitle('Recently Played'),
-                    _buildHorizontalSongList(
-                      mock.MockData.recentlyPlayed,
-                      'RECENTLY PLAYED',
-                    ),
-                    const SizedBox(height: 32),
-
-                    _buildSectionTitle('Recommended'),
-                    _buildHorizontalSongList(
-                      mock.MockData.recommended,
-                      'RECOMMENDED FOR YOU',
-                    ),
-                    const SizedBox(height: 32),
-
-                    _buildSectionTitle('Made for you'),
-                    _buildHorizontalSongList(
-                      mock.MockData.madeForYou,
-                      'MADE FOR YOU',
-                    ),
-                    const SizedBox(height: 32),
-
-                    _buildSectionTitle('Browse by mood'),
-                    _buildMoodGrid(),
-                    const SizedBox(height: 32),
-
-                    _buildSectionTitle('Popular Artists'),
-                    _buildPopularArtists(),
-                    const SizedBox(height: 32),
-                  ],
+                // ── My Uploads ─────────────────────────────────────────────
+                ..._buildAsyncSection<List<Song>>(
+                  title: 'My Uploads',
+                  asyncValue: mySongsAsync,
+                  onRetry: () => ref.invalidate(mySongsProvider),
+                  builder: (songs) => songs.isEmpty
+                      ? const SizedBox.shrink()
+                      : _buildSongList(context, songs, 'MY UPLOADS'),
                 ),
-              ),
+
+                // ── Liked Songs ────────────────────────────────────────────
+                ..._buildAsyncSection<List<Song>>(
+                  title: 'Liked Songs',
+                  asyncValue: likedSongsAsync,
+                  onRetry: () => ref.invalidate(likedSongsProvider),
+                  builder: (songs) => songs.isEmpty
+                      ? const SizedBox.shrink()
+                      : _buildSongList(context, songs, 'LIKED SONGS'),
+                ),
+
+                // ── Your Playlists ─────────────────────────────────────────
+                ..._buildPlaylistsSection(ref, myPlaylistsAsync),
+
+                // ── Browse by Mood (local categories, no backend songs) ────
+                _buildSectionTitle('Browse by Mood'),
+                _buildMoodGrid(),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildHorizontalSongList(List<mock.Song> songs, String categoryName) {
-    return SizedBox(
-      height: 200,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: songs.length,
-        separatorBuilder: (a, b) => const SizedBox(width: 16),
-        itemBuilder: (context, index) {
-          final song = songs[index];
-          return GestureDetector(
-            onTap: () {
-              // Convert mock song to real song model for the player
-              final realSong = real_song.Song(
-                id: song.title,
-                title: song.title,
-                artist: song.artist,
-                coverImageUrl: song.imageUrl,
-                duration: 180, // dummy duration
-                lyrics: song.lyricsSnippet,
-              );
-              context.push(
-                Routes.songById(song.title),
-                extra: SongPlayerRouteData(
-                  song: realSong,
-                  category: categoryName,
-                ),
-              );
-            },
-            child: SizedBox(
-              width: 140,
+  // ── Pull-to-refresh ──────────────────────────────────────────────────────
+
+  Future<void> _refresh(WidgetRef ref) async {
+    await Future.wait([
+      ref.refresh(recentlyPlayedProvider.future),
+      ref.refresh(mySongsProvider.future),
+      ref.refresh(likedSongsProvider.future),
+    ]);
+    await ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+  }
+
+  // ── Generic async section builder ────────────────────────────────────────
+
+  List<Widget> _buildAsyncSection<T>({
+    required String title,
+    required AsyncValue<T> asyncValue,
+    required VoidCallback onRetry,
+    required Widget Function(T value) builder,
+  }) {
+    return [
+      _buildSectionTitle(title),
+      asyncValue.when(
+        loading: () => const SizedBox(
+          height: 180,
+          child: Center(child: AppLoadingWidget()),
+        ),
+        error: (e, _) => SizedBox(
+          height: 120,
+          child: AppErrorWidget(message: e.toString(), onRetry: onRetry),
+        ),
+        data: builder,
+      ),
+      const SizedBox(height: 32),
+    ];
+  }
+
+  // ── Continue Listening section ────────────────────────────────────────────
+
+  List<Widget> _buildContinueListening(
+    BuildContext context,
+    AsyncValue<List<RecentlyPlayedEntry>> asyncValue,
+  ) {
+    return asyncValue.when(
+      loading: () => [],
+      error: (_, _) => [],
+      data: (entries) {
+        if (entries.isEmpty) return [];
+        return [
+          _buildSectionTitle('Continue Listening'),
+          _buildContinueListeningCard(context, entries.first),
+          const SizedBox(height: 32),
+        ];
+      },
+    );
+  }
+
+  Widget _buildContinueListeningCard(
+    BuildContext context,
+    RecentlyPlayedEntry entry,
+  ) {
+    final song = entry.song;
+    return GestureDetector(
+      onTap: () => _navigateToSong(context, song, 'CONTINUE LISTENING'),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: _coverImage(song.coverImageUrl, 80),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      song.imageUrl,
-                      width: 140,
-                      height: 140,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 140,
-                        height: 140,
-                        color: AppColors.surface,
-                        child: const Icon(
-                          Icons.music_note,
-                          color: Colors.white24,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   Text(
                     song.title,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -173,16 +192,259 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _formatPlayedAt(entry.playedAt),
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
                 ],
               ),
             ),
-          );
-        },
+            const Icon(Icons.play_circle_filled, color: _accentColor, size: 40),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(String username) {
+  String _formatPlayedAt(DateTime playedAt) {
+    final diff = DateTime.now().difference(playedAt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${playedAt.day}/${playedAt.month}/${playedAt.year}';
+  }
+
+  // ── Recently played horizontal list ──────────────────────────────────────
+
+  Widget _buildRecentlyPlayedList(
+    BuildContext context,
+    List<RecentlyPlayedEntry> entries,
+  ) {
+    return SizedBox(
+      height: 200,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: entries.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 16),
+        itemBuilder: (context, index) =>
+            _buildSongCard(context, entries[index].song, 'RECENTLY PLAYED'),
+      ),
+    );
+  }
+
+  // ── Generic song horizontal list ─────────────────────────────────────────
+
+  Widget _buildSongList(
+    BuildContext context,
+    List<Song> songs,
+    String category,
+  ) {
+    return SizedBox(
+      height: 200,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: songs.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 16),
+        itemBuilder: (context, index) =>
+            _buildSongCard(context, songs[index], category),
+      ),
+    );
+  }
+
+  Widget _buildSongCard(BuildContext context, Song song, String category) {
+    return GestureDetector(
+      onTap: () => _navigateToSong(context, song, category),
+      child: SizedBox(
+        width: 140,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: _coverImage(song.coverImageUrl, 140),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              song.title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              song.artist,
+              style: const TextStyle(color: Colors.grey, fontSize: 14),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Your Playlists section ────────────────────────────────────────────────
+
+  List<Widget> _buildPlaylistsSection(
+    WidgetRef ref,
+    AsyncValue<List<Playlist>> playlistsAsync,
+  ) {
+    // Pre-check: hide section entirely when data is ready and empty
+    final maybeEmpty = playlistsAsync.maybeWhen(
+      data: (list) => list.where((p) => p.name != 'My Uploading').isEmpty,
+      orElse: () => false,
+    );
+    if (maybeEmpty) return [];
+
+    return [
+      _buildSectionTitle('Your Playlists'),
+      playlistsAsync.when(
+        loading: () => const SizedBox(
+          height: 120,
+          child: Center(child: AppLoadingWidget()),
+        ),
+        error: (e, _) => SizedBox(
+          height: 120,
+          child: AppErrorWidget(
+            message: e.toString(),
+            onRetry: () =>
+                ref.read(myPlaylistsProvider.notifier).loadPlaylists(),
+          ),
+        ),
+        data: (playlists) {
+          final visible = playlists
+              .where((p) => p.name != 'My Uploading')
+              .take(4)
+              .toList();
+          if (visible.isEmpty) return const SizedBox.shrink();
+          return _buildPlaylistGrid(visible);
+        },
+      ),
+      const SizedBox(height: 32),
+    ];
+  }
+
+  Widget _buildPlaylistGrid(List<Playlist> playlists) {
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.4,
+      ),
+      itemCount: playlists.length,
+      itemBuilder: (context, index) {
+        final playlist = playlists[index];
+        final hasCover =
+            playlist.coverImageUrl != null &&
+            playlist.coverImageUrl!.isNotEmpty;
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: AppColors.card,
+            image: hasCover
+                ? DecorationImage(
+                    image: NetworkImage(playlist.coverImageUrl!),
+                    fit: BoxFit.cover,
+                    colorFilter: ColorFilter.mode(
+                      Colors.black.withValues(alpha: 0.4),
+                      BlendMode.darken,
+                    ),
+                  )
+                : null,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!hasCover)
+                  const Center(
+                    child: Icon(
+                      Icons.queue_music,
+                      color: Colors.white54,
+                      size: 40,
+                    ),
+                  ),
+                const Spacer(),
+                Text(
+                  playlist.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Browse by Mood — static local categories ──────────────────────────────
+
+  Widget _buildMoodGrid() {
+    const moods = [
+      {'name': 'Focus', 'url': 'https://picsum.photos/seed/focus99/300/150'},
+      {'name': 'Chill', 'url': 'https://picsum.photos/seed/relax99/300/150'},
+      {'name': 'Workout', 'url': 'https://picsum.photos/seed/gym88/300/150'},
+      {'name': 'Party', 'url': 'https://picsum.photos/seed/party55/300/150'},
+    ];
+    return GridView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.8,
+      ),
+      itemCount: moods.length,
+      itemBuilder: (context, index) {
+        final mood = moods[index];
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            image: DecorationImage(
+              image: NetworkImage(mood['url']!),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                mood['name']!,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Shared helpers ────────────────────────────────────────────────────────
+
+  Widget _buildHeader(BuildContext context, String username) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -199,7 +461,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               children: [
                 TextSpan(
                   text: '$username!',
-                  style: const TextStyle(color: accentColor),
+                  style: const TextStyle(color: _accentColor),
                 ),
               ],
             ),
@@ -226,23 +488,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  String _displayName(String username, String email) {
-    final trimmedUsername = username.trim();
-    if (trimmedUsername.isNotEmpty) return trimmedUsername;
-
-    final trimmedEmail = email.trim();
-    if (trimmedEmail.isEmpty) return 'there';
-
-    return trimmedEmail.split('@').first;
-  }
-
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Text(
         title,
         style: const TextStyle(
-          color: accentColor,
+          color: _accentColor,
           fontSize: 20,
           fontWeight: FontWeight.w600,
         ),
@@ -250,190 +502,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildContinueListeningCard() {
+  String _displayName(String username, String email) {
+    final trimmed = username.trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    final trimmedEmail = email.trim();
+    if (trimmedEmail.isEmpty) return 'there';
+    return trimmedEmail.split('@').first;
+  }
+
+  void _navigateToSong(BuildContext context, Song song, String category) {
+    context.push(
+      Routes.songById(song.id),
+      extra: SongPlayerRouteData(song: song, category: category),
+    );
+  }
+
+  Widget _coverImage(String? url, double size) {
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _coverFallback(size),
+      );
+    }
+    return _coverFallback(size);
+  }
+
+  Widget _coverFallback(double size) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              'https://picsum.photos/seed/starboy/100',
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Starboy',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'The Weeknd',
-                  style: TextStyle(color: Colors.grey, fontSize: 14),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Text(
-                      '11 Dec • 12 min left',
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: LinearProgressIndicator(
-                        value: 0.4,
-                        backgroundColor: AppColors.surface,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          accentColor,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFavoritesGrid() {
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.4,
-      ),
-      itemCount: mock.MockData.favorites.length,
-      itemBuilder: (context, index) {
-        final playlist = mock.MockData.favorites[index];
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: playlist.gradientColors != null
-                ? LinearGradient(
-                    colors: playlist.gradientColors!,
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            image: playlist.imageUrl.isNotEmpty
-                ? DecorationImage(
-                    image: NetworkImage(playlist.imageUrl),
-                    fit: BoxFit.cover,
-                    colorFilter: ColorFilter.mode(
-                      Colors.black.withValues(alpha: 0.4),
-                      BlendMode.darken,
-                    ),
-                  )
-                : null,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (playlist.gradientColors != null)
-                  const Center(
-                    child: Icon(
-                      Icons.favorite,
-                      color: Colors.white54,
-                      size: 40,
-                    ),
-                  ),
-                const Spacer(),
-                Text(
-                  playlist.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMoodGrid() {
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 1.8,
-      ),
-      itemCount: mock.MockData.moods.length,
-      itemBuilder: (context, index) {
-        final mood = mock.MockData.moods[index];
-        return Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            image: DecorationImage(
-              image: NetworkImage(mood.imageUrl),
-              fit: BoxFit.cover,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Text(
-                mood.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPopularArtists() {
-    return SizedBox(
-      height: 100,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: mock.MockData.popularArtistsUrls.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 24),
-        itemBuilder: (context, index) {
-          return CircleAvatar(
-            radius: 50,
-            backgroundImage: NetworkImage(
-              mock.MockData.popularArtistsUrls[index],
-            ),
-          );
-        },
-      ),
+      width: size,
+      height: size,
+      color: AppColors.surface,
+      child: const Icon(Icons.music_note, color: Colors.white24),
     );
   }
 }

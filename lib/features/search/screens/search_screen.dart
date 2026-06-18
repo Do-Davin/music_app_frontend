@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
-import 'package:music_app_frontend/core/constants/mock_data.dart' hide Song;
+import 'package:music_app_frontend/core/routing/app_router.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
-import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
 
 // Provider to manage the raw (un-debounced) search query for the text field UI.
@@ -182,34 +183,62 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
 
   Widget _buildInitialView(BuildContext context) {
     final recentSongs = ref.watch(recentSongsProvider);
+    final publicSongs = ref.watch(songsProvider);
 
-    return ListView(
-      key: const ValueKey('initial'),
-      physics: const BouncingScrollPhysics(),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      children: [
-        if (recentSongs.isNotEmpty) ...[
-          _buildSectionTitle(
-            "Recent",
-            icon: Icons.history_rounded,
-            showAction: true,
-            actionText: 'Clear all',
-            onActionTap: () => ref.read(recentSongsProvider.notifier).clear(),
-          ),
-          const SizedBox(height: 8),
-          _buildRecentSongsList(context, recentSongs),
-          const SizedBox(height: 28),
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(songsProvider);
+        // Allow the FutureProvider to start its new fetch before returning.
+        await Future.delayed(const Duration(milliseconds: 300));
+      },
+      child: ListView(
+        key: const ValueKey('initial'),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        children: [
+          if (recentSongs.isNotEmpty) ...[
+            _buildSectionTitle(
+              "Recent",
+              icon: Icons.history_rounded,
+              showAction: true,
+              actionText: 'Clear all',
+              onActionTap: () => ref.read(recentSongsProvider.notifier).clear(),
+            ),
+            const SizedBox(height: 8),
+            _buildRecentSongsList(context, recentSongs),
+            const SizedBox(height: 28),
+          ],
+          _buildSectionTitle("Explore Songs", icon: Icons.grid_view_rounded),
+          const SizedBox(height: 12),
+          _buildExploreSongsSection(context, publicSongs),
+          const SizedBox(height: 20),
         ],
-        _buildSectionTitle("Trending"),
-        _buildSimpleList([
-          "Die with a smile",
-          "Take it all",
-          "When i was your man",
-        ]),
-        const SizedBox(height: 28),
-        _buildSectionTitle("Browse all", icon: Icons.grid_view_rounded),
-        const SizedBox(height: 12),
-        GridView.builder(
+      ),
+    );
+  }
+
+  Widget _buildExploreSongsSection(
+    BuildContext context,
+    AsyncValue<List<Song>> publicSongs,
+  ) {
+    return publicSongs.when(
+      data: (songs) {
+        if (songs.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: Text(
+                'No songs available',
+                style: AppTextStyles.body.copyWith(color: AppColors.hint),
+              ),
+            ),
+          );
+        }
+
+        final displaySongs = songs.take(12).toList();
+        return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -218,46 +247,163 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
             mainAxisSpacing: 12,
             childAspectRatio: 0.7,
           ),
-          itemCount: MockData.recentlyPlayed.length.clamp(0, 3),
+          itemCount: displaySongs.length,
           itemBuilder: (context, index) {
-            final song = MockData.recentlyPlayed[index];
+            final song = displaySongs[index];
+            return GestureDetector(
+              onTap: () {
+                ref.read(recentSongsProvider.notifier).addSong(song);
+                context.push(
+                  Routes.songById(song.id),
+                  extra: SongPlayerRouteData(song: song, category: 'Explore'),
+                );
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: song.coverImageUrl != null
+                          ? Image.network(
+                              song.coverImageUrl!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _buildGridPlaceholder(),
+                            )
+                          : _buildGridPlaceholder(),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    song.title,
+                    style: AppTextStyles.body.copyWith(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    song.artist,
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.hint,
+                      fontSize: 10,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+      loading: () => _buildGridSkeleton(),
+      error: (error, stack) => _buildExploreError(),
+    );
+  }
+
+  Widget _buildGridPlaceholder() {
+    return Container(
+      color: AppColors.surface,
+      child: const Center(
+        child: Icon(
+          Icons.music_note_rounded,
+          color: AppColors.primary,
+          size: 28,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridSkeleton() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.7,
+      ),
+      itemCount: 6,
+      itemBuilder: (context, index) {
+        return TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.3, end: 0.7),
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeInOut,
+          builder: (context, value, child) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      song.imageUrl,
-                      fit: BoxFit.cover,
-                      width: double.infinity,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.surface.withValues(alpha: value),
                     ),
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  song.title,
-                  style: AppTextStyles.body.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  height: 10,
+                  width: 50,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: AppColors.surface.withValues(alpha: value),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  song.artist,
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.hint,
-                    fontSize: 10,
+                const SizedBox(height: 3),
+                Container(
+                  height: 8,
+                  width: 35,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    color: AppColors.surface.withValues(alpha: value),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             );
           },
-        ),
-      ],
+        );
+      },
+    );
+  }
+
+  Widget _buildExploreError() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.error_outline,
+              color: AppColors.error,
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Could not load songs',
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => ref.invalidate(songsProvider),
+            child: Text(
+              'Retry',
+              style: AppTextStyles.body.copyWith(color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -379,14 +525,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
             splashColor: AppColors.primary.withValues(alpha: 0.1),
             highlightColor: AppColors.primary.withValues(alpha: 0.05),
             onTap: () {
-              // Add to recent
               ref.read(recentSongsProvider.notifier).addSong(song);
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      SongPlayerScreen(song: song, category: 'Search Result'),
+              context.push(
+                Routes.songById(song.id),
+                extra: SongPlayerRouteData(
+                  song: song,
+                  category: 'Search Result',
                 ),
               );
             },
@@ -394,7 +538,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
               child: Row(
                 children: [
-                  // Cover image
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: song.coverImageUrl != null
@@ -409,7 +552,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                         : _buildPlaceholderImage(),
                   ),
                   const SizedBox(width: 14),
-                  // Song info
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,7 +603,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
                       ],
                     ),
                   ),
-                  // Play icon
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -483,7 +624,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     );
   }
 
-  /// Builds text with the matching portion highlighted in the primary color.
   Widget _buildHighlightedText(String text, String query, TextStyle baseStyle) {
     if (query.isEmpty) {
       return Text(
@@ -678,19 +818,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               borderRadius: BorderRadius.circular(10),
               splashColor: AppColors.primary.withValues(alpha: 0.1),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        SongPlayerScreen(song: song, category: 'Recent'),
-                  ),
+                context.push(
+                  Routes.songById(song.id),
+                  extra: SongPlayerRouteData(song: song, category: 'Recent'),
                 );
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                 child: Row(
                   children: [
-                    // Cover image for recent songs
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: song.coverImageUrl != null
@@ -756,28 +892,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
         color: AppColors.primary,
         size: 20,
       ),
-    );
-  }
-
-  Widget _buildSimpleList(List<String> items) {
-    return Column(
-      children: items
-          .map(
-            (item) => Column(
-              children: [
-                ListTile(
-                  title: Text(
-                    item,
-                    style: AppTextStyles.body.copyWith(fontSize: 14),
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                ),
-                Divider(color: Colors.white.withValues(alpha: 0.10), height: 1),
-              ],
-            ),
-          )
-          .toList(),
     );
   }
 }

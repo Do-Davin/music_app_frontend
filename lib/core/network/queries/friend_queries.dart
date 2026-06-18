@@ -64,4 +64,10 @@ class FriendQueries {
       rejectFriendRequest(userId: \$userId)
     }
   ''';
+
+  static const String cancelFriendRequest = '''
+    mutation CancelFriendRequest(\$userId: ID!) {
+      cancelFriendRequest(userId: \$userId)
+    }
+  ''';
 }

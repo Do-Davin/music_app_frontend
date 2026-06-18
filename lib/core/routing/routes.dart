@@ -17,6 +17,7 @@ class Routes {
   static const userDetail = '/user-detail';
   static const noPlaylists = '/no-playlists';
   static const noResults = '/no-results';
+  static const likedSongs = '/liked-songs';
   static const song = '/song/:id';
   static const playlistDetail = '/playlist/:id';
 
