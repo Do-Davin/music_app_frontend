@@ -79,6 +79,14 @@ class FriendService {
     );
   }
 
+  Future<bool> cancelFriendRequest(String userId) {
+    return _runAction(
+      mutation: FriendQueries.cancelFriendRequest,
+      rootKey: 'cancelFriendRequest',
+      userId: userId,
+    );
+  }
+
   Future<List<User>> _fetchUserList({
     required String query,
     required String rootKey,
