@@ -1071,11 +1071,14 @@ class SongTile extends ConsumerWidget {
 
   Future<void> _unlikeSong(BuildContext context, WidgetRef ref) async {
     // Capture providers before any async gap to avoid "ref used after dispose"
+    final service = ref.read(likedSongsServiceProvider);
     final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
 
     try {
-      await LikedSongsService().toggleLikeSong(song.id);
+      await service.toggleLikeSong(song.id);
       myPlaylistsNotifier.refreshPlaylists();
+      // Keep likedSongsProvider in sync so Home and LikedSongsScreen both refresh
+      ref.invalidate(likedSongsProvider);
 
       if (context.mounted) {
         SuccessPopup.show(

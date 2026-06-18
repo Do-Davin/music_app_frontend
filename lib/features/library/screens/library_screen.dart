@@ -312,14 +312,99 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
+  Widget _buildLikedSongsListTile(BuildContext context) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 6),
+      leading: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          gradient: LinearGradient(
+            colors: [
+              AppColors.primary.withValues(alpha: 0.7),
+              AppColors.primary,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: const Icon(
+          Icons.favorite_rounded,
+          color: Colors.white,
+          size: 28,
+        ),
+      ),
+      title: Text(
+        'Liked Songs',
+        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        'Playlist',
+        style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
+      ),
+      onTap: () => context.push(Routes.likedSongs),
+    );
+  }
+
+  Widget _buildLikedSongsGridTile(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push(Routes.likedSongs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.7),
+                    AppColors.primary,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.favorite_rounded,
+                  color: Colors.white,
+                  size: 40,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Liked Songs',
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+            maxLines: 1,
+          ),
+          Text(
+            'Playlist',
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.hint,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildListView(List<model.Playlist> playlists, {required Key key}) {
     return ListView.builder(
       key: key,
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: playlists.length,
+      itemCount: playlists.length + 1,
       padding: const EdgeInsets.only(top: 10),
       itemBuilder: (context, index) {
-        final item = playlists[index];
+        if (index == 0) return _buildLikedSongsListTile(context);
+        final item = playlists[index - 1];
         final songCount = item.songIds?.length ?? 0;
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(vertical: 6),
@@ -354,9 +439,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         mainAxisSpacing: 20,
         childAspectRatio: 0.75,
       ),
-      itemCount: playlists.length,
+      itemCount: playlists.length + 1,
       itemBuilder: (context, index) {
-        final item = playlists[index];
+        if (index == 0) return _buildLikedSongsGridTile(context);
+        final item = playlists[index - 1];
         return GestureDetector(
           onTap: () {
             context.push(Routes.playlistById(item.id));
