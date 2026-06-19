@@ -63,7 +63,9 @@ class KaraokeSong {
       id: (json['id'] ?? json['_id']) as String,
       title: json['title'] as String,
       artist: json['artist'] as String?,
-      source: SongSource.values.byName((json['source'] as String).toLowerCase()),
+      source: SongSource.values.byName(
+        (json['source'] as String).toLowerCase(),
+      ),
       sourcePath: json['sourcePath'] as String,
       lyrics: ((json['lyrics'] as List?) ?? [])
           .map((l) => LrcLine.fromJson(l as Map<String, dynamic>))

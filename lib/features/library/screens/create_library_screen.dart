@@ -7,6 +7,7 @@ import 'package:music_app_frontend/features/playlist/providers/playlist_provider
 import 'package:music_app_frontend/features/playlist/models/playlist.dart';
 import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/shared/widgets/success_popup.dart';
+
 class CreateLibrarySheet extends ConsumerWidget {
   final BuildContext parentContext;
   final WidgetRef parentRef;
@@ -23,7 +24,10 @@ class CreateLibrarySheet extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surface,
-        title: Text('New Playlist', style: AppTextStyles.header.copyWith(fontSize: 20)),
+        title: Text(
+          'New Playlist',
+          style: AppTextStyles.header.copyWith(fontSize: 20),
+        ),
         content: TextField(
           controller: nameCtrl,
           autofocus: true,
@@ -46,12 +50,20 @@ class CreateLibrarySheet extends ConsumerWidget {
             onPressed: () {
               final name = nameCtrl.text.trim();
               if (name.isNotEmpty) {
-                parentRef.read(myPlaylistsProvider.notifier).createPlaylist(name);
+                parentRef
+                    .read(myPlaylistsProvider.notifier)
+                    .createPlaylist(name);
                 Navigator.pop(ctx); // Close dialog
                 Navigator.pop(context); // Close bottom sheet
               }
             },
-            child: Text('Create', style: AppTextStyles.body.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Create',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -61,7 +73,9 @@ class CreateLibrarySheet extends ConsumerWidget {
   /// Show a bottom sheet to choose YouTube or Local MP3, then collect
   /// title + artist and save to the backend as a normal private song.
   void _showAddSongDialog(BuildContext context) {
-    Navigator.pop(context); // Close the create-library bottom sheet first safely
+    Navigator.pop(
+      context,
+    ); // Close the create-library bottom sheet first safely
 
     showModalBottomSheet(
       context: parentContext,
@@ -86,9 +100,14 @@ class CreateLibrarySheet extends ConsumerWidget {
               const SizedBox(height: 24),
               ListTile(
                 leading: const Icon(Icons.link, color: AppColors.primary),
-                title: const Text('YouTube URL', style: TextStyle(color: Colors.white)),
+                title: const Text(
+                  'YouTube URL',
+                  style: TextStyle(color: Colors.white),
+                ),
                 tileColor: const Color(0xFF2A2A2A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _showYoutubeInput(parentContext);
@@ -97,9 +116,14 @@ class CreateLibrarySheet extends ConsumerWidget {
               const SizedBox(height: 12),
               ListTile(
                 leading: const Icon(Icons.folder, color: AppColors.primary),
-                title: const Text('Local MP3 File', style: TextStyle(color: Colors.white)),
+                title: const Text(
+                  'Local MP3 File',
+                  style: TextStyle(color: Colors.white),
+                ),
                 tileColor: const Color(0xFF2A2A2A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _showLocalInput(parentContext);
@@ -124,7 +148,10 @@ class CreateLibrarySheet extends ConsumerWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
           backgroundColor: const Color(0xFF1E1E1E),
-          title: const Text('YouTube Song', style: TextStyle(color: Colors.white)),
+          title: const Text(
+            'YouTube Song',
+            style: TextStyle(color: Colors.white),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -137,7 +164,10 @@ class CreateLibrarySheet extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Text('Public Song', style: TextStyle(color: Colors.white)),
+                    const Text(
+                      'Public Song',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     const Spacer(),
                     Switch(
                       value: isPublic,
@@ -154,9 +184,12 @@ class CreateLibrarySheet extends ConsumerWidget {
                       data: (playlists) {
                         final personal = playlists.firstWhere(
                           (p) => p.name == 'My Uploading',
-                          orElse: () => playlists.isNotEmpty ? playlists.first : Playlist(id: '', name: 'My Uploading'),
+                          orElse: () => playlists.isNotEmpty
+                              ? playlists.first
+                              : Playlist(id: '', name: 'My Uploading'),
                         );
-                        if (selectedPlaylistId == null && personal.id.isNotEmpty) {
+                        if (selectedPlaylistId == null &&
+                            personal.id.isNotEmpty) {
                           selectedPlaylistId = personal.id;
                         }
                         return DropdownButtonFormField<String>(
@@ -171,14 +204,23 @@ class CreateLibrarySheet extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: AppColors.primary),
+                              borderSide: const BorderSide(
+                                color: AppColors.primary,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          items: playlists.map((p) => DropdownMenuItem<String>(
-                                value: p.id,
-                                child: Text(p.name, style: const TextStyle(color: Colors.white)),
-                              )).toList(),
+                          items: playlists
+                              .map(
+                                (p) => DropdownMenuItem<String>(
+                                  value: p.id,
+                                  child: Text(
+                                    p.name,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                           onChanged: (val) {
                             setState(() {
                               selectedPlaylistId = val;
@@ -190,7 +232,10 @@ class CreateLibrarySheet extends ConsumerWidget {
                         child: SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                            strokeWidth: 2,
+                          ),
                         ),
                       ),
                       error: (err, _) => const Text(
@@ -215,7 +260,9 @@ class CreateLibrarySheet extends ConsumerWidget {
                 final artistInput = artistCtrl.text.trim();
                 if (title.isEmpty || url.isEmpty) return;
 
-                final artist = artistInput.isEmpty ? 'Unknown Artist' : artistInput;
+                final artist = artistInput.isEmpty
+                    ? 'Unknown Artist'
+                    : artistInput;
 
                 final videoId = YoutubePlayer.convertUrlToId(url);
                 if (videoId == null) {
@@ -236,7 +283,9 @@ class CreateLibrarySheet extends ConsumerWidget {
                   isPublic: isPublic,
                 );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               child: const Text('Add Song'),
             ),
           ],
@@ -267,7 +316,10 @@ class CreateLibrarySheet extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Text('Public Song', style: TextStyle(color: Colors.white)),
+                    const Text(
+                      'Public Song',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     const Spacer(),
                     Switch(
                       value: isPublic,
@@ -284,9 +336,12 @@ class CreateLibrarySheet extends ConsumerWidget {
                       data: (playlists) {
                         final personal = playlists.firstWhere(
                           (p) => p.name == 'My Uploading',
-                          orElse: () => playlists.isNotEmpty ? playlists.first : Playlist(id: '', name: 'My Uploading'),
+                          orElse: () => playlists.isNotEmpty
+                              ? playlists.first
+                              : Playlist(id: '', name: 'My Uploading'),
                         );
-                        if (selectedPlaylistId == null && personal.id.isNotEmpty) {
+                        if (selectedPlaylistId == null &&
+                            personal.id.isNotEmpty) {
                           selectedPlaylistId = personal.id;
                         }
                         return DropdownButtonFormField<String>(
@@ -301,14 +356,23 @@ class CreateLibrarySheet extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             focusedBorder: OutlineInputBorder(
-                              borderSide: const BorderSide(color: AppColors.primary),
+                              borderSide: const BorderSide(
+                                color: AppColors.primary,
+                              ),
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          items: playlists.map((p) => DropdownMenuItem<String>(
-                                value: p.id,
-                                child: Text(p.name, style: const TextStyle(color: Colors.white)),
-                              )).toList(),
+                          items: playlists
+                              .map(
+                                (p) => DropdownMenuItem<String>(
+                                  value: p.id,
+                                  child: Text(
+                                    p.name,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                              )
+                              .toList(),
                           onChanged: (val) {
                             setState(() {
                               selectedPlaylistId = val;
@@ -320,7 +384,10 @@ class CreateLibrarySheet extends ConsumerWidget {
                         child: SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                            strokeWidth: 2,
+                          ),
                         ),
                       ),
                       error: (err, _) => const Text(
@@ -344,7 +411,9 @@ class CreateLibrarySheet extends ConsumerWidget {
                 final artistInput = artistCtrl.text.trim();
                 if (title.isEmpty) return;
 
-                final artist = artistInput.isEmpty ? 'Unknown Artist' : artistInput;
+                final artist = artistInput.isEmpty
+                    ? 'Unknown Artist'
+                    : artistInput;
 
                 Navigator.pop(ctx);
                 await _createSongInBackend(
@@ -357,7 +426,9 @@ class CreateLibrarySheet extends ConsumerWidget {
                   isPublic: isPublic,
                 );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               child: const Text('Add Song'),
             ),
           ],
@@ -383,7 +454,9 @@ class CreateLibrarySheet extends ConsumerWidget {
       barrierDismissible: false,
       builder: (ctx) {
         dialogContext = ctx;
-        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+        return const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        );
       },
     );
 
@@ -397,7 +470,7 @@ class CreateLibrarySheet extends ConsumerWidget {
         sourcePath: sourcePath,
         isPublic: isPublic,
       );
-      
+
       // Invalidate the songs lists provider
       parentRef.invalidate(songsProvider);
 
@@ -408,15 +481,25 @@ class CreateLibrarySheet extends ConsumerWidget {
       );
 
       // Always add to the Personal playlist
-      final updatedPersonal = await playlistService.addSongToPlaylist(personalPlaylist.id, backendSong.id);
-      parentRef.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPersonal);
+      final updatedPersonal = await playlistService.addSongToPlaylist(
+        personalPlaylist.id,
+        backendSong.id,
+      );
+      parentRef
+          .read(myPlaylistsProvider.notifier)
+          .updatePlaylist(updatedPersonal);
 
       // If a different target playlist was selected, add to that one too!
       if (targetPlaylistId != null && targetPlaylistId != personalPlaylist.id) {
-        final updatedTarget = await playlistService.addSongToPlaylist(targetPlaylistId, backendSong.id);
-        parentRef.read(myPlaylistsProvider.notifier).updatePlaylist(updatedTarget);
+        final updatedTarget = await playlistService.addSongToPlaylist(
+          targetPlaylistId,
+          backendSong.id,
+        );
+        parentRef
+            .read(myPlaylistsProvider.notifier)
+            .updatePlaylist(updatedTarget);
       }
-      
+
       if (dialogContext != null && dialogContext!.mounted) {
         Navigator.pop(dialogContext!);
       }
@@ -436,13 +519,12 @@ class CreateLibrarySheet extends ConsumerWidget {
         Navigator.pop(dialogContext!);
       }
       if (parentContext.mounted) {
-        ScaffoldMessenger.of(parentContext).showSnackBar(
-          SnackBar(content: Text('Failed to add song: $e')),
-        );
+        ScaffoldMessenger.of(
+          parentContext,
+        ).showSnackBar(SnackBar(content: Text('Failed to add song: $e')));
       }
     }
   }
-
 
   static Widget _buildTextField(TextEditingController ctrl, String hint) {
     return TextField(
@@ -536,7 +618,9 @@ class CreateLibrarySheet extends ConsumerWidget {
               children: [
                 Text(
                   title,
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   subtitle,

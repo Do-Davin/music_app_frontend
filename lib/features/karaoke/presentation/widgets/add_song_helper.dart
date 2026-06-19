@@ -34,9 +34,14 @@ class AddSongHelper {
               const SizedBox(height: 24),
               ListTile(
                 leading: const Icon(Icons.link, color: AppColors.primary),
-                title: const Text('YouTube URL', style: TextStyle(color: Colors.white)),
+                title: const Text(
+                  'YouTube URL',
+                  style: TextStyle(color: Colors.white),
+                ),
                 tileColor: const Color(0xFF2A2A2A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _showYoutubeInput(
@@ -50,9 +55,14 @@ class AddSongHelper {
               const SizedBox(height: 12),
               ListTile(
                 leading: const Icon(Icons.folder, color: AppColors.primary),
-                title: const Text('Local MP3 File', style: TextStyle(color: Colors.white)),
+                title: const Text(
+                  'Local MP3 File',
+                  style: TextStyle(color: Colors.white),
+                ),
                 tileColor: const Color(0xFF2A2A2A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 onTap: () {
                   Navigator.pop(ctx);
                   _showLocalInput(
@@ -124,7 +134,8 @@ class AddSongHelper {
                   Navigator.push(
                     localContext,
                     MaterialPageRoute(
-                      builder: (_) => PlayerScreen(song: song, controller: controller),
+                      builder: (_) =>
+                          PlayerScreen(song: song, controller: controller),
                     ),
                   );
                 } else {
@@ -149,9 +160,7 @@ class AddSongHelper {
                 }
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             child: const Text('Next: Add Lyrics'),
           ),
         ],
@@ -210,9 +219,7 @@ class AddSongHelper {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             child: const Text('Select File & Add Lyrics'),
           ),
         ],

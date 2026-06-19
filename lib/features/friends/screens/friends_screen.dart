@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/auth/data/models/user.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
@@ -448,6 +450,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
       ),
       trailing: trailing,
+      onTap: () => context.push(Routes.userDetail, extra: user),
     );
   }
 

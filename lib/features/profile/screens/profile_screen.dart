@@ -203,6 +203,7 @@ class _ProfileContent extends ConsumerWidget {
                   child: _buildStatColumn(
                     value: friends.length,
                     label: 'Friends',
+                    onTap: () => context.push(Routes.friends),
                   ),
                 ),
                 _buildStatDivider(),

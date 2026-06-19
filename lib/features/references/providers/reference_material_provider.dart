@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/reference_material.dart';
 import '../services/reference_material_service.dart';
 
-final referenceMaterialServiceProvider = Provider<ReferenceMaterialService>((ref) {
+final referenceMaterialServiceProvider = Provider<ReferenceMaterialService>((
+  ref,
+) {
   return ReferenceMaterialService();
 });
 
@@ -38,7 +40,8 @@ class ReferenceMaterialState {
 class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
   final ReferenceMaterialService _service;
 
-  ReferenceMaterialNotifier(this._service) : super(const ReferenceMaterialState());
+  ReferenceMaterialNotifier(this._service)
+    : super(const ReferenceMaterialState());
 
   Future<void> fetchMaterials({String? type, String? songId}) async {
     state = state.copyWith(isLoading: true, error: null, currentFilter: type);
@@ -101,7 +104,7 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
         songId: songId,
         topic: topic,
       );
-      
+
       final updatedMaterials = state.materials.map((m) {
         return m.id == id ? updatedMaterial : m;
       }).toList();
@@ -119,10 +122,15 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
     try {
       final success = await _service.delete(id);
       if (success) {
-        final remainingMaterials = state.materials.where((m) => m.id != id).toList();
+        final remainingMaterials = state.materials
+            .where((m) => m.id != id)
+            .toList();
         state = state.copyWith(materials: remainingMaterials, isLoading: false);
       } else {
-        state = state.copyWith(error: 'Failed to delete material', isLoading: false);
+        state = state.copyWith(
+          error: 'Failed to delete material',
+          isLoading: false,
+        );
       }
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
@@ -131,7 +139,10 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
   }
 }
 
-final referenceMaterialProvider = StateNotifierProvider<ReferenceMaterialNotifier, ReferenceMaterialState>((ref) {
-  final service = ref.watch(referenceMaterialServiceProvider);
-  return ReferenceMaterialNotifier(service);
-});
+final referenceMaterialProvider =
+    StateNotifierProvider<ReferenceMaterialNotifier, ReferenceMaterialState>((
+      ref,
+    ) {
+      final service = ref.watch(referenceMaterialServiceProvider);
+      return ReferenceMaterialNotifier(service);
+    });

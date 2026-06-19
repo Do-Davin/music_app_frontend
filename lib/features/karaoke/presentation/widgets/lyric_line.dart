@@ -51,9 +51,7 @@ class LyricLine extends StatelessWidget {
       style: TextStyle(
         fontSize: isActive ? 26 : 18,
         fontWeight: isActive ? FontWeight.w800 : FontWeight.w400,
-        color: isActive
-            ? Colors.white
-            : Colors.white.withValues(alpha: 0.3),
+        color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.3),
         height: 1.4,
         letterSpacing: isActive ? 0.5 : 0,
         shadows: isActive
@@ -71,10 +69,7 @@ class LyricLine extends StatelessWidget {
               ]
             : null,
       ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-      ),
+      child: Text(text, textAlign: TextAlign.center),
     );
   }
 
@@ -92,9 +87,11 @@ class LyricLine extends StatelessWidget {
         wordEnd = words![i + 1].timestamp;
       }
 
-      final bool isPast = currentPosition >= wordStart &&
+      final bool isPast =
+          currentPosition >= wordStart &&
           (wordEnd == null || currentPosition >= wordEnd);
-      final bool isCurrent = currentPosition >= wordStart &&
+      final bool isCurrent =
+          currentPosition >= wordStart &&
           (wordEnd == null || currentPosition < wordEnd);
 
       Color wordColor;
@@ -140,28 +137,27 @@ class LyricLine extends StatelessWidget {
         spans.add(const TextSpan(text: ' '));
       }
 
-      spans.add(WidgetSpan(
-        alignment: PlaceholderAlignment.middle,
-        child: GestureDetector(
-          onLongPress: () => onWordLongPress?.call(i),
-          child: Text(
-            word.text,
-            style: TextStyle(
-              color: wordColor,
-              fontWeight: wordWeight,
-              fontSize: 26,
-              height: 1.4,
-              letterSpacing: 0.5,
-              shadows: wordShadows,
+      spans.add(
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: GestureDetector(
+            onLongPress: () => onWordLongPress?.call(i),
+            child: Text(
+              word.text,
+              style: TextStyle(
+                color: wordColor,
+                fontWeight: wordWeight,
+                fontSize: 26,
+                height: 1.4,
+                letterSpacing: 0.5,
+                shadows: wordShadows,
+              ),
             ),
           ),
         ),
-      ));
+      );
     }
 
-    return Text.rich(
-      TextSpan(children: spans),
-      textAlign: TextAlign.center,
-    );
+    return Text.rich(TextSpan(children: spans), textAlign: TextAlign.center);
   }
 }

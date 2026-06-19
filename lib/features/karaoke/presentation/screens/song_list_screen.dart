@@ -73,10 +73,8 @@ class SongListScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => PlayerScreen(
-                          song: song,
-                          controller: controller,
-                        ),
+                        builder: (_) =>
+                            PlayerScreen(song: song, controller: controller),
                       ),
                     );
                   }
@@ -109,10 +107,7 @@ class _SongCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text(
-          'Delete?',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Delete?', style: TextStyle(color: Colors.white)),
         content: Text(
           'Delete "${song.title}"?',
           style: const TextStyle(color: Colors.white70),
@@ -127,10 +122,7 @@ class _SongCard extends StatelessWidget {
               onDelete();
               Navigator.pop(ctx);
             },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -200,7 +192,9 @@ class _SongCard extends StatelessWidget {
         trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, color: Colors.white70),
           color: const Color(0xFF2C2C2C),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           onSelected: (value) {
             if (value == 'play') {
               onTap();
@@ -208,10 +202,8 @@ class _SongCard extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => LyricEditorScreen(
-                    song: song,
-                    controller: controller,
-                  ),
+                  builder: (_) =>
+                      LyricEditorScreen(song: song, controller: controller),
                 ),
               );
             } else if (value == 'delete') {

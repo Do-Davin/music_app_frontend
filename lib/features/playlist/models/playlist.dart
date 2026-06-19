@@ -37,9 +37,11 @@ class Playlist {
           .whereType<String>()
           .toList(),
       songs: (json['songs'] as List<dynamic>?)
-          ?.map((song) => song != null
-              ? Song.fromJson(song as Map<String, dynamic>)
-              : null)
+          ?.map(
+            (song) => song != null
+                ? Song.fromJson(song as Map<String, dynamic>)
+                : null,
+          )
           .whereType<Song>()
           .toList(),
       isPublic: json['isPublic'] == true,

@@ -13,8 +13,7 @@ class RecentSongsNotifier extends StateNotifier<List<Song>> {
   }
 
   /// Derives a per-user storage key so each account has its own recent list.
-  String get _storageKey =>
-      _userId != null ? '${_baseKey}_$_userId' : _baseKey;
+  String get _storageKey => _userId != null ? '${_baseKey}_$_userId' : _baseKey;
 
   /// Extracts the userId from the JWT token to scope recent songs per account.
   Future<void> _initAndLoad() async {
@@ -109,5 +108,5 @@ class RecentSongsNotifier extends StateNotifier<List<Song>> {
 
 final recentSongsProvider =
     StateNotifierProvider<RecentSongsNotifier, List<Song>>((ref) {
-  return RecentSongsNotifier();
-});
+      return RecentSongsNotifier();
+    });

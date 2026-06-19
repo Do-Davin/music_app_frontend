@@ -588,7 +588,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
               onTap: () {
                 context.push(
-                  Routes.song,
+                  Routes.songById(song.id),
                   extra: SongPlayerRouteData(song: song, category: 'My Songs'),
                 );
               },

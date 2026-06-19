@@ -288,7 +288,9 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
             widget.targetPlaylistId!,
             backendSong.id,
           );
-          ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
+          ref
+              .read(myPlaylistsProvider.notifier)
+              .updatePlaylist(updatedPlaylist);
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -466,7 +468,10 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
 
     try {
       final playlistService = ref.read(playlistServiceProvider);
-      final updatedPlaylist = await playlistService.addSongToPlaylist(playlistId, songId);
+      final updatedPlaylist = await playlistService.addSongToPlaylist(
+        playlistId,
+        songId,
+      );
       ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
 
       if (mounted) {
@@ -538,11 +543,11 @@ class _LyricEditorScreenState extends State<LyricEditorScreen> {
                   final newPlaylist = await playlistService.createPlaylist(
                     name,
                   );
-                  final updatedPlaylist = await playlistService.addSongToPlaylist(
-                    newPlaylist.id,
-                    songId,
-                  );
-                  ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
+                  final updatedPlaylist = await playlistService
+                      .addSongToPlaylist(newPlaylist.id, songId);
+                  ref
+                      .read(myPlaylistsProvider.notifier)
+                      .updatePlaylist(updatedPlaylist);
 
                   if (screenContext.mounted) {
                     Navigator.pop(screenContext); // Close loading dialog

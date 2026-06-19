@@ -99,10 +99,7 @@ class _LyricList extends StatefulWidget {
   final KaraokeController controller;
   final void Function(int lineIndex, int wordIndex)? onWordLongPress;
 
-  const _LyricList({
-    required this.controller,
-    this.onWordLongPress,
-  });
+  const _LyricList({required this.controller, this.onWordLongPress});
 
   @override
   State<_LyricList> createState() => _LyricListState();
@@ -217,8 +214,10 @@ class _LyricListState extends State<_LyricList> {
               builder: (context, currentPosition, _) {
                 return ListView.builder(
                   controller: _scrollController,
-                  padding:
-                      EdgeInsets.only(top: halfViewport, bottom: halfViewport),
+                  padding: EdgeInsets.only(
+                    top: halfViewport,
+                    bottom: halfViewport,
+                  ),
                   itemCount: lyrics.length,
                   itemBuilder: (context, index) {
                     final isActive = index == currentLine;
@@ -300,10 +299,6 @@ class _LyricBoxItemWrapperState extends State<_LyricBoxItemWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: _key,
-      child: widget.child,
-    );
+    return Container(key: _key, child: widget.child);
   }
 }
-

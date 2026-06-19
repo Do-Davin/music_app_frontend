@@ -8,8 +8,10 @@ class Song {
   final int? tempo;
   final String? difficulty;
   final List<String>? tags;
+
   /// Source type: 'mp3' or 'youtube'
   final String? source;
+
   /// File path (mp3) or YouTube URL
   final String? sourcePath;
   final String? fileUrl;
