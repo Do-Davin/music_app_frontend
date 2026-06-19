@@ -9,6 +9,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         createdAt
       }
     }
@@ -24,6 +25,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -61,6 +63,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -98,6 +101,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -135,6 +139,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -178,6 +183,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -215,6 +221,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -252,6 +259,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -273,6 +281,57 @@ class PlaylistQueries {
           playCount
           userId
         }
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  static const String searchPlaylists = r'''
+    query SearchPlaylists($query: String!) {
+      searchPlaylists(query: $query) {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        savedUserIds
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  static const String savePlaylistToLibrary = r'''
+    mutation SavePlaylistToLibrary($playlistId: ID!) {
+      savePlaylistToLibrary(playlistId: $playlistId) {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        savedUserIds
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  static const String removePlaylistFromLibrary = r'''
+    mutation RemovePlaylistFromLibrary($playlistId: ID!) {
+      removePlaylistFromLibrary(playlistId: $playlistId) {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        savedUserIds
         createdAt
         updatedAt
       }

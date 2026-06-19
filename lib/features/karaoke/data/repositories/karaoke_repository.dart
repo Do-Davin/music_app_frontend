@@ -22,7 +22,9 @@ class KaraokeRepository {
       );
 
       if (result.hasException) {
-        debugPrint('❌ GraphQL Error fetching karaoke songs: ${result.exception}');
+        debugPrint(
+          '❌ GraphQL Error fetching karaoke songs: ${result.exception}',
+        );
         throw Exception(result.exception.toString());
       }
 
@@ -33,7 +35,9 @@ class KaraokeRepository {
             .toList();
 
         await _saveLocalSongs(songs);
-        debugPrint('✅ Successfully loaded ${songs.length} karaoke songs from backend');
+        debugPrint(
+          '✅ Successfully loaded ${songs.length} karaoke songs from backend',
+        );
         return songs;
       } catch (e) {
         debugPrint('❌ Error parsing karaoke songs: $e');
@@ -106,10 +110,7 @@ class KaraokeRepository {
       'source': song.source.name,
       'sourcePath': song.sourcePath,
       'lyrics': song.lyrics.map((line) {
-        return {
-          'timestamp': line.timestamp.inMilliseconds,
-          'text': line.text,
-        };
+        return {'timestamp': line.timestamp.inMilliseconds, 'text': line.text};
       }).toList(),
       'duration': song.duration?.inMilliseconds,
     };
