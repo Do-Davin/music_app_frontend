@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
@@ -370,7 +370,7 @@ class SearchScreen extends ConsumerWidget {
                 ],
               ),
               subtitle: Text(
-                'Playlist ΓÇó $songCount songs',
+                'Playlist • $songCount songs',
                 style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
               ),
               trailing: isMine

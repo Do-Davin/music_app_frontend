@@ -447,7 +447,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ],
           ),
           subtitle: Text(
-            'Playlist ΓÇó $songCount songs',
+            'Playlist • $songCount songs',
             style: AppTextStyles.body.copyWith(
               color: AppColors.hint,
               fontSize: 12,

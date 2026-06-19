@@ -520,9 +520,13 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
               : isOwner
               ? () {
                   if (_isPreparingKaraoke) return;
-                  _startLyricSetup(context, widget.song);
+                  _showConvertToKaraokeDialog(context, widget.song);
                 }
               : null, // non-owner, no lyrics yet → greyed out
+          showEditIcon: isOwner && _hasLyrics,
+          onEditTap: isOwner && _hasLyrics
+              ? () => _showEditLyricDialog(context, widget.song)
+              : null,
         ),
         _ActionButton(
           icon: Icons.grid_on_outlined,
@@ -1060,7 +1064,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
               const SizedBox(height: 12),
               Text(
                 'Fine-tune your lyrics timing and text to make '
-                'the karaoke experience even better! Γ£Å∩╕Å',
+                'the karaoke experience even better! ✍️',
                 style: TextStyle(
                   color: Colors.grey[400],
                   fontSize: 14,

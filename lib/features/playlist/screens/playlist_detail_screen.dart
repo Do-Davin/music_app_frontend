@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
@@ -87,7 +87,7 @@ class _PlaylistDetailContent extends ConsumerWidget {
 
     return CustomScrollView(
       slivers: [
-        // ΓöÇΓöÇ Sliver App Bar with playlist art ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        // ── Sliver App Bar with playlist art ──────────────────────────────
         SliverAppBar(
           expandedHeight: 280,
           pinned: true,
@@ -138,7 +138,7 @@ class _PlaylistDetailContent extends ConsumerWidget {
           ),
         ),
 
-        // ΓöÇΓöÇ Playlist info header ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        // ── Playlist info header ──────────────────────────────────────────
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -292,7 +292,7 @@ class _PlaylistDetailContent extends ConsumerWidget {
           ),
         ),
 
-        // ΓöÇΓöÇ Song list ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+        // ── Song list ─────────────────────────────────────────────────────
         songs.isEmpty
             ? SliverFillRemaining(
                 hasScrollBody: false,
@@ -914,7 +914,7 @@ class SongTile extends ConsumerWidget {
               ),
               const Divider(color: Colors.white24, height: 1),
 
-              // ΓöÇΓöÇ NORMAL PLAYLIST ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+              // ── NORMAL PLAYLIST ──────────────────────────────────────
               if (isNormalPlaylist) ...[
                 // Owner of playlist can remove songs
                 if (isPlaylistOwner)
@@ -963,7 +963,7 @@ class SongTile extends ConsumerWidget {
                 ),
               ],
 
-              // ΓöÇΓöÇ MY UPLOADING PLAYLIST (personal / default) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+              // ── MY UPLOADING PLAYLIST (personal / default) ───────────
               if (isPersonalPlaylist) ...[
                 // Only song owner can delete the song permanently
                 if (isSongOwner)
@@ -1011,7 +1011,7 @@ class SongTile extends ConsumerWidget {
                 ),
               ],
 
-              // ΓöÇΓöÇ LIKED SONGS PLAYLIST ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+              // ── LIKED SONGS PLAYLIST ─────────────────────────────────
               if (isLikedSongsPlaylist) ...[
                 // Unlike
                 ListTile(
@@ -1033,7 +1033,7 @@ class SongTile extends ConsumerWidget {
                 ),
               ],
 
-              // ΓöÇΓöÇ NO PLAYLIST CONTEXT (e.g. search results) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+              // ── NO PLAYLIST CONTEXT (e.g. search results) ────────────
               if (playlist == null) ...[
                 // Add to playlist (non-owners can't add to "My Uploading")
                 ListTile(
