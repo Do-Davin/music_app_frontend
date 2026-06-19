@@ -26,8 +26,8 @@ class LrcParser {
     final lineTimestamp = Duration(
       minutes: minutes,
       seconds: secondsAndMillis.toInt(),
-      milliseconds:
-          ((secondsAndMillis - secondsAndMillis.toInt()) * 1000).toInt(),
+      milliseconds: ((secondsAndMillis - secondsAndMillis.toInt()) * 1000)
+          .toInt(),
     );
 
     // Try to parse Enhanced LRC word timestamps: <mm:ss.xx>word
@@ -45,14 +45,16 @@ class LrcParser {
 
         if (wText.trim().isEmpty) continue;
 
-        words.add(LrcWord(
-          timestamp: Duration(
-            minutes: wMin,
-            seconds: wSec.toInt(),
-            milliseconds: ((wSec - wSec.toInt()) * 1000).toInt(),
+        words.add(
+          LrcWord(
+            timestamp: Duration(
+              minutes: wMin,
+              seconds: wSec.toInt(),
+              milliseconds: ((wSec - wSec.toInt()) * 1000).toInt(),
+            ),
+            text: wText.trimRight(), // keep leading space for display
           ),
-          text: wText.trimRight(), // keep leading space for display
-        ));
+        );
       }
 
       final fullText = words.map((w) => w.text).join(' ');
@@ -64,10 +66,7 @@ class LrcParser {
     }
 
     // Standard LRC — line-level only
-    return LrcLine(
-      timestamp: lineTimestamp,
-      text: content.trim(),
-    );
+    return LrcLine(timestamp: lineTimestamp, text: content.trim());
   }
 
   /// Parse a full LRC file content into a list of [LrcLine]s.

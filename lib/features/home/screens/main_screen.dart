@@ -26,10 +26,7 @@ class MainScreen extends ConsumerWidget {
       activeIcon: Icon(Icons.home),
       label: 'Home',
     ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.search),
-      label: 'Search',
-    ),
+    BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
     BottomNavigationBarItem(
       icon: Icon(Icons.layers_outlined),
       activeIcon: Icon(Icons.layers),
@@ -53,10 +50,7 @@ class MainScreen extends ConsumerWidget {
     final index = selectedIndex < _screens.length ? selectedIndex : 0;
 
     return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: _screens,
-      ),
+      body: IndexedStack(index: index, children: _screens),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: index,
         onTap: (newIndex) =>

@@ -49,6 +49,10 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
 
   void _onBackToLogin() {
     ref.read(forgotPasswordProvider.notifier).reset();
+    if (context.canPop()) {
+      context.pop();
+      return;
+    }
     context.go(Routes.root);
   }
 
@@ -262,7 +266,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                       GestureDetector(
                         onTap: _onBackToLogin,
                         child: Text(
-                          'Back to login',
+                          'Back',
                           style: AppTextStyles.body.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.w700,

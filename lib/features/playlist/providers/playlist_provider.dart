@@ -99,7 +99,9 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
       if (success && mounted) {
         state.whenData((playlists) {
           if (mounted) {
-            state = AsyncValue.data(playlists.where((p) => p.id != id).toList());
+            state = AsyncValue.data(
+              playlists.where((p) => p.id != id).toList(),
+            );
           }
         });
       }

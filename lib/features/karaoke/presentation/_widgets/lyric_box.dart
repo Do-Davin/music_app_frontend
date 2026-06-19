@@ -100,10 +100,7 @@ class _LyricList extends StatefulWidget {
   final KaraokeController controller;
   final void Function(int lineIndex, int wordIndex)? onWordLongPress;
 
-  const _LyricList({
-    required this.controller,
-    this.onWordLongPress,
-  });
+  const _LyricList({required this.controller, this.onWordLongPress});
 
   @override
   State<_LyricList> createState() => _LyricListState();
@@ -186,4 +183,3 @@ class _LyricListState extends State<_LyricList> {
     super.dispose();
   }
 }
-

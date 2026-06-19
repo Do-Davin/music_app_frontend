@@ -44,7 +44,8 @@ class PlaylistQueries {
     }
   ''';
 
-  static const String getPlaylistById = '''
+  static const String getPlaylistById =
+      '''
     query GetPlaylistById(\$id: ID!) {
       playlist(id: \$id) {
         _id
@@ -63,7 +64,8 @@ class PlaylistQueries {
     }
   ''';
 
-  static const String likedSongsPlaylist = '''
+  static const String likedSongsPlaylist =
+      '''
     query GetLikedSongsPlaylist {
       likedSongsPlaylist {
         _id

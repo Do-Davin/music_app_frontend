@@ -6,6 +6,7 @@ class ReferenceMaterial {
   final String type;
   final String? description;
   final String? filePath;
+
   /// Full URL returned by the backend (includes BASE_URL prefix).
   final String? fileUrl;
   final String? fileName;
@@ -97,7 +98,8 @@ class ReferenceMaterial {
   String get formattedFileSize {
     if (fileSize == null) return 'Unknown';
     if (fileSize! < 1024) return '$fileSize B';
-    if (fileSize! < 1024 * 1024) return '${(fileSize! / 1024).toStringAsFixed(1)} KB';
+    if (fileSize! < 1024 * 1024)
+      return '${(fileSize! / 1024).toStringAsFixed(1)} KB';
     return '${(fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
