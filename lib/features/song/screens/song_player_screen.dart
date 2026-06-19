@@ -38,21 +38,16 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
   Song? _currentSong;
+
   bool _hasKaraokeLyrics = false;
-  bool _isAccessDenied = false;
 
   @override
   void initState() {
     _currentSong = widget.song;
-    if (!widget.song.isPublic) {
-      _isAccessDenied = true;
-    }
     _loadLatestSongDetails();
     _checkKaraokeLyricsStatus();
     super.initState();
-    if (!_isAccessDenied) {
-      _initPlayer();
-    }
+    _initPlayer();
   }
 
   bool _isSongMatch(KaraokeSong karaoke, Song song) {
@@ -116,30 +111,10 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       if (mounted) {
         setState(() {
           _currentSong = freshSong;
-          if (!freshSong.isPublic) {
-            _isAccessDenied = true;
-            _stopPlayback();
-          }
         });
       }
     } catch (e) {
       debugPrint("Failed to fetch fresh song details in player: $e");
-      final errorStr = e.toString().toLowerCase();
-      if (errorStr.contains('private') || errorStr.contains('forbidden')) {
-        if (mounted) {
-          setState(() {
-            _isAccessDenied = true;
-            _stopPlayback();
-          });
-        }
-      }
-    }
-  }
-
-  void _stopPlayback() {
-    if (_isPlaying) {
-      _youtubeController?.pause();
-      _audioPlayer?.pause();
     }
   }
 
@@ -389,75 +364,16 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   Widget _buildScaffold(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final titleFontSize = screenWidth > 600 ? 30.0 : 26.0;
+    final artistFontSize = screenWidth > 600 ? 20.0 : 18.0;
+    final lyricsFontSize = screenWidth > 600 ? 16.0 : 14.0;
+
     final meAsync = ref.watch(meProvider);
     final isOwner = meAsync.maybeWhen(
       data: (user) => user.id == widget.song.userId,
       orElse: () => false,
     );
-
-    if (_isAccessDenied) {
-      return Scaffold(
-        backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(
-              Icons.keyboard_arrow_down,
-              color: Colors.white,
-              size: 32,
-            ),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            widget.category,
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          centerTitle: true,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.lock_outline,
-                color: AppColors.primary,
-                size: 80,
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'This song is Private',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  isOwner
-                      ? 'You cannot listen to or modify this song while it is private. Please make it public from your Library to access it again.'
-                      : 'The creator has made this song private. It is currently unavailable for listening.',
-                  style: const TextStyle(color: Colors.grey, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final screenWidth = MediaQuery.of(context).size.width;
-    final titleFontSize = screenWidth > 600 ? 30.0 : 26.0;
-    final artistFontSize = screenWidth > 600 ? 20.0 : 18.0;
-    final lyricsFontSize = screenWidth > 600 ? 16.0 : 14.0;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -481,20 +397,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.mic,
-              color: _hasLyrics ? AppColors.primary : Colors.grey,
-              size: 28,
-            ),
-            tooltip: _hasLyrics ? 'Sing Karaoke' : 'Add lyrics first',
-            onPressed: _hasLyrics
-                ? () => _startKaraokeConversion(context, widget.song)
-                : null,
-          ),
-          const SizedBox(width: 8),
-        ],
+        actions: const [SizedBox(width: 8)],
       ),
       body: Center(
         child: ConstrainedBox(
@@ -585,7 +488,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                   const SizedBox(height: 20),
                   _buildPlayerControls(),
                   const SizedBox(height: 30),
-                  _buildFeatureActions(),
+                  _buildFeatureActions(isOwner),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -630,39 +533,58 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
     );
   }
 
-  Widget _buildFeatureActions() {
-    final enabled = _hasLyrics && !_isPreparingKaraoke;
+  Widget _buildFeatureActions(bool isOwner) {
+    // Bottom sing karaoke button: visible ONLY for non-owner users
+    if (isOwner) return const SizedBox.shrink();
+
+    // For non-owner: disabled if song is private, or not converted to karaoke
+    final canSing = _hasLyrics && widget.song.isPublic && !_isPreparingKaraoke;
     final screenWidth = MediaQuery.of(context).size.width;
     final buttonMaxWidth = screenWidth > 600 ? 320.0 : 260.0;
+
+    String disabledReason = '';
+    if (!widget.song.isPublic) {
+      disabledReason = 'This song is private';
+    } else if (!_hasLyrics) {
+      disabledReason = 'Karaoke not available yet';
+    }
 
     return Center(
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: buttonMaxWidth),
-        child: ElevatedButton.icon(
-          onPressed: enabled
-              ? () => _startKaraokeConversion(context, widget.song)
-              : null,
-          icon: const Icon(Icons.mic, color: Colors.white, size: 20),
-          label: const Text(
-            'SING KARAOKE',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              letterSpacing: 1.2,
+        child: Tooltip(
+          message: canSing ? 'Sing Karaoke' : disabledReason,
+          child: ElevatedButton.icon(
+            onPressed: canSing
+                ? () => _startKaraokeConversion(context, widget.song)
+                : null,
+            icon: Icon(
+              Icons.mic,
+              color: canSing ? Colors.white : Colors.white38,
+              size: 20,
             ),
-          ),
-          style: ElevatedButton.styleFrom(
-            disabledBackgroundColor: const Color(0xFF2A2A2A),
-            disabledForegroundColor: Colors.white38,
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(0, 52),
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
+            label: Text(
+              'SING KARAOKE',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                letterSpacing: 1.2,
+                color: canSing ? Colors.white : Colors.white38,
+              ),
             ),
-            elevation: 8,
-            shadowColor: AppColors.primary.withValues(alpha: 0.5),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: const Color(0xFF2A2A2A),
+              disabledForegroundColor: Colors.white38,
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 52),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              elevation: canSing ? 8 : 0,
+              shadowColor: AppColors.primary.withValues(alpha: 0.5),
+            ),
           ),
         ),
       ),
@@ -923,94 +845,20 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       }
 
       if (context.mounted) {
-        if (karaokeSong.lyrics.isNotEmpty) {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              backgroundColor: const Color(0xFF1E1E1E),
-              title: const Text(
-                'Karaoke Lyrics Fetched!',
-                style: TextStyle(color: Colors.white),
-              ),
-              content: Text(
-                'Auto-captured ${karaokeSong.lyrics.length} lyric lines from YouTube captions!\n\nWould you like to edit them or play the Karaoke directly?',
-                style: const TextStyle(color: Colors.grey),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            provider.ChangeNotifierProvider<
-                              KaraokeController
-                            >.value(
-                              value: controller,
-                              child: LyricEditorScreen(
-                                song: karaokeSong,
-                                controller: controller,
-                                sourceSongId: song.id,
-                              ),
-                            ),
-                      ),
-                    ).then((_) => _checkKaraokeLyricsStatus());
-                  },
-                  child: const Text(
-                    'Edit/Verify Lyrics',
-                    style: TextStyle(color: Colors.grey),
+        // Directly navigate to karaoke player screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                provider.ChangeNotifierProvider<KaraokeController>.value(
+                  value: controller,
+                  child: PlayerScreen(
+                    song: karaokeSong,
+                    controller: controller,
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            provider.ChangeNotifierProvider<
-                              KaraokeController
-                            >.value(
-                              value: controller,
-                              child: PlayerScreen(
-                                song: karaokeSong,
-                                controller: controller,
-                              ),
-                            ),
-                      ),
-                    ).then((_) => _checkKaraokeLyricsStatus());
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    minimumSize: const Size(0, 40),
-                  ),
-                  child: const Text('Play Karaoke'),
-                ),
-              ],
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('No captions found. Opening editor to add lyrics.'),
-            ),
-          );
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  provider.ChangeNotifierProvider<KaraokeController>.value(
-                    value: controller,
-                    child: LyricEditorScreen(
-                      song: karaokeSong,
-                      controller: controller,
-                      sourceSongId: song.id,
-                    ),
-                  ),
-            ),
-          ).then((_) => _checkKaraokeLyricsStatus());
-        }
+          ),
+        ).then((_) => _checkKaraokeLyricsStatus());
       }
     } catch (e) {
       if (context.mounted) {
@@ -1021,14 +869,265 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       }
     }
   }
+
+  /// Modern popup dialog to convert song to karaoke (for owner, song not yet converted)
+  void _showConvertToKaraokeDialog(BuildContext context, Song song) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1E1E2E),
+                Color(0xFF2A1F3D),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.3),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                blurRadius: 30,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary.withValues(alpha: 0.2),
+                      AppColors.primary.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.mic_none_rounded,
+                  color: AppColors.primary,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Create Karaoke Version',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Turn your song into a karaoke experience! '
+                'We\'ll help you set up synchronized lyrics so you '
+                'and others can sing along. ≡ƒÄñ',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _startLyricSetup(context, song);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 4,
+                    shadowColor: AppColors.primary.withValues(alpha: 0.4),
+                  ),
+                  child: const Text(
+                    'Convert to Karaoke',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Maybe Later',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Modern popup dialog to edit lyrics (for owner, song already converted)
+  void _showEditLyricDialog(BuildContext context, Song song) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF1E2A1E),
+                Color(0xFF1A2F3D),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.tealAccent.withValues(alpha: 0.3),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.tealAccent.withValues(alpha: 0.1),
+                blurRadius: 30,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.tealAccent.withValues(alpha: 0.2),
+                      Colors.tealAccent.withValues(alpha: 0.05),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: Colors.tealAccent.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.edit_note_rounded,
+                  color: Colors.tealAccent,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Edit Karaoke Lyrics',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Fine-tune your lyrics timing and text to make '
+                'the karaoke experience even better! Γ£Å∩╕Å',
+                style: TextStyle(
+                  color: Colors.grey[400],
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _startLyricSetup(context, song);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.tealAccent,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    elevation: 4,
+                    shadowColor: Colors.tealAccent.withValues(alpha: 0.4),
+                  ),
+                  child: const Text(
+                    'Open Lyric Editor',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final bool showEditIcon;
+  final VoidCallback? onEditTap;
 
-  const _ActionButton({required this.icon, required this.label, this.onTap});
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.showEditIcon = false,
+    this.onEditTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1036,7 +1135,7 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.only(left: 14, top: 8, bottom: 8, right: 6),
         decoration: BoxDecoration(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(30),
@@ -1062,6 +1161,27 @@ class _ActionButton extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
+            if (showEditIcon) ...[
+              Container(
+                width: 1,
+                height: 18,
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
+              GestureDetector(
+                onTap: onEditTap,
+                behavior: HitTestBehavior.opaque,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    Icons.edit_rounded,
+                    color: AppColors.primary.withValues(alpha: 0.8),
+                    size: 16,
+                  ),
+                ),
+              ),
+            ] else
+              const SizedBox(width: 8),
           ],
         ),
       ),

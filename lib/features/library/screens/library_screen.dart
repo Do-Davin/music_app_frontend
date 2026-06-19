@@ -12,6 +12,9 @@ import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/features/song/models/song.dart'
     as song_model;
 import 'package:music_app_frontend/core/routing/app_router.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
+import 'package:music_app_frontend/features/playlist/services/playlist_service.dart';
+import 'package:music_app_frontend/shared/widgets/success_popup.dart';
 import 'create_library_screen.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -33,8 +36,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) =>
-          CreateLibrarySheet(parentContext: context, parentRef: ref),
+      builder: (_) => CreateLibrarySheet(parentContext: context, parentRef: ref),
     );
   }
 
@@ -183,100 +185,98 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       child: selectedFilter == 'My Songs'
                           ? _buildMySongsContent(context, mySongsAsync)
                           : playlistsAsync.when(
-                              data: (playlists) {
-                                final filteredList = playlists.where((
-                                  playlist,
-                                ) {
-                                  final matchesSearch = playlist.name
-                                      .toLowerCase()
-                                      .contains(searchQuery.toLowerCase());
-                                  if (selectedFilter == 'Playlists') {
-                                    return matchesSearch;
-                                  } else if (selectedFilter == 'Artists') {
-                                    return false; // We don't have artists yet
-                                  }
-                                  return matchesSearch;
-                                }).toList();
+                        data: (playlists) {
+                          final filteredList = playlists.where((playlist) {
+                            final matchesSearch = playlist.name
+                                .toLowerCase()
+                                .contains(searchQuery.toLowerCase());
+                            if (selectedFilter == 'Playlists') {
+                              return matchesSearch;
+                            } else if (selectedFilter == 'Artists') {
+                              return false; // We don't have artists yet
+                            }
+                            return matchesSearch;
+                          }).toList();
 
-                                if (filteredList.isEmpty) {
-                                  return ListView(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    children: [
-                                      SizedBox(
-                                        height:
-                                            MediaQuery.of(context).size.height *
-                                            0.2,
-                                      ),
-                                      AppEmptyStateWidget(
-                                        icon: Icons.library_music_outlined,
-                                        title: 'No Playlists Found',
-                                        subtitle:
-                                            'Try searching for a different name or pull down to refresh',
-                                        iconColor: AppColors.primary,
-                                      ),
-                                    ],
-                                  );
-                                }
+                          // Sort: "My Uploading" is always on top
+                          final sortedList = List<model.Playlist>.from(filteredList)..sort((a, b) {
+                            if (a.name == 'My Uploading' && b.name != 'My Uploading') return -1;
+                            if (a.name != 'My Uploading' && b.name == 'My Uploading') return 1;
+                            return 0;
+                          });
 
-                                return AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 300),
-                                  child: isGridView
-                                      ? _buildGridView(
-                                          filteredList,
-                                          key: const ValueKey('grid'),
-                                        )
-                                      : _buildListView(
-                                          filteredList,
-                                          key: const ValueKey('list'),
-                                        ),
-                                );
-                              },
-                              loading: () => const Center(
-                                child: CircularProgressIndicator(
-                                  color: AppColors.primary,
+                          if (sortedList.isEmpty) {
+                            return ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.2,
                                 ),
-                              ),
-                              error: (err, stack) => ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: [
-                                  SizedBox(
-                                    height:
-                                        MediaQuery.of(context).size.height *
-                                        0.2,
+                                AppEmptyStateWidget(
+                                  icon: Icons.library_music_outlined,
+                                  title: 'No Playlists Found',
+                                  subtitle:
+                                      'Try searching for a different name or pull down to refresh',
+                                  iconColor: AppColors.primary,
+                                ),
+                              ],
+                            );
+                          }
+
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: isGridView
+                                ? _buildGridView(
+                                    sortedList,
+                                    key: const ValueKey('grid'),
+                                  )
+                                : _buildListView(
+                                    sortedList,
+                                    key: const ValueKey('list'),
                                   ),
-                                  Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.error_outline,
-                                          color: AppColors.error,
-                                          size: 48,
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          err.toString().replaceAll(
-                                            'Exception: ',
-                                            '',
-                                          ),
-                                          style: AppTextStyles.body,
-                                          textAlign: TextAlign.center,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'Pull down to retry',
-                                          style: AppTextStyles.body.copyWith(
-                                            color: AppColors.hint,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
+                          );
+                        },
+                        loading: () => const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        error: (err, stack) => ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.2,
+                            ),
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: AppColors.error,
+                                    size: 48,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    err.toString().replaceAll('Exception: ', ''),
+                                    style: AppTextStyles.body,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Pull down to retry',
+                                    style: AppTextStyles.body.copyWith(
+                                      color: AppColors.hint,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -406,20 +406,59 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         if (index == 0) return _buildLikedSongsListTile(context);
         final item = playlists[index - 1];
         final songCount = item.songIds?.length ?? 0;
+        final isUploadingPlaylist = item.name == 'My Uploading';
+        final isSystemPlaylist = item.name == 'My Uploading' || item.name == 'Liked Songs';
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(vertical: 6),
           leading: _buildImageTile(item, 64),
-          title: Text(
-            item.name,
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  item.name,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isUploadingPlaylist ? AppColors.primary : Colors.white,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (isUploadingPlaylist) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppColors.primary, width: 0.5),
+                  ),
+                  child: const Text(
+                    'My Uploads',
+                    style: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           subtitle: Text(
-            'Playlist • $songCount songs',
+            'Playlist ΓÇó $songCount songs',
             style: AppTextStyles.body.copyWith(
               color: AppColors.hint,
               fontSize: 12,
             ),
           ),
+          trailing: isSystemPlaylist
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.more_vert, color: AppColors.hint, size: 20),
+                  onPressed: () => _showPlaylistOptions(context, ref, item),
+                ),
           onTap: () {
             context.push(Routes.playlistById(item.id));
           },
@@ -443,6 +482,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       itemBuilder: (context, index) {
         if (index == 0) return _buildLikedSongsGridTile(context);
         final item = playlists[index - 1];
+        final isUploadingPlaylist = item.name == 'My Uploading';
         return GestureDetector(
           onTap: () {
             context.push(Routes.playlistById(item.id));
@@ -452,13 +492,40 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             children: [
               Expanded(child: _buildImageTile(item, double.infinity)),
               const SizedBox(height: 8),
-              Text(
-                item.name,
-                style: AppTextStyles.body.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-                maxLines: 1,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.name,
+                      style: AppTextStyles.body.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: isUploadingPlaylist ? AppColors.primary : Colors.white,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isUploadingPlaylist) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppColors.primary, width: 0.5),
+                      ),
+                      child: const Text(
+                        'Uploads',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               Text(
                 'Playlist',
@@ -477,12 +544,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget _buildImageTile(model.Playlist item, double size) {
     final bool hasImage =
         item.coverImageUrl != null && item.coverImageUrl!.isNotEmpty;
+    final isUploadingPlaylist = item.name == 'My Uploading';
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        color: isUploadingPlaylist ? AppColors.primary.withValues(alpha: 0.1) : AppColors.surface,
+        border: isUploadingPlaylist ? Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1.5) : null,
         image: hasImage
             ? DecorationImage(
                 image: NetworkImage(item.coverImageUrl!),
@@ -491,13 +560,211 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             : null,
       ),
       child: !hasImage
-          ? const Icon(
-              Icons.playlist_play,
-              color: AppColors.onSurface,
+          ? Icon(
+              isUploadingPlaylist ? Icons.cloud_upload_outlined : Icons.playlist_play,
+              color: isUploadingPlaylist ? AppColors.primary : AppColors.onSurface,
               size: 32,
             )
           : null,
     );
+  }
+
+  void _showPlaylistOptions(BuildContext context, WidgetRef ref, model.Playlist playlist) {
+    final me = ref.read(meProvider).valueOrNull;
+    final isPlaylistOwner = me != null && playlist.userId == me.id;
+    final isSaved = playlist.savedUserIds?.contains(me?.id ?? '') ?? false;
+    final isSystemPlaylist = playlist.name == 'My Uploading' || playlist.name == 'Liked Songs';
+
+    if (isSystemPlaylist) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  playlist.name,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  playlist.isPublic ? 'Public playlist' : 'Private playlist',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ),
+              const Divider(color: Colors.white24, height: 1),
+              
+              if (isPlaylistOwner)
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.error,
+                  ),
+                  title: const Text(
+                    'Delete Playlist',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: const Text(
+                    'Permanently delete this playlist',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _deletePlaylist(context, ref, playlist);
+                  },
+                ),
+              
+              if (!isPlaylistOwner)
+                ListTile(
+                  leading: Icon(
+                    isSaved ? Icons.library_add_check : Icons.library_add,
+                    color: isSaved ? AppColors.primary : Colors.grey,
+                  ),
+                  title: Text(
+                    isSaved ? 'Remove Playlist' : 'Add to Library',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    isSaved
+                        ? 'Remove this playlist from your library'
+                        : 'Save this playlist to your library',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _toggleLibraryStatus(context, ref, playlist, isSaved);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _deletePlaylist(BuildContext context, WidgetRef ref, model.Playlist playlist) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Delete Playlist', style: TextStyle(color: Colors.white)),
+        content: Text('Are you sure you want to permanently delete "${playlist.name}"?', style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final success = await playlistService.removePlaylist(playlist.id);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      if (success) {
+        await myPlaylistsNotifier.refreshPlaylists();
+        if (context.mounted) {
+          SuccessPopup.show(
+            context,
+            title: 'Playlist Deleted',
+            subtitle: 'The playlist has been permanently removed',
+            icon: Icons.delete_forever,
+            iconColor: AppColors.error,
+          );
+        }
+      } else {
+        throw Exception('Failed to delete playlist');
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleLibraryStatus(BuildContext context, WidgetRef ref, model.Playlist playlist, bool isSaved) async {
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      if (isSaved) {
+        await playlistService.removePlaylistFromLibrary(playlist.id);
+      } else {
+        await playlistService.savePlaylistToLibrary(playlist.id);
+      }
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      // Refresh the playlists providers
+      await myPlaylistsNotifier.refreshPlaylists();
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: isSaved ? 'Removed from Library' : 'Added to Library',
+          subtitle: isSaved ? 'Playlist removed successfully' : 'Playlist saved successfully',
+          icon: isSaved ? Icons.bookmark_remove : Icons.bookmark_added,
+          iconColor: isSaved ? AppColors.error : AppColors.primary,
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildMySongsContent(
@@ -700,9 +967,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         isPublic: newIsPublic,
       );
 
-      if (context.mounted) Navigator.pop(context); // Close loading dialog
+      if (context.mounted) Navigator.pop(context);
 
-      // Refresh mySongsProvider and myPlaylistsProvider
       ref.invalidate(mySongsProvider);
       ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
 
@@ -718,7 +984,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update visibility: $e')),
         );
@@ -775,9 +1041,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       final songService = ref.read(songServiceProvider);
       await songService.deleteSong(song.id);
 
-      if (context.mounted) Navigator.pop(context); // Close loading dialog
+      if (context.mounted) Navigator.pop(context);
 
-      // Refresh mySongsProvider and myPlaylistsProvider
       ref.invalidate(mySongsProvider);
       ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
 
@@ -791,7 +1056,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       }
     } catch (e) {
       if (context.mounted) {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Failed to delete song: $e')));
