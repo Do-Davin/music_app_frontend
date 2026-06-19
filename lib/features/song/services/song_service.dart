@@ -74,7 +74,7 @@ class SongService {
   Future<List<Song>> searchSongs(String query) async {
     try {
       if (query.isEmpty) return [];
-      final result = await _client.query(
+      final result = await _authClient.query(
         QueryOptions(
           document: gql(SongQueries.searchSongs),
           variables: {'query': query},

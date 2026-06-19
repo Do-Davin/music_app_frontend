@@ -863,6 +863,7 @@ class SongTile extends ConsumerWidget {
   final Playlist? playlist;
   final bool isPlaylistOwner;
   final VoidCallback? onTap;
+  final bool showTypeBadge;
 
   const SongTile({
     required this.song,
@@ -870,6 +871,7 @@ class SongTile extends ConsumerWidget {
     this.playlist,
     this.isPlaylistOwner = false,
     this.onTap,
+    this.showTypeBadge = false,
   });
 
   String _formatDuration(int? seconds) {
@@ -1634,6 +1636,21 @@ class SongTile extends ConsumerWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (showTypeBadge) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.4), width: 0.5),
+              ),
+              child: const Text(
+                'SONG',
+                style: TextStyle(color: Colors.blueAccent, fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              ),
+            ),
+          ],
           const SizedBox(width: 8),
           _buildSongOwnerBadge(ref, song),
         ],

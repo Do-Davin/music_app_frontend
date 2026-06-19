@@ -16,7 +16,56 @@ import 'package:go_router/go_router.dart';
 
 // Provider to manage the raw (un-debounced) search query for the text field UI.
 final searchQueryProvider = StateProvider<String>((ref) => "");
-final searchTabProvider = StateProvider<String>((ref) => "Songs");
+final searchTabProvider = StateProvider<String>((ref) => "All");
+
+final searchAllProvider = FutureProvider.family<List<dynamic>, String>((ref, query) async {
+  final cleanQuery = query.trim();
+  if (cleanQuery.isEmpty) return [];
+
+  // Fetch both concurrently using watch on their future
+  final songsFuture = ref.watch(searchSongsProvider(cleanQuery).future);
+  final playlistsFuture = ref.watch(searchPlaylistsProvider(cleanQuery).future);
+
+  List<Song> songs = [];
+  List<model.Playlist> playlists = [];
+
+  try {
+    songs = await songsFuture;
+  } catch (e) {
+    debugPrint('Error searching songs: $e');
+  }
+
+  try {
+    playlists = await playlistsFuture;
+  } catch (e) {
+    debugPrint('Error searching playlists: $e');
+  }
+
+  // Combine lists
+  final combined = <dynamic>[...songs, ...playlists];
+  final me = ref.watch(meProvider).valueOrNull;
+
+  // Sort: user's own items first
+  combined.sort((a, b) {
+    final aIsMine = _isItemOwnedByUser(a, me?.id);
+    final bIsMine = _isItemOwnedByUser(b, me?.id);
+    if (aIsMine && !bIsMine) return -1;
+    if (!aIsMine && bIsMine) return 1;
+    return 0;
+  });
+
+  return combined;
+});
+
+bool _isItemOwnedByUser(dynamic item, String? currentUserId) {
+  if (currentUserId == null) return false;
+  if (item is Song) {
+    return item.userId == currentUserId;
+  } else if (item is model.Playlist) {
+    return item.userId == currentUserId;
+  }
+  return false;
+}
 
 class SearchScreen extends ConsumerWidget {
   const SearchScreen({super.key});
@@ -201,6 +250,8 @@ class SearchScreen extends ConsumerWidget {
       children: [
         Row(
           children: [
+            _buildTabButton(ref, 'All', activeTab == 'All'),
+            const SizedBox(width: 12),
             _buildTabButton(ref, 'Songs', activeTab == 'Songs'),
             const SizedBox(width: 12),
             _buildTabButton(ref, 'Playlists', activeTab == 'Playlists'),
@@ -208,9 +259,11 @@ class SearchScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
         Expanded(
-          child: activeTab == 'Songs'
-              ? _buildSongsSearchResults(context, ref, query)
-              : _buildPlaylistsSearchResults(context, ref, query),
+          child: activeTab == 'All'
+              ? _buildAllSearchResults(context, ref, query)
+              : activeTab == 'Songs'
+                  ? _buildSongsSearchResults(context, ref, query)
+                  : _buildPlaylistsSearchResults(context, ref, query),
         ),
       ],
     );
@@ -238,6 +291,52 @@ class SearchScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildAllSearchResults(BuildContext context, WidgetRef ref, String query) {
+    final searchResults = ref.watch(searchAllProvider(query));
+    final me = ref.watch(meProvider).valueOrNull;
+
+    return searchResults.when(
+      data: (results) {
+        if (results.isEmpty) {
+          return _buildNoResultsState('No results found', 'Try searching for something else');
+        }
+
+        return ListView.builder(
+          itemCount: results.length,
+          itemBuilder: (context, index) {
+            final item = results[index];
+            if (item is Song) {
+              return SongTile(
+                song: item,
+                index: index,
+                showTypeBadge: true,
+                onTap: () {
+                  ref.read(recentSongsProvider.notifier).addSong(item);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SongPlayerScreen(
+                        song: item,
+                        category: 'Search Result',
+                      ),
+                    ),
+                  );
+                },
+              );
+            } else if (item is model.Playlist) {
+              return _buildPlaylistTile(context, ref, item, me?.id, showTypeBadge: true);
+            }
+            return const SizedBox.shrink();
+          },
+        );
+      },
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+      error: (error, stack) => _buildErrorState(error),
     );
   }
 
@@ -292,6 +391,107 @@ class SearchScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildPlaylistTile(
+    BuildContext context,
+    WidgetRef ref,
+    model.Playlist playlist,
+    String? currentUserId, {
+    bool showTypeBadge = false,
+  }) {
+    final isMine = currentUserId != null && playlist.userId == currentUserId;
+    final isAdded = playlist.savedUserIds?.contains(currentUserId ?? '') ?? false;
+    final songCount = playlist.songIds?.length ?? 0;
+    final hasImage = playlist.coverImageUrl != null && playlist.coverImageUrl!.isNotEmpty;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: AppColors.surface,
+          image: hasImage
+              ? DecorationImage(image: NetworkImage(playlist.coverImageUrl!), fit: BoxFit.cover)
+              : null,
+        ),
+        child: !hasImage
+            ? const Icon(Icons.playlist_play, color: AppColors.hint, size: 24)
+            : null,
+      ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              playlist.name,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (showTypeBadge) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.purpleAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.purpleAccent.withValues(alpha: 0.4), width: 0.5),
+              ),
+              child: const Text(
+                'PLAYLIST',
+                style: TextStyle(
+                  color: Colors.purpleAccent,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: isMine ? AppColors.primary.withValues(alpha: 0.2) : Colors.white10,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: isMine ? AppColors.primary : Colors.white24,
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              isMine ? 'Yours' : 'Public',
+              style: TextStyle(
+                color: isMine ? AppColors.primary : Colors.grey,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        'Playlist • $songCount songs',
+        style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
+      ),
+      trailing: isMine
+          ? null
+          : IconButton(
+              icon: Icon(
+                isAdded ? Icons.library_add_check : Icons.library_add,
+                color: isAdded ? AppColors.primary : AppColors.hint,
+                size: 24,
+              ),
+              onPressed: () => _togglePlaylistLibrary(context, ref, playlist, isAdded),
+            ),
+      onTap: () {
+        context.push(Routes.playlistById(playlist.id));
+      },
+    );
+  }
+
   Widget _buildPlaylistsSearchResults(BuildContext context, WidgetRef ref, String query) {
     final searchResults = ref.watch(searchPlaylistsProvider(query));
     final me = ref.watch(meProvider).valueOrNull;
@@ -315,78 +515,7 @@ class SearchScreen extends ConsumerWidget {
           itemCount: sortedPlaylists.length,
           itemBuilder: (context, index) {
             final playlist = sortedPlaylists[index];
-            final isMine = me != null && playlist.userId == me.id;
-            final isAdded = playlist.savedUserIds?.contains(me?.id ?? '') ?? false;
-            final songCount = playlist.songIds?.length ?? 0;
-            final hasImage = playlist.coverImageUrl != null && playlist.coverImageUrl!.isNotEmpty;
-
-            return ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              leading: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: AppColors.surface,
-                  image: hasImage
-                      ? DecorationImage(image: NetworkImage(playlist.coverImageUrl!), fit: BoxFit.cover)
-                      : null,
-                ),
-                child: !hasImage
-                    ? const Icon(Icons.playlist_play, color: AppColors.hint, size: 24)
-                    : null,
-              ),
-              title: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(
-                    child: Text(
-                      playlist.name,
-                      style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: isMine ? AppColors.primary.withValues(alpha: 0.2) : Colors.white10,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: isMine ? AppColors.primary : Colors.white24,
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Text(
-                      isMine ? 'Yours' : 'Public',
-                      style: TextStyle(
-                        color: isMine ? AppColors.primary : Colors.grey,
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              subtitle: Text(
-                'Playlist • $songCount songs',
-                style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
-              ),
-              trailing: isMine
-                  ? null
-                  : IconButton(
-                      icon: Icon(
-                        isAdded ? Icons.library_add_check : Icons.library_add,
-                        color: isAdded ? AppColors.primary : AppColors.hint,
-                        size: 24,
-                      ),
-                      onPressed: () => _togglePlaylistLibrary(context, ref, playlist, isAdded),
-                    ),
-              onTap: () {
-                context.push(Routes.playlistById(playlist.id));
-              },
-            );
+            return _buildPlaylistTile(context, ref, playlist, me?.id, showTypeBadge: false);
           },
         );
       },
