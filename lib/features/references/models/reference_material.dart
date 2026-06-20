@@ -78,14 +78,13 @@ class ReferenceMaterial {
 
   /// Returns the best available URL for downloading/previewing the file.
   /// Prefers [fileUrl] (full URL from the backend), but falls back to
-  /// constructing a URL from [filePath] and the server base URL.
+  /// constructing a download URL using the material's ID.
   String? get downloadUrl {
     if (fileUrl != null && fileUrl!.isNotEmpty) return fileUrl;
-    if (filePath != null && filePath!.isNotEmpty) {
-      final serverBase = GraphQLConfig.serverBaseUrl;
-      if (serverBase.isEmpty) return filePath;
-      final separator = filePath!.startsWith('/') ? '' : '/';
-      return '$serverBase$separator$filePath';
+    // Fallback: build the download URL from the material ID
+    final serverBase = GraphQLConfig.serverBaseUrl;
+    if (serverBase.isNotEmpty && id.isNotEmpty) {
+      return '$serverBase/references/$id/download';
     }
     return null;
   }
