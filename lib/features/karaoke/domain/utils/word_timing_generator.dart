@@ -17,7 +17,7 @@ class WordTimingGenerator {
     final result = <LrcLine>[];
 
     for (int i = 0; i < lyrics.length; i++) {
-      final line = lyrics[i]; 
+      final line = lyrics[i];
 
       // Skip if already has word timing or text is empty
       if (line.hasWordTiming || line.text.trim().isEmpty) {
@@ -45,9 +45,11 @@ class WordTimingGenerator {
       final rawWords = line.text.split(RegExp(r'\s+'));
       if (rawWords.length <= 1) {
         // Single word — just use line timestamp
-        result.add(line.copyWith(
-          words: [LrcWord(timestamp: lineStart, text: line.text.trim())],
-        ));
+        result.add(
+          line.copyWith(
+            words: [LrcWord(timestamp: lineStart, text: line.text.trim())],
+          ),
+        );
         continue;
       }
 

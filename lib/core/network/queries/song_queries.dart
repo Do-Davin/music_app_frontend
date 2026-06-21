@@ -129,12 +129,6 @@ class SongQueries {
     }
   ''';
 
-  static const String isSongFavorite = '''
-    query IsSongFavorite(\$songId: ID!) {
-      isSongFavorite(songId: \$songId)
-    }
-  ''';
-
   static const String toggleFavoriteSong = '''
     mutation ToggleFavoriteSong(\$songId: ID!) {
       toggleFavoriteSong(songId: \$songId) {
@@ -143,7 +137,7 @@ class SongQueries {
     }
   ''';
 
-  static const String getMyFavoriteSongs = '''
+  static const String getMyFavoriteSongs = r'''
     query GetMyFavoriteSongs {
       myFavoriteSongs {
         _id
@@ -164,7 +158,46 @@ class SongQueries {
         chordNotationStyle
         isPublic
         playCount
+        userId
       }
+    }
+  ''';
+
+  static const String removeSong = r'''
+    mutation RemoveSong($id: ID!) {
+      removeSong(id: $id)
+    }
+  ''';
+
+  static const String getMySongs = r'''
+    query GetMySongs {
+      mySongs {
+        _id
+        title
+        artist
+        albumName
+        duration
+        key
+        tempo
+        difficulty
+        tags
+        source
+        sourcePath
+        fileUrl
+        videoUrl
+        coverImageUrl
+        lyrics
+        chordNotationStyle
+        isPublic
+        playCount
+        userId
+      }
+    }
+  ''';
+
+  static const String isSongFavorite = '''
+    query IsSongFavorite(\$songId: ID!) {
+      isSongFavorite(songId: \$songId)
     }
   ''';
 }

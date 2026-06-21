@@ -1,8 +1,13 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/core/network/graphql_config.dart';
 import 'package:music_app_frontend/core/network/queries/index.dart';
 import 'package:music_app_frontend/features/playlist/models/playlist.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
+
+final likedSongsServiceProvider = Provider<LikedSongsService>(
+  (ref) => LikedSongsService(),
+);
 
 class LikedSongsPlaylistResponse {
   final Playlist playlist;

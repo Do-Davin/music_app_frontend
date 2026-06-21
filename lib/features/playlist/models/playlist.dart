@@ -7,6 +7,7 @@ class Playlist {
   final String? description;
   final String? coverImageUrl;
   final List<String>? songIds;
+  final List<String>? savedUserIds;
   final List<Song>? songs;
   final bool isPublic;
   final DateTime? createdAt;
@@ -19,6 +20,7 @@ class Playlist {
     this.description,
     this.coverImageUrl,
     this.songIds,
+    this.savedUserIds,
     this.songs,
     this.isPublic = false,
     this.createdAt,
@@ -36,10 +38,16 @@ class Playlist {
           ?.map((e) => e?.toString())
           .whereType<String>()
           .toList(),
+      savedUserIds: (json['savedUserIds'] as List<dynamic>?)
+          ?.map((e) => e?.toString())
+          .whereType<String>()
+          .toList(),
       songs: (json['songs'] as List<dynamic>?)
-          ?.map((song) => song != null
-              ? Song.fromJson(song as Map<String, dynamic>)
-              : null)
+          ?.map(
+            (song) => song != null
+                ? Song.fromJson(song as Map<String, dynamic>)
+                : null,
+          )
           .whereType<Song>()
           .toList(),
       isPublic: json['isPublic'] == true,
@@ -59,6 +67,7 @@ class Playlist {
     String? description,
     String? coverImageUrl,
     List<String>? songIds,
+    List<String>? savedUserIds,
     List<Song>? songs,
     bool? isPublic,
     DateTime? createdAt,
@@ -71,6 +80,7 @@ class Playlist {
       description: description ?? this.description,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       songIds: songIds ?? this.songIds,
+      savedUserIds: savedUserIds ?? this.savedUserIds,
       songs: songs ?? this.songs,
       isPublic: isPublic ?? this.isPublic,
       createdAt: createdAt ?? this.createdAt,

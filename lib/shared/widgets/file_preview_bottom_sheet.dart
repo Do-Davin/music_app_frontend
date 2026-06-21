@@ -104,10 +104,7 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
       );
     } else if (widget.file.remoteUrl != null) {
       SharePlus.instance.share(
-        ShareParams(
-          text: widget.file.remoteUrl!,
-          subject: widget.file.name,
-        ),
+        ShareParams(text: widget.file.remoteUrl!, subject: widget.file.name),
       );
     }
   }
@@ -189,7 +186,11 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.folder_open, size: 64, color: _gold.withValues(alpha: 0.4)),
+            Icon(
+              Icons.folder_open,
+              size: 64,
+              color: _gold.withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 16),
             const Text(
               'No file attached to this material.',
@@ -220,9 +221,10 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
             ? SfPdfViewer.file(
                 File(path),
                 controller: _pdfController,
-                pageLayoutMode: PdfPageLayoutMode.single,
+                pageLayoutMode: PdfPageLayoutMode.continuous,
                 initialZoomLevel: _zoom,
-                onDocumentLoadFailed: (details) => _showError('Failed to load PDF: ${details.description}'),
+                onDocumentLoadFailed: (details) =>
+                    _showError('Failed to load PDF: ${details.description}'),
                 onPageChanged: (d) => setState(() {
                   _pdfCurrentPage = d.newPageNumber;
                   _pdfTotalPages = _pdfController.pageCount;
@@ -231,9 +233,10 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
             : SfPdfViewer.network(
                 url!,
                 controller: _pdfController,
-                pageLayoutMode: PdfPageLayoutMode.single,
+                pageLayoutMode: PdfPageLayoutMode.continuous,
                 initialZoomLevel: _zoom,
-                onDocumentLoadFailed: (details) => _showError('Failed to load PDF: ${details.description}'),
+                onDocumentLoadFailed: (details) =>
+                    _showError('Failed to load PDF: ${details.description}'),
                 onPageChanged: (d) => setState(() {
                   _pdfCurrentPage = d.newPageNumber;
                   _pdfTotalPages = _pdfController.pageCount;
@@ -290,14 +293,16 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
         child: path != null
             ? Image.file(
                 File(path),
-                errorBuilder: (context, error, stackTrace) => _showError('Failed to load local image'),
+                errorBuilder: (context, error, stackTrace) =>
+                    _showError('Failed to load local image'),
               )
             : url != null
-                ? Image.network(
-                    url,
-                    errorBuilder: (context, error, stackTrace) => _showError('Failed to load remote image'),
-                  )
-                : const SizedBox(),
+            ? Image.network(
+                url,
+                errorBuilder: (context, error, stackTrace) =>
+                    _showError('Failed to load remote image'),
+              )
+            : const SizedBox(),
       ),
     );
   }

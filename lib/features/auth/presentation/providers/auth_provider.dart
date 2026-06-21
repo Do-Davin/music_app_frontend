@@ -1,9 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app_frontend/core/routing/navigation_provider.dart';
 import 'package:music_app_frontend/features/auth/data/services/auth_service.dart';
 import 'package:music_app_frontend/features/auth/data/services/token_storage_service.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
+import 'package:music_app_frontend/features/references/providers/reference_material_provider.dart';
+import 'package:music_app_frontend/features/relationships/providers/relationship_provider.dart';
+import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
+import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
@@ -93,13 +98,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       );
-      // Invalidate non-playlist providers first (they don't auto-fetch)
-      _resetUserScopedProviders(includePlaylists: false);
+
+      // Invalidate meProvider first to ensure we fetch the new user details
+      _ref.invalidate(meProvider);
       await _ref.read(meProvider.future);
-      // Now token is confirmed valid — invalidate playlists so they
-      // re-create and fetch with the correct token
-      _ref.invalidate(playlistServiceProvider);
-      _ref.invalidate(myPlaylistsProvider);
+
+      // Invalidate all other user-scoped providers now that the token is confirmed valid
+      _resetUserScopedProviders(includePlaylists: true);
 
       state = state.copyWith(
         isAuthenticated: true,
@@ -138,10 +143,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       );
-      _resetUserScopedProviders(includePlaylists: false);
+
+      // Invalidate meProvider first to ensure we fetch the new user details
+      _ref.invalidate(meProvider);
       await _ref.read(meProvider.future);
-      _ref.invalidate(playlistServiceProvider);
-      _ref.invalidate(myPlaylistsProvider);
+
+      // Invalidate all other user-scoped providers now that the token is confirmed valid
+      _resetUserScopedProviders(includePlaylists: true);
 
       state = state.copyWith(
         isAuthenticated: true,
@@ -160,6 +168,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Clear recent songs for the current user before clearing session
+    _ref.read(recentSongsProvider.notifier).reset();
     await _clearStoredSession();
     state = const AuthState(isValidatingSession: false);
     _resetUserScopedProviders();
@@ -198,15 +208,26 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _ref.invalidate(friendServiceProvider);
     _ref.invalidate(meProvider);
     _ref.invalidate(usernameUpdateProvider);
+    _ref.invalidate(switchToProfessionalAccountProvider);
     _ref.invalidate(myFriendsProvider);
     _ref.invalidate(incomingFriendRequestsProvider);
     _ref.invalidate(outgoingFriendRequestsProvider);
     _ref.invalidate(userSearchProvider);
     _ref.invalidate(friendSearchQueryProvider);
     _ref.invalidate(friendActionsProvider);
+    _ref.invalidate(recentSongsProvider);
+    _ref.invalidate(myFollowingProvider);
+    _ref.invalidate(myFollowersProvider);
+    _ref.invalidate(relationshipActionsProvider);
+    _ref.invalidate(referenceMaterialProvider);
+    _ref.invalidate(navigationIndexProvider);
+    _ref.invalidate(songsProvider);
+    _ref.invalidate(songByIdProvider);
+    _ref.invalidate(searchSongsProvider);
     if (includePlaylists) {
       _ref.invalidate(playlistServiceProvider);
       _ref.invalidate(myPlaylistsProvider);
+      _ref.invalidate(mySongsProvider);
     }
   }
 

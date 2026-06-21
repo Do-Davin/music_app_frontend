@@ -158,8 +158,35 @@ class PlaylistService {
 
       final data =
           result.data?['moveSongBetweenPlaylists'] as Map<String, dynamic>?;
-      if (data == null)
+      if (data == null) {
         throw Exception('Failed to move song between playlists');
+      }
+      return Playlist.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Playlist> updatePlaylistVisibility({
+    required String playlistId,
+    required bool isPublic,
+  }) async {
+    try {
+      final MutationOptions options = MutationOptions(
+        document: gql(PlaylistQueries.updatePlaylist),
+        variables: {
+          'input': {'id': playlistId, 'isPublic': isPublic},
+        },
+      );
+
+      final QueryResult result = await _client.mutate(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final data = result.data?['updatePlaylist'] as Map<String, dynamic>?;
+      if (data == null) throw Exception('Failed to update playlist visibility');
       return Playlist.fromJson(data);
     } catch (e) {
       rethrow;
@@ -245,6 +272,74 @@ class PlaylistService {
 
       return result.data?['toggleSongInLikedSongs']['isLiked'] as bool? ??
           false;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<List<Playlist>> searchPlaylists(String query) async {
+    try {
+      if (query.isEmpty) return [];
+      final QueryResult result = await _client.query(
+        QueryOptions(
+          document: gql(PlaylistQueries.searchPlaylists),
+          variables: {'query': query},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final List data = result.data?['searchPlaylists'] ?? [];
+      return data.map((json) => Playlist.fromJson(json)).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Playlist> savePlaylistToLibrary(String playlistId) async {
+    try {
+      final MutationOptions options = MutationOptions(
+        document: gql(PlaylistQueries.savePlaylistToLibrary),
+        variables: {'playlistId': playlistId},
+      );
+
+      final QueryResult result = await _client.mutate(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final data =
+          result.data?['savePlaylistToLibrary'] as Map<String, dynamic>?;
+      if (data == null) throw Exception('Failed to save playlist to library');
+      return Playlist.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Playlist> removePlaylistFromLibrary(String playlistId) async {
+    try {
+      final MutationOptions options = MutationOptions(
+        document: gql(PlaylistQueries.removePlaylistFromLibrary),
+        variables: {'playlistId': playlistId},
+      );
+
+      final QueryResult result = await _client.mutate(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final data =
+          result.data?['removePlaylistFromLibrary'] as Map<String, dynamic>?;
+      if (data == null) {
+        throw Exception('Failed to remove playlist from library');
+      }
+      return Playlist.fromJson(data);
     } catch (e) {
       rethrow;
     }

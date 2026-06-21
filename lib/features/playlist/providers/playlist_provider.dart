@@ -99,7 +99,9 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
       if (success && mounted) {
         state.whenData((playlists) {
           if (mounted) {
-            state = AsyncValue.data(playlists.where((p) => p.id != id).toList());
+            state = AsyncValue.data(
+              playlists.where((p) => p.id != id).toList(),
+            );
           }
         });
       }
@@ -112,23 +114,34 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
 /// Single source of truth: derives playlist details from the master list.
 /// When myPlaylistsProvider is updated (via updatePlaylist / refreshPlaylists),
 /// any screen watching this provider automatically gets the fresh data.
-final playlistByIdProvider = Provider.family<AsyncValue<Playlist>, String>((
-  ref,
-  id,
-) {
+final playlistByIdProvider = FutureProvider.family<Playlist, String>((ref, id) async {
   final playlistsAsync = ref.watch(myPlaylistsProvider);
-  return playlistsAsync.when(
+  final playlist = playlistsAsync.when(
     data: (playlists) {
       try {
-        final playlist = playlists.firstWhere((p) => p.id == id);
-        return AsyncValue.data(playlist);
+        return playlists.firstWhere((p) => p.id == id);
       } catch (_) {
-        return AsyncValue.error('Playlist not found', StackTrace.current);
+        return null;
       }
     },
-    loading: () => const AsyncValue.loading(),
-    error: (err, stack) => AsyncValue.error(err, stack),
+    loading: () => null,
+    error: (err, stack) => null,
   );
+
+  if (playlist != null) {
+    return playlist;
+  }
+
+  // Fetch from backend server if not in the local library lists
+  final service = ref.watch(playlistServiceProvider);
+  return await service.getPlaylistById(id);
+});
+
+final searchPlaylistsProvider =
+    FutureProvider.family<List<Playlist>, String>((ref, query) async {
+  if (query.isEmpty) return [];
+  final service = ref.watch(playlistServiceProvider);
+  return service.searchPlaylists(query);
 });
 
 final likedSongsPlaylistProvider = FutureProvider<Playlist>((ref) async {

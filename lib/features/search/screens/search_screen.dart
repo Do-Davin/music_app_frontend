@@ -7,9 +7,65 @@ import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
+import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
+import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
+import 'package:music_app_frontend/features/playlist/models/playlist.dart' as model;
+import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
+import 'package:music_app_frontend/core/routing/routes.dart';
+import 'package:go_router/go_router.dart';
 
 // Provider to manage the raw (un-debounced) search query for the text field UI.
 final searchQueryProvider = StateProvider<String>((ref) => "");
+final searchTabProvider = StateProvider<String>((ref) => "All");
+
+final searchAllProvider = FutureProvider.family<List<dynamic>, String>((ref, query) async {
+  final cleanQuery = query.trim();
+  if (cleanQuery.isEmpty) return [];
+
+  // Fetch both concurrently using watch on their future
+  final songsFuture = ref.watch(searchSongsProvider(cleanQuery).future);
+  final playlistsFuture = ref.watch(searchPlaylistsProvider(cleanQuery).future);
+
+  List<Song> songs = [];
+  List<model.Playlist> playlists = [];
+
+  try {
+    songs = await songsFuture;
+  } catch (e) {
+    debugPrint('Error searching songs: $e');
+  }
+
+  try {
+    playlists = await playlistsFuture;
+  } catch (e) {
+    debugPrint('Error searching playlists: $e');
+  }
+
+  // Combine lists
+  final combined = <dynamic>[...songs, ...playlists];
+  final me = ref.watch(meProvider).valueOrNull;
+
+  // Sort: user's own items first
+  combined.sort((a, b) {
+    final aIsMine = _isItemOwnedByUser(a, me?.id);
+    final bIsMine = _isItemOwnedByUser(b, me?.id);
+    if (aIsMine && !bIsMine) return -1;
+    if (!aIsMine && bIsMine) return 1;
+    return 0;
+  });
+
+  return combined;
+});
+
+bool _isItemOwnedByUser(dynamic item, String? currentUserId) {
+  if (currentUserId == null) return false;
+  if (item is Song) {
+    return item.userId == currentUserId;
+  } else if (item is model.Playlist) {
+    return item.userId == currentUserId;
+  }
+  return false;
+}
 
 class SearchScreen extends ConsumerWidget {
   const SearchScreen({super.key});
@@ -187,74 +243,129 @@ class SearchScreen extends ConsumerWidget {
   }
 
   Widget _buildSearchResults(BuildContext context, WidgetRef ref, String query) {
-    final searchResults = ref.watch(searchSongsProvider(query));
+    final activeTab = ref.watch(searchTabProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _buildTabButton(ref, 'All', activeTab == 'All'),
+            const SizedBox(width: 12),
+            _buildTabButton(ref, 'Songs', activeTab == 'Songs'),
+            const SizedBox(width: 12),
+            _buildTabButton(ref, 'Playlists', activeTab == 'Playlists'),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: activeTab == 'All'
+              ? _buildAllSearchResults(context, ref, query)
+              : activeTab == 'Songs'
+                  ? _buildSongsSearchResults(context, ref, query)
+                  : _buildPlaylistsSearchResults(context, ref, query),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTabButton(WidgetRef ref, String label, bool isActive) {
+    return GestureDetector(
+      onTap: () => ref.read(searchTabProvider.notifier).state = label,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isActive ? Colors.transparent : Colors.white10,
+            width: 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.body.copyWith(
+            color: isActive ? Colors.black : Colors.white70,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAllSearchResults(BuildContext context, WidgetRef ref, String query) {
+    final searchResults = ref.watch(searchAllProvider(query));
+    final me = ref.watch(meProvider).valueOrNull;
 
     return searchResults.when(
       data: (results) {
         if (results.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.search_off, size: 64, color: AppColors.primary),
-                const SizedBox(height: 16),
-                Text('No results found', style: AppTextStyles.subtitle),
-                const SizedBox(height: 8),
-                Text(
-                  'Try searching for a different song or artist',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.hint,
-                    fontSize: 14,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
+          return _buildNoResultsState('No results found', 'Try searching for something else');
         }
 
         return ListView.builder(
           itemCount: results.length,
           itemBuilder: (context, index) {
-            final song = results[index];
-            return ListTile(
-              contentPadding: const EdgeInsets.symmetric(vertical: 4),
-              leading: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: song.coverImageUrl != null
-                    ? Image.network(
-                        song.coverImageUrl!,
-                        width: 52,
-                        height: 52,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 52,
-                          height: 52,
-                          color: AppColors.surface,
-                          child: const Icon(Icons.music_note,
-                              color: AppColors.primary),
-                        ),
-                      )
-                    : Container(
-                        width: 52,
-                        height: 52,
-                        color: AppColors.surface,
-                        child: const Icon(Icons.music_note,
-                            color: AppColors.primary),
+            final item = results[index];
+            if (item is Song) {
+              return SongTile(
+                song: item,
+                index: index,
+                showTypeBadge: true,
+                onTap: () {
+                  ref.read(recentSongsProvider.notifier).addSong(item);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SongPlayerScreen(
+                        song: item,
+                        category: 'Search Result',
                       ),
-              ),
-              title: Text(
-                song.title,
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                'Song • ${song.artist}',
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.hint,
-                  fontSize: 13,
-                ),
-              ),
-              trailing: const Icon(Icons.more_vert, color: AppColors.hint),
+                    ),
+                  );
+                },
+              );
+            } else if (item is model.Playlist) {
+              return _buildPlaylistTile(context, ref, item, me?.id, showTypeBadge: true);
+            }
+            return const SizedBox.shrink();
+          },
+        );
+      },
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+      error: (error, stack) => _buildErrorState(error),
+    );
+  }
+
+  Widget _buildSongsSearchResults(BuildContext context, WidgetRef ref, String query) {
+    final searchResults = ref.watch(searchSongsProvider(query));
+    final me = ref.watch(meProvider).valueOrNull;
+
+    return searchResults.when(
+      data: (results) {
+        if (results.isEmpty) {
+          return _buildNoResultsState('No songs found', 'Try searching for a different song or artist');
+        }
+
+        // Sort: user's own songs first
+        final sortedSongs = List<Song>.from(results)..sort((a, b) {
+          final aIsMine = me != null && a.userId == me.id;
+          final bIsMine = me != null && b.userId == me.id;
+          if (aIsMine && !bIsMine) return -1;
+          if (!aIsMine && bIsMine) return 1;
+          return 0;
+        });
+
+        return ListView.builder(
+          itemCount: sortedSongs.length,
+          itemBuilder: (context, index) {
+            final song = sortedSongs[index];
+            return SongTile(
+              song: song,
+              index: index,
               onTap: () {
                 // Add to recent
                 ref.read(recentSongsProvider.notifier).addSong(song);
@@ -276,21 +387,271 @@ class SearchScreen extends ConsumerWidget {
       loading: () => const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
       ),
-      error: (error, stack) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      error: (error, stack) => _buildErrorState(error),
+    );
+  }
+
+  Widget _buildPlaylistTile(
+    BuildContext context,
+    WidgetRef ref,
+    model.Playlist playlist,
+    String? currentUserId, {
+    bool showTypeBadge = false,
+  }) {
+    final isMine = currentUserId != null && playlist.userId == currentUserId;
+    final isAdded = playlist.savedUserIds?.contains(currentUserId ?? '') ?? false;
+    final songCount = playlist.songIds?.length ?? 0;
+    final hasImage = playlist.coverImageUrl != null && playlist.coverImageUrl!.isNotEmpty;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+      leading: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: AppColors.surface,
+          image: hasImage
+              ? DecorationImage(image: NetworkImage(playlist.coverImageUrl!), fit: BoxFit.cover)
+              : null,
+        ),
+        child: !hasImage
+            ? const Icon(Icons.playlist_play, color: AppColors.hint, size: 24)
+            : null,
+      ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              playlist.name,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (showTypeBadge) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.purpleAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.purpleAccent.withValues(alpha: 0.4), width: 0.5),
+              ),
+              child: const Text(
+                'PLAYLIST',
+                style: TextStyle(
+                  color: Colors.purpleAccent,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: isMine ? AppColors.primary.withValues(alpha: 0.2) : Colors.white10,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                color: isMine ? AppColors.primary : Colors.white24,
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              isMine ? 'Yours' : 'Public',
+              style: TextStyle(
+                color: isMine ? AppColors.primary : Colors.grey,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        'Playlist • $songCount songs',
+        style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
+      ),
+      trailing: isMine
+          ? null
+          : IconButton(
+              icon: Icon(
+                isAdded ? Icons.library_add_check : Icons.library_add,
+                color: isAdded ? AppColors.primary : AppColors.hint,
+                size: 24,
+              ),
+              onPressed: () => _togglePlaylistLibrary(context, ref, playlist, isAdded),
+            ),
+      onTap: () {
+        context.push(Routes.playlistById(playlist.id));
+      },
+    );
+  }
+
+  Widget _buildPlaylistsSearchResults(BuildContext context, WidgetRef ref, String query) {
+    final searchResults = ref.watch(searchPlaylistsProvider(query));
+    final me = ref.watch(meProvider).valueOrNull;
+
+    return searchResults.when(
+      data: (playlists) {
+        if (playlists.isEmpty) {
+          return _buildNoResultsState('No playlists found', 'Try searching for a different playlist name');
+        }
+
+        // Sort: user's own playlists first
+        final sortedPlaylists = List<model.Playlist>.from(playlists)..sort((a, b) {
+          final aIsMine = me != null && a.userId == me.id;
+          final bIsMine = me != null && b.userId == me.id;
+          if (aIsMine && !bIsMine) return -1;
+          if (!aIsMine && bIsMine) return 1;
+          return 0;
+        });
+
+        return ListView.builder(
+          itemCount: sortedPlaylists.length,
+          itemBuilder: (context, index) {
+            final playlist = sortedPlaylists[index];
+            return _buildPlaylistTile(context, ref, playlist, me?.id, showTypeBadge: false);
+          },
+        );
+      },
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      ),
+      error: (error, stack) => _buildErrorState(error),
+    );
+  }
+
+  Widget _buildNoResultsState(String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.search_off, size: 64, color: AppColors.primary),
+          const SizedBox(height: 16),
+          Text(title, style: AppTextStyles.subtitle),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.hint,
+              fontSize: 14,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(Object error) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.error, size: 48),
+          const SizedBox(height: 12),
+          Text(
+            error.toString().replaceAll('Exception: ', ''),
+            style: AppTextStyles.body.copyWith(color: AppColors.error),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _showAddConfirmationDialog(BuildContext context, String playlistName) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
           children: [
-            const Icon(Icons.error_outline, color: AppColors.error, size: 48),
-            const SizedBox(height: 12),
+            Icon(Icons.bookmark_add, color: AppColors.primary, size: 28),
+            SizedBox(width: 12),
             Text(
-              error.toString().replaceAll('Exception: ', ''),
-              style: AppTextStyles.body.copyWith(color: AppColors.error),
-              textAlign: TextAlign.center,
+              'Add Playlist',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ],
         ),
+        content: Text(
+          'Would you like to save "$playlistName" to your library?',
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            ),
+            child: const Text(
+              'Add to Library',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
       ),
-    );
+    ) ?? false;
+  }
+
+  Future<void> _togglePlaylistLibrary(BuildContext context, WidgetRef ref, model.Playlist playlist, bool isAdded) async {
+    if (!isAdded) {
+      final confirmed = await _showAddConfirmationDialog(context, playlist.name);
+      if (!confirmed) return;
+    }
+
+    final playlistService = ref.read(playlistServiceProvider);
+    try {
+      if (isAdded) {
+        await playlistService.removePlaylistFromLibrary(playlist.id);
+      } else {
+        await playlistService.savePlaylistToLibrary(playlist.id);
+      }
+      // Refresh playlists providers
+      ref.invalidate(myPlaylistsProvider);
+      ref.invalidate(searchPlaylistsProvider);
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isAdded ? 'Removed from library' : 'Added to library',
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildSectionTitle(String title,

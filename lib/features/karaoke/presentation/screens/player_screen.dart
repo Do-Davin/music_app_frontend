@@ -37,7 +37,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
         _lyricsWithWords = WordTimingGenerator.generateWordTiming(
           widget.song.lyrics,
         );
-        debugPrint('✅ Generated word timing for ${_lyricsWithWords.length} lines');
+        debugPrint(
+          '✅ Generated word timing for ${_lyricsWithWords.length} lines',
+        );
       }
 
       // Start playing when screen opens
@@ -218,7 +220,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     ),
                     const Divider(color: Colors.white24),
                     const SizedBox(height: 12),
-                    
+
                     // Offset section
                     const Text(
                       'Timing Offset',
@@ -286,7 +288,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         );
                       },
                     ),
-                    
+
                     const SizedBox(height: 24),
                     const Divider(color: Colors.white24),
                     const SizedBox(height: 12),
@@ -444,11 +446,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 left: 12,
                 right: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -692,25 +699,28 @@ class _PlayerScreenState extends State<PlayerScreen> {
       _lyricsWithWords[lineIdx] = line.copyWith(words: words);
     });
 
-    widget.controller.saveLyrics(widget.song.id, _lyricsWithWords).then((_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Word updated and saved!'),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      }
-    }).catchError((e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving: $e'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    });
+    widget.controller
+        .saveLyrics(widget.song.id, _lyricsWithWords)
+        .then((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Word updated and saved!'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          }
+        })
+        .catchError((e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error saving: $e'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        });
   }
 
   String _formatTimeWithMs(Duration d) {
@@ -774,7 +784,9 @@ class _ProgressBarState extends State<_ProgressBar> {
   Widget build(BuildContext context) {
     final totalMs = _duration.inMilliseconds;
     final currentMs = _position.inMilliseconds;
-    final sliderValue = totalMs > 0 ? currentMs.clamp(0, totalMs).toDouble() : 0.0;
+    final sliderValue = totalMs > 0
+        ? currentMs.clamp(0, totalMs).toDouble()
+        : 0.0;
     final maxSlider = totalMs > 0 ? totalMs.toDouble() : 1.0;
 
     return Column(

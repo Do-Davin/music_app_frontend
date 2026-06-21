@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:music_app_frontend/core/network/graphql_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:music_app_frontend/features/auth/data/services/user_service.dart';
+
 import '../models/karaoke_song.dart';
 
 class KaraokeRepository {
@@ -22,7 +22,9 @@ class KaraokeRepository {
       );
 
       if (result.hasException) {
-        debugPrint('❌ GraphQL Error fetching karaoke songs: ${result.exception}');
+        debugPrint(
+          '❌ GraphQL Error fetching karaoke songs: ${result.exception}',
+        );
         throw Exception(result.exception.toString());
       }
 
@@ -33,7 +35,9 @@ class KaraokeRepository {
             .toList();
 
         await _saveLocalSongs(songs);
-        debugPrint('✅ Successfully loaded ${songs.length} karaoke songs from backend');
+        debugPrint(
+          '✅ Successfully loaded ${songs.length} karaoke songs from backend',
+        );
         return songs;
       } catch (e) {
         debugPrint('❌ Error parsing karaoke songs: $e');
@@ -49,9 +53,7 @@ class KaraokeRepository {
     await _saveLocalSong(song);
 
     try {
-      final user = await UserService().fetchMe();
       final input = _toInput(song);
-      input['userId'] = user.id;
 
       final result = await _client.mutate(
         MutationOptions(
@@ -108,10 +110,7 @@ class KaraokeRepository {
       'source': song.source.name,
       'sourcePath': song.sourcePath,
       'lyrics': song.lyrics.map((line) {
-        return {
-          'timestamp': line.timestamp.inMilliseconds,
-          'text': line.text,
-        };
+        return {'timestamp': line.timestamp.inMilliseconds, 'text': line.text};
       }).toList(),
       'duration': song.duration?.inMilliseconds,
     };

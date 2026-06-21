@@ -15,12 +15,12 @@ class LrcWord {
     if (timestamp == null) {
       throw FormatException('LrcWord timestamp is null in JSON: $json');
     }
-    
+
     final text = json['text'];
     if (text == null) {
       throw FormatException('LrcWord text is null in JSON: $json');
     }
-    
+
     return LrcWord(
       timestamp: Duration(milliseconds: (timestamp as num).round()),
       text: text as String,

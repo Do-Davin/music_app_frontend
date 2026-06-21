@@ -9,6 +9,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         createdAt
       }
     }
@@ -24,6 +25,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -61,6 +63,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -98,6 +101,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -129,10 +133,36 @@ class PlaylistQueries {
     mutation UpdatePlaylist($input: UpdatePlaylistInput!) {
       updatePlaylist(updatePlaylistInput: $input) {
         _id
+        userId
         name
         description
         coverImageUrl
         isPublic
+        songIds
+        savedUserIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          duration
+          key
+          tempo
+          difficulty
+          tags
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          coverImageUrl
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
+        }
+        createdAt
+        updatedAt
       }
     }
   ''';
@@ -153,6 +183,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -190,6 +221,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -227,6 +259,7 @@ class PlaylistQueries {
         coverImageUrl
         isPublic
         songIds
+        savedUserIds
         songs {
           _id
           title
@@ -294,6 +327,57 @@ class PlaylistQueries {
           tempo
           tags
         }
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  static const String searchPlaylists = r'''
+    query SearchPlaylists($query: String!) {
+      searchPlaylists(query: $query) {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        savedUserIds
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  static const String savePlaylistToLibrary = r'''
+    mutation SavePlaylistToLibrary($playlistId: ID!) {
+      savePlaylistToLibrary(playlistId: $playlistId) {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        savedUserIds
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  static const String removePlaylistFromLibrary = r'''
+    mutation RemovePlaylistFromLibrary($playlistId: ID!) {
+      removePlaylistFromLibrary(playlistId: $playlistId) {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        savedUserIds
         createdAt
         updatedAt
       }

@@ -45,6 +45,28 @@ class UserQueries {
     }
   ''';
 
+  static const String recentlyPlayed = r'''
+    query GetRecentlyPlayed($limit: Int) {
+      recentlyPlayed(limit: $limit) {
+        playedAt
+        song {
+          _id
+          title
+          artist
+          albumName
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          coverImageUrl
+          isPublic
+          playCount
+          userId
+        }
+      }
+    }
+  ''';
+
   static const String searchUsers = '''
     query SearchUsersForUsername(\$search: String!) {
       searchUsers(search: \$search) {
@@ -86,6 +108,12 @@ class UserMutations {
   static const String toggleLikeSong = '''
     mutation ToggleLikeSong(\$songId: ID!) {
       toggleLikeSong(songId: \$songId)
+    }
+  ''';
+
+  static const String addRecentlyPlayed = r'''
+    mutation AddRecentlyPlayed($songId: ID!) {
+      addRecentlyPlayed(songId: $songId)
     }
   ''';
 }

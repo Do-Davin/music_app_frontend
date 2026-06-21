@@ -44,7 +44,10 @@ class ReferenceMaterialService {
   ''';
 
   // Query all reference materials
-  Future<List<ReferenceMaterial>> fetchAll({String? type, String? songId}) async {
+  Future<List<ReferenceMaterial>> fetchAll({
+    String? type,
+    String? songId,
+  }) async {
     const String query = r'''
       query GetReferenceMaterials($type: String, $songId: String) {
         referenceMaterials(type: $type, songId: $songId) {
@@ -68,10 +71,7 @@ class ReferenceMaterialService {
     final result = await _client.query(
       QueryOptions(
         document: gql(query),
-        variables: {
-          'type': ?type,
-          'songId': ?songId,
-        },
+        variables: {'type': ?type, 'songId': ?songId},
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     );
@@ -134,7 +134,8 @@ class ReferenceMaterialService {
     }
 
     final operations = {
-      'query': '''
+      'query':
+          '''
         mutation CreateReferenceMaterial(\$input: CreateReferenceMaterialInput!) {
           createReferenceMaterial(input: \$input) {
             $_materialFields
@@ -191,7 +192,8 @@ class ReferenceMaterialService {
     String? songId,
     String? topic,
   }) async {
-    const String mutation = '''
+    const String mutation =
+        '''
       mutation CreateReferenceMaterial(\$input: CreateReferenceMaterialInput!) {
         createReferenceMaterial(input: \$input) {
           $_materialFields
@@ -275,7 +277,8 @@ class ReferenceMaterialService {
     }
 
     final operations = {
-      'query': '''
+      'query':
+          '''
         mutation UpdateReferenceMaterial(\$id: ID!, \$input: UpdateReferenceMaterialInput!) {
           updateReferenceMaterial(id: \$id, input: \$input) {
             $_materialFields
@@ -333,7 +336,8 @@ class ReferenceMaterialService {
     String? songId,
     String? topic,
   }) async {
-    const String mutation = '''
+    const String mutation =
+        '''
       mutation UpdateReferenceMaterial(\$id: ID!, \$input: UpdateReferenceMaterialInput!) {
         updateReferenceMaterial(id: \$id, input: \$input) {
           $_materialFields
@@ -375,10 +379,7 @@ class ReferenceMaterialService {
     ''';
 
     final result = await _client.mutate(
-      MutationOptions(
-        document: gql(mutation),
-        variables: {'id': id},
-      ),
+      MutationOptions(document: gql(mutation), variables: {'id': id}),
     );
 
     if (result.hasException) {

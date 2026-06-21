@@ -15,20 +15,25 @@ class AuthWrapper extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isSplashFinished = ref.watch(splashFinishedProvider);
-    if (!isSplashFinished) {
-      return const SplashScreen();
-    }
-
     final isFirstLaunch = ref.watch(isFirstLaunchProvider);
-    if (isFirstLaunch) {
-      return const OnboardingScreen();
-    }
-
     final authState = ref.watch(authProvider);
-    if (authState.isValidatingSession) {
-      return const SplashScreen();
+
+    final Widget child;
+    if (!isSplashFinished) {
+      child = const SplashScreen(key: ValueKey('splash'));
+    } else if (isFirstLaunch) {
+      child = const OnboardingScreen(key: ValueKey('onboarding'));
+    } else if (authState.isValidatingSession) {
+      child = const SplashScreen(key: ValueKey('splash'));
+    } else if (authState.isAuthenticated) {
+      child = const MainScreen(key: ValueKey('main'));
+    } else {
+      child = const LoginScreen(key: ValueKey('login'));
     }
 
-    return authState.isAuthenticated ? const MainScreen() : const LoginScreen();
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      child: child,
+    );
   }
 }

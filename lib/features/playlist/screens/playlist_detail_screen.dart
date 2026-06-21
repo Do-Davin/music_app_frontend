@@ -12,6 +12,11 @@ import 'package:music_app_frontend/core/routing/app_router.dart';
 import 'package:music_app_frontend/shared/widgets/success_popup.dart';
 import 'package:go_router/go_router.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/controllers/karaoke_controller.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_editor_screen.dart';
+import 'package:music_app_frontend/features/song/services/song_service.dart';
+import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
+import 'package:provider/provider.dart' as provider;
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -94,7 +99,11 @@ class _PlaylistDetailContent extends ConsumerWidget {
           actions: [
             IconButton(
               icon: const Icon(Icons.more_vert, color: Colors.white),
-              onPressed: () {},
+              onPressed: () {
+                final me = meAsync.valueOrNull;
+                final isSaved = playlist.savedUserIds?.contains(me?.id ?? '') ?? false;
+                _showPlaylistOptionsSheet(context, ref, isPlaylistOwner, isSaved);
+              },
             ),
           ],
           flexibleSpace: FlexibleSpaceBar(
@@ -185,28 +194,42 @@ class _PlaylistDetailContent extends ConsumerWidget {
                       ),
                     ),
                     const Spacer(),
-                    if (playlist.isPublic)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.4),
-                          ),
-                        ),
-                        child: Text(
-                          'Public',
-                          style: AppTextStyles.body.copyWith(
-                            color: AppColors.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: playlist.isPublic
+                            ? AppColors.primary.withValues(alpha: 0.15)
+                            : Colors.grey.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: playlist.isPublic
+                              ? AppColors.primary.withValues(alpha: 0.4)
+                              : Colors.grey.withValues(alpha: 0.4),
                         ),
                       ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            playlist.isPublic ? Icons.public : Icons.lock,
+                            size: 12,
+                            color: playlist.isPublic ? AppColors.primary : Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            playlist.isPublic ? 'Public' : 'Private',
+                            style: AppTextStyles.body.copyWith(
+                              color: playlist.isPublic ? AppColors.primary : Colors.grey,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -293,10 +316,10 @@ class _PlaylistDetailContent extends ConsumerWidget {
             : SliverList(
                 delegate: SliverChildBuilderDelegate((context, index) {
                   final song = songs[index];
-                  return _SongTile(
+                  return SongTile(
                     song: song,
                     index: index,
-                    playlistId: playlist.id,
+                    playlist: playlist,
                     isPlaylistOwner: isPlaylistOwner,
                   );
                 }, childCount: songs.length),
@@ -319,6 +342,275 @@ class _PlaylistDetailContent extends ConsumerWidget {
         child: Icon(Icons.library_music, color: AppColors.primary, size: 80),
       ),
     );
+  }
+
+  void _showPlaylistOptionsSheet(BuildContext context, WidgetRef ref, bool isPlaylistOwner, bool isSaved) {
+    final isSystemPlaylist = playlist.name == 'My Uploading' || playlist.name == 'Liked Songs';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  playlist.name,
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Text(
+                  playlist.isPublic ? 'Public playlist' : 'Private playlist',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ),
+              const Divider(color: Colors.white24, height: 1),
+              // Toggle visibility (only for owner, not for system playlists like My Uploading)
+              if (isPlaylistOwner && !isSystemPlaylist) ...[
+                ListTile(
+                  leading: Icon(
+                    playlist.isPublic ? Icons.lock : Icons.public,
+                    color: Colors.blue,
+                  ),
+                  title: Text(
+                    playlist.isPublic ? 'Make Private' : 'Make Public',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    playlist.isPublic
+                        ? 'Only you can see this playlist'
+                        : 'Anyone can discover this playlist',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _togglePlaylistVisibility(context, ref);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.error,
+                  ),
+                  title: const Text(
+                    'Delete Playlist',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  subtitle: const Text(
+                    'Permanently delete this playlist',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _deletePlaylist(context, ref);
+                  },
+                ),
+              ],
+              // Add to / Remove from Library (only for non-owners)
+              if (!isPlaylistOwner)
+                ListTile(
+                  leading: Icon(
+                    isSaved ? Icons.library_add_check : Icons.library_add,
+                    color: isSaved ? AppColors.primary : Colors.grey,
+                  ),
+                  title: Text(
+                    isSaved ? 'Remove Playlist' : 'Add to Library',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    isSaved
+                        ? 'Remove this playlist from your library'
+                        : 'Save this playlist to your library',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _toggleLibraryStatus(context, ref, isSaved);
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleLibraryStatus(BuildContext context, WidgetRef ref, bool isSaved) async {
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      if (isSaved) {
+        await playlistService.removePlaylistFromLibrary(playlist.id);
+      } else {
+        await playlistService.savePlaylistToLibrary(playlist.id);
+      }
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      // Refresh the playlists providers
+      await myPlaylistsNotifier.refreshPlaylists();
+      ref.invalidate(playlistByIdProvider(playlist.id));
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: isSaved ? 'Removed from Library' : 'Added to Library',
+          subtitle: isSaved ? 'Playlist removed successfully' : 'Playlist saved successfully',
+          icon: isSaved ? Icons.bookmark_remove : Icons.bookmark_added,
+          iconColor: isSaved ? AppColors.error : AppColors.primary,
+        );
+        if (isSaved) {
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deletePlaylist(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Delete Playlist', style: TextStyle(color: Colors.white)),
+        content: Text('Are you sure you want to permanently delete "${playlist.name}"?', style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final success = await playlistService.removePlaylist(playlist.id);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      if (success) {
+        await myPlaylistsNotifier.refreshPlaylists();
+        if (context.mounted) {
+          SuccessPopup.show(
+            context,
+            title: 'Playlist Deleted',
+            subtitle: 'The playlist has been permanently removed',
+            icon: Icons.delete_forever,
+            iconColor: AppColors.error,
+          );
+          // Go back from detail screen
+          Navigator.pop(context);
+        }
+      } else {
+        throw Exception('Failed to delete playlist');
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _togglePlaylistVisibility(BuildContext context, WidgetRef ref) async {
+    // Capture providers before any async gap to avoid "ref used after dispose"
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+    final newIsPublic = !playlist.isPublic;
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final updated = await playlistService.updatePlaylistVisibility(
+        playlistId: playlist.id,
+        isPublic: newIsPublic,
+      );
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      myPlaylistsNotifier.updatePlaylist(updated);
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: newIsPublic ? 'Playlist is now Public' : 'Playlist is now Private',
+          subtitle: 'Visibility updated successfully',
+          icon: newIsPublic ? Icons.public : Icons.lock,
+          iconColor: Colors.blue,
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update visibility: $e')),
+        );
+      }
+    }
   }
 
   void _showAddSongToPlaylistDialog(BuildContext context, WidgetRef ref, String playlistId) {
@@ -486,6 +778,12 @@ class _PlaylistDetailContent extends ConsumerWidget {
     required String source,
     required String sourcePath,
   }) async {
+    // Capture providers before any async gap to avoid "ref used after dispose"
+    final songService = ref.read(songServiceProvider);
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+    final playlists = ref.read(myPlaylistsProvider).value ?? [];
+
     BuildContext? dialogContext;
     showDialog(
       context: context,
@@ -497,8 +795,6 @@ class _PlaylistDetailContent extends ConsumerWidget {
     );
 
     try {
-      final songService = ref.read(songServiceProvider);
-      final playlistService = ref.read(playlistServiceProvider);
       final backendSong = await songService.createSong(
         title: title,
         artist: artist,
@@ -510,22 +806,20 @@ class _PlaylistDetailContent extends ConsumerWidget {
         Navigator.pop(dialogContext!);
       }
 
-      final playlists = ref.read(myPlaylistsProvider).value ?? [];
       final personalPlaylist = playlists.firstWhere(
-        (p) => p.name == 'Personal',
-        orElse: () => throw Exception('Personal playlist not found'),
+        (p) => p.name == 'My Uploading',
+        orElse: () => throw Exception('My Uploading playlist not found'),
       );
 
       final updatedPlaylist = await playlistService.addSongToPlaylist(playlistId, backendSong.id);
-      ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
+      myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
       
       if (playlistId != personalPlaylist.id) {
         final updatedPersonal = await playlistService.addSongToPlaylist(personalPlaylist.id, backendSong.id);
-        ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPersonal);
+        myPlaylistsNotifier.updatePlaylist(updatedPersonal);
       }
       
       if (context.mounted) {
-        ref.invalidate(songsProvider);
         SuccessPopup.show(
           context,
           title: 'Song Added!',
@@ -563,17 +857,21 @@ class _PlaylistDetailContent extends ConsumerWidget {
   }
 }
 
-class _SongTile extends ConsumerWidget {
+class SongTile extends ConsumerWidget {
   final Song song;
   final int index;
-  final String playlistId;
+  final Playlist? playlist;
   final bool isPlaylistOwner;
+  final VoidCallback? onTap;
+  final bool showTypeBadge;
 
-  const _SongTile({
+  const SongTile({
     required this.song,
     required this.index,
-    required this.playlistId,
-    required this.isPlaylistOwner,
+    this.playlist,
+    this.isPlaylistOwner = false,
+    this.onTap,
+    this.showTypeBadge = false,
   });
 
   String _formatDuration(int? seconds) {
@@ -584,6 +882,13 @@ class _SongTile extends ConsumerWidget {
   }
 
   void _showSongOptionsSheet(BuildContext context, WidgetRef ref) {
+    final me = ref.read(meProvider).valueOrNull;
+    final isSongOwner = me != null && song.userId == me.id;
+
+    final isPersonalPlaylist = playlist?.name == 'My Uploading';
+    final isLikedSongsPlaylist = playlist?.name == 'Liked Songs';
+    final isNormalPlaylist = playlist != null && playlist!.name != 'My Uploading' && playlist!.name != 'Liked Songs';
+
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1E1E1E),
@@ -610,24 +915,116 @@ class _SongTile extends ConsumerWidget {
                 ),
               ),
               const Divider(color: Colors.white24, height: 1),
-              if (isPlaylistOwner)
+
+              // ── NORMAL PLAYLIST ──────────────────────────────────────
+              if (isNormalPlaylist) ...[
+                // Owner of playlist can remove songs
+                if (isPlaylistOwner)
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                    title: const Text('Remove from playlist', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _removeSongFromPlaylist(context, ref);
+                    },
+                  ),
+                // Everyone can add to their own playlists
+                // But non-owners cannot add to "My Uploading"
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: AppColors.error),
-                  title: const Text('Remove from playlist', style: TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.playlist_add, color: AppColors.primary),
+                  title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _removeSongFromPlaylist(context, ref);
+                    _showAddToPlaylistSheet(context, ref, excludePersonal: !isSongOwner);
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.playlist_add, color: AppColors.primary),
-                title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _showAddToPlaylistSheet(context, ref);
-                },
-              ),
-              if (isPlaylistOwner)
+                // Only song owner can toggle visibility
+                if (isSongOwner)
+                  ListTile(
+                    leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
+                    title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _toggleSongPrivacy(context, ref);
+                    },
+                  ),
+                // Only song owner can convert to karaoke
+                if (isSongOwner)
+                  ListTile(
+                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
+                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _startLyricSetup(context, ref);
+                    },
+                  ),
+                // Add to queue (feature placeholder)
+                const ListTile(
+                  leading: Icon(Icons.queue_music, color: Colors.grey),
+                  title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+
+              // ── MY UPLOADING PLAYLIST (personal / default) ───────────
+              if (isPersonalPlaylist) ...[
+                // Only song owner can delete the song permanently
+                if (isSongOwner)
+                  ListTile(
+                    leading: const Icon(Icons.delete_forever, color: AppColors.error),
+                    title: const Text('Delete Song', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _deleteSongFromBackend(context, ref);
+                    },
+                  ),
+                // Add to another playlist
+                ListTile(
+                  leading: const Icon(Icons.playlist_add, color: AppColors.primary),
+                  title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showAddToPlaylistSheet(context, ref);
+                  },
+                ),
+                // Only song owner can toggle visibility
+                if (isSongOwner)
+                  ListTile(
+                    leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
+                    title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _toggleSongPrivacy(context, ref);
+                    },
+                  ),
+                // Only song owner can convert to karaoke
+                if (isSongOwner)
+                  ListTile(
+                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
+                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _startLyricSetup(context, ref);
+                    },
+                  ),
+                // Add to queue (feature placeholder)
+                const ListTile(
+                  leading: Icon(Icons.queue_music, color: Colors.grey),
+                  title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+
+              // ── LIKED SONGS PLAYLIST ─────────────────────────────────
+              if (isLikedSongsPlaylist) ...[
+                // Unlike
+                ListTile(
+                  leading: const Icon(Icons.favorite_border, color: AppColors.error),
+                  title: const Text('Unlike', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _unlikeSong(context, ref);
+                  },
+                ),
+                // Move to playlist
                 ListTile(
                   leading: const Icon(Icons.drive_file_move_outlined, color: Colors.orangeAccent),
                   title: const Text('Move to playlist', style: TextStyle(color: Colors.white)),
@@ -636,19 +1033,45 @@ class _SongTile extends ConsumerWidget {
                     _showMoveToPlaylistSheet(context, ref);
                   },
                 ),
-              if (isPlaylistOwner)
+              ],
+
+              // ── NO PLAYLIST CONTEXT (e.g. search results) ────────────
+              if (playlist == null) ...[
+                // Add to playlist (non-owners can't add to "My Uploading")
                 ListTile(
-                  leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
-                  title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                  leading: const Icon(Icons.playlist_add, color: AppColors.primary),
+                  title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     Navigator.pop(ctx);
-                    _toggleSongPrivacy(context, ref);
+                    _showAddToPlaylistSheet(context, ref, excludePersonal: !isSongOwner);
                   },
                 ),
-              const ListTile(
-                leading: Icon(Icons.queue_music, color: Colors.grey),
-                title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
-              ),
+                // Only song owner can toggle visibility
+                if (isSongOwner)
+                  ListTile(
+                    leading: Icon(song.isPublic ? Icons.lock : Icons.public, color: Colors.blue),
+                    title: Text(song.isPublic ? 'Make Private' : 'Make Public', style: const TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _toggleSongPrivacy(context, ref);
+                    },
+                  ),
+                // Only song owner can convert to karaoke
+                if (isSongOwner)
+                  ListTile(
+                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
+                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _startLyricSetup(context, ref);
+                    },
+                  ),
+                // Add to queue (feature placeholder)
+                const ListTile(
+                  leading: Icon(Icons.queue_music, color: Colors.grey),
+                  title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
+                ),
+              ],
             ],
           ),
         );
@@ -656,15 +1079,156 @@ class _SongTile extends ConsumerWidget {
     );
   }
 
+  Future<void> _unlikeSong(BuildContext context, WidgetRef ref) async {
+    // Capture providers before any async gap to avoid "ref used after dispose"
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
+    try {
+      await LikedSongsService().toggleLikeSong(song.id);
+      myPlaylistsNotifier.refreshPlaylists();
+      
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: 'Unliked',
+          subtitle: 'Removed from liked songs',
+          icon: Icons.favorite_border,
+          iconColor: AppColors.error,
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to unlike: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteSongFromBackend(BuildContext context, WidgetRef ref) async {
+    // Capture providers before any async gap to avoid "ref used after dispose"
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Delete Song', style: TextStyle(color: Colors.white)),
+        content: Text('Are you sure you want to permanently delete "${song.title}" from the music platform?', style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final songService = SongService();
+      await songService.deleteSong(song.id);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      // Refresh playlists and songs list
+      myPlaylistsNotifier.refreshPlaylists();
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: 'Song Deleted',
+          subtitle: 'Deleted from library permanently',
+          icon: Icons.delete_forever,
+          iconColor: AppColors.error,
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete song: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _startLyricSetup(BuildContext context, WidgetRef ref) async {
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final controller = KaraokeController();
+      final karaokeSong = await controller.convertSongToKaraoke(song);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      if (context.mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                provider.ChangeNotifierProvider<KaraokeController>.value(
+                  value: controller,
+                  child: LyricEditorScreen(
+                    song: karaokeSong,
+                    controller: controller,
+                    sourceSongId: song.id,
+                  ),
+                ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to start karaoke conversion: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _removeSongFromPlaylist(BuildContext context, WidgetRef ref) async {
+    if (playlist == null) return;
     final playlistService = ref.read(playlistServiceProvider);
     final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
     
     // Optimistic UI update: instantly remove from current playlist
-    myPlaylistsNotifier.removeSongLocally(playlistId, song.id);
+    myPlaylistsNotifier.removeSongLocally(playlist!.id, song.id);
 
     try {
-      final updatedPlaylist = await playlistService.removeSongFromPlaylist(playlistId, song.id);
+      final updatedPlaylist = await playlistService.removeSongFromPlaylist(playlist!.id, song.id);
       
       myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
 
@@ -689,6 +1253,11 @@ class _SongTile extends ConsumerWidget {
   }
 
   Future<void> _toggleSongPrivacy(BuildContext context, WidgetRef ref) async {
+    // Capture providers before any async gap to avoid "ref used after dispose"
+    final songService = ref.read(songServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+    final newIsPublic = !song.isPublic;
+
     BuildContext? dialogContext;
     showDialog(
       context: context,
@@ -700,8 +1269,6 @@ class _SongTile extends ConsumerWidget {
     );
 
     try {
-      final songService = ref.read(songServiceProvider);
-      final newIsPublic = !song.isPublic;
       await songService.updateSongVisibility(
         songId: song.id,
         isPublic: newIsPublic,
@@ -712,7 +1279,7 @@ class _SongTile extends ConsumerWidget {
       }
 
       // Refresh the current playlist to see updated song state
-      await ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+      await myPlaylistsNotifier.refreshPlaylists();
 
       if (context.mounted) {
         SuccessPopup.show(
@@ -735,7 +1302,7 @@ class _SongTile extends ConsumerWidget {
     }
   }
 
-  void _showAddToPlaylistSheet(BuildContext context, WidgetRef ref) {
+  void _showAddToPlaylistSheet(BuildContext context, WidgetRef ref, {bool excludePersonal = false}) {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1E1E1E),
@@ -770,7 +1337,10 @@ class _SongTile extends ConsumerWidget {
                   const SizedBox(height: 12),
                   playlistsAsync.when(
                     data: (playlists) {
-                      final otherPlaylists = playlists.where((p) => p.id != playlistId).toList();
+                      var otherPlaylists = playlists.where((p) => p.id != playlist?.id).toList();
+                      if (excludePersonal) {
+                        otherPlaylists = otherPlaylists.where((p) => p.name != 'My Uploading').toList();
+                      }
                       if (otherPlaylists.isEmpty) {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -813,6 +1383,10 @@ class _SongTile extends ConsumerWidget {
   }
 
   Future<void> _addSongToTargetPlaylist(BuildContext context, WidgetRef ref, Playlist targetPlaylist) async {
+    // Capture providers before any async gap to avoid "ref used after dispose"
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
     BuildContext? dialogContext;
     showDialog(
       context: context,
@@ -824,11 +1398,11 @@ class _SongTile extends ConsumerWidget {
     );
 
     try {
-      final updatedPlaylist = await ref.read(playlistServiceProvider).addSongToPlaylist(targetPlaylist.id, song.id);
+      final updatedPlaylist = await playlistService.addSongToPlaylist(targetPlaylist.id, song.id);
       if (dialogContext != null && dialogContext!.mounted) {
         Navigator.pop(dialogContext!);
       }
-      ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
+      myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
       if (context.mounted) {
         SuccessPopup.show(
           context,
@@ -873,7 +1447,7 @@ class _SongTile extends ConsumerWidget {
                   const SizedBox(height: 16),
                   playlistsAsync.when(
                     data: (playlists) {
-                      final otherPlaylists = playlists.where((p) => p.id != playlistId).toList();
+                      final otherPlaylists = playlists.where((p) => p.id != playlist?.id).toList();
                       if (otherPlaylists.isEmpty) {
                         return const Padding(
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -916,15 +1490,16 @@ class _SongTile extends ConsumerWidget {
   }
 
   Future<void> _moveSongToTargetPlaylist(BuildContext context, WidgetRef ref, Playlist targetPlaylist) async {
+    if (playlist == null) return;
     final playlistService = ref.read(playlistServiceProvider);
     final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
 
     // Optimistic UI update: instantly remove from current playlist
-    myPlaylistsNotifier.removeSongLocally(playlistId, song.id);
+    myPlaylistsNotifier.removeSongLocally(playlist!.id, song.id);
 
     try {
       final updatedPlaylist = await playlistService.moveSongBetweenPlaylists(
-            fromPlaylistId: playlistId,
+            fromPlaylistId: playlist!.id,
             toPlaylistId: targetPlaylist.id,
             songId: song.id,
           );
@@ -952,6 +1527,10 @@ class _SongTile extends ConsumerWidget {
   }
 
   void _showNewPlaylistAndAddSong(BuildContext context, WidgetRef ref) {
+    // Capture providers before any async gap to avoid "ref used after dispose"
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+
     final nameCtrl = TextEditingController();
     showDialog(
       context: context,
@@ -981,10 +1560,9 @@ class _SongTile extends ConsumerWidget {
               if (name.isEmpty) return;
               Navigator.pop(ctx);
               try {
-                final playlistService = ref.read(playlistServiceProvider);
                 final newPlaylist = await playlistService.createPlaylist(name);
                 final updatedPlaylist = await playlistService.addSongToPlaylist(newPlaylist.id, song.id);
-                ref.read(myPlaylistsProvider.notifier).updatePlaylist(updatedPlaylist);
+                myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
                 if (context.mounted) {
                   SuccessPopup.show(
                     context,
@@ -1008,6 +1586,30 @@ class _SongTile extends ConsumerWidget {
     );
   }
 
+  Widget _buildSongOwnerBadge(WidgetRef ref, Song song) {
+    final me = ref.watch(meProvider).valueOrNull;
+    final isOwner = me != null && song.userId == me.id;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isOwner ? AppColors.primary.withValues(alpha: 0.2) : Colors.white10,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: isOwner ? AppColors.primary : Colors.white24,
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        isOwner ? 'Yours' : 'Public',
+        style: TextStyle(
+          color: isOwner ? AppColors.primary : Colors.grey,
+          fontSize: 9,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bool hasImage = song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
@@ -1023,11 +1625,35 @@ class _SongTile extends ConsumerWidget {
         ),
         child: !hasImage ? const Icon(Icons.music_note, color: AppColors.hint, size: 24) : null,
       ),
-      title: Text(
-        song.title,
-        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              song.title,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (showTypeBadge) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.4), width: 0.5),
+              ),
+              child: const Text(
+                'SONG',
+                style: TextStyle(color: Colors.blueAccent, fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              ),
+            ),
+          ],
+          const SizedBox(width: 8),
+          _buildSongOwnerBadge(ref, song),
+        ],
       ),
       subtitle: Row(
         children: [
@@ -1057,7 +1683,7 @@ class _SongTile extends ConsumerWidget {
           ),
         ],
       ),
-      onTap: () {
+      onTap: onTap ?? () {
         context.push(Routes.songById(song.id), extra: SongPlayerRouteData(song: song, category: 'PLAYLIST'));
       },
     );

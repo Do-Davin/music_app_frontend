@@ -17,6 +17,7 @@ import 'package:music_app_frontend/features/playlist/screens/no_playlists_screen
 import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 import 'package:music_app_frontend/features/relationships/screens/follow_list_screen.dart';
 import 'package:music_app_frontend/features/relationships/screens/user_detail_screen.dart';
+import 'package:music_app_frontend/features/playlist/screens/liked_songs_screen.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/song/screens/no_results_screen.dart';
 import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
@@ -27,6 +28,33 @@ class SongPlayerRouteData {
 
   final real_song.Song song;
   final String category;
+}
+
+// Fade + slight horizontal slide used for list-to-detail navigations.
+CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 220),
+    reverseTransitionDuration: const Duration(milliseconds: 220),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return FadeTransition(
+        opacity: curved,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0.04, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: child,
+        ),
+      );
+    },
+  );
 }
 
 final appRouter = GoRouter(
@@ -51,29 +79,33 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: Routes.followers,
-      builder: (context, state) =>
-          const FollowListScreen(mode: FollowListMode.followers),
+      pageBuilder: (context, state) => _slidePage(
+        state,
+        const FollowListScreen(mode: FollowListMode.followers),
+      ),
     ),
     GoRoute(
       path: Routes.following,
-      builder: (context, state) =>
-          const FollowListScreen(mode: FollowListMode.following),
+      pageBuilder: (context, state) => _slidePage(
+        state,
+        const FollowListScreen(mode: FollowListMode.following),
+      ),
     ),
     GoRoute(
       path: Routes.userDetail,
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final extra = state.extra;
-        if (extra is User) {
-          return UserDetailScreen(user: extra);
-        }
-        return const StatelessStatusScreen(
-          icon: Icons.person_off_outlined,
-          appBarTitle: 'Profile',
-          title: 'Profile Unavailable',
-          subtitle: 'This profile could not be opened.',
-          iconColor: AppColors.error,
-          iconBackgroundColor: AppColors.errorBackground,
-        );
+        final child = extra is User
+            ? UserDetailScreen(user: extra)
+            : const StatelessStatusScreen(
+                icon: Icons.person_off_outlined,
+                appBarTitle: 'Profile',
+                title: 'Profile Unavailable',
+                subtitle: 'This profile could not be opened.',
+                iconColor: AppColors.error,
+                iconBackgroundColor: AppColors.errorBackground,
+              );
+        return _slidePage(state, child);
       },
     ),
     GoRoute(
@@ -115,9 +147,9 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: Routes.playlistDetail,
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final id = state.pathParameters['id']!;
-        return PlaylistDetailScreen(playlistId: id);
+        return _slidePage(state, PlaylistDetailScreen(playlistId: id));
       },
     ),
     GoRoute(
@@ -125,13 +157,40 @@ final appRouter = GoRouter(
       builder: (context, state) => const NoResultsScreen(),
     ),
     GoRoute(
+      path: Routes.likedSongs,
+      pageBuilder: (context, state) =>
+          _slidePage(state, const LikedSongsScreen()),
+    ),
+    GoRoute(
       path: Routes.song,
-      builder: (context, state) {
+      pageBuilder: (context, state) {
         final extra = state.extra;
-        if (extra is SongPlayerRouteData) {
-          return SongPlayerScreen(song: extra.song, category: extra.category);
-        }
-        return const NoResultsScreen();
+        final child = extra is SongPlayerRouteData
+            ? SongPlayerScreen(song: extra.song, category: extra.category)
+            : const NoResultsScreen();
+        return CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: child,
+          transitionDuration: const Duration(milliseconds: 250),
+          reverseTransitionDuration: const Duration(milliseconds: 250),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            final curved = CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            );
+            return FadeTransition(
+              opacity: curved,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.04),
+                  end: Offset.zero,
+                ).animate(curved),
+                child: child,
+              ),
+            );
+          },
+        );
       },
     ),
   ],

@@ -5,12 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
+
 import 'package:music_app_frontend/core/routing/navigation_provider.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:music_app_frontend/features/auth/data/models/user.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
+import 'package:music_app_frontend/features/playlist/models/playlist.dart';
+import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
 import 'package:music_app_frontend/features/profile/models/profile_model.dart';
 import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
 import 'package:music_app_frontend/features/relationships/models/follow_counts.dart';
@@ -200,6 +203,7 @@ class _ProfileContent extends ConsumerWidget {
                   child: _buildStatColumn(
                     value: friends.length,
                     label: 'Friends',
+                    onTap: () => context.push(Routes.friends),
                   ),
                 ),
                 _buildStatDivider(),
@@ -494,32 +498,74 @@ class _ProfileContent extends ConsumerWidget {
     );
   }
 
+  // System playlists managed by the backend — hidden from the profile list.
+  static const _systemPlaylistNames = {'My Uploading', 'Liked Songs'};
+
   Widget _buildPlaylistsSection(BuildContext context, WidgetRef ref) {
+    final playlistsAsync = ref.watch(myPlaylistsProvider);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Playlists',
-          style: AppTextStyles.header.copyWith(
-            color: AppColors.onSurface,
-            fontSize: 20,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              'Playlists',
+              style: AppTextStyles.header.copyWith(
+                color: AppColors.onSurface,
+                fontSize: 20,
+              ),
+            ),
+            const Spacer(),
+            IconButton(
+              icon: const Icon(Icons.add, color: AppColors.primary),
+              tooltip: 'Create Playlist',
+              onPressed: () => _showCreatePlaylistDialog(context, ref),
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
 
-        // ── EMPTY STATE: shown when playlist list is empty ───────────────
-        if (profile.playlists.isEmpty)
-          AppEmptyStateWidget(
-            icon: Icons.queue_music,
-            title: 'No Playlists Yet',
-            subtitle: 'Create a playlist to organize your music',
-            buttonLabel: 'Create Playlist',
-            onButtonPressed: () => debugPrint('Create playlist tapped'),
-          )
-        else
-          ...profile.playlists.map(
-            (playlist) => _buildPlaylistItem(context, ref, playlist),
+        playlistsAsync.when(
+          skipLoadingOnRefresh: true,
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+                strokeWidth: 2,
+              ),
+            ),
           ),
+          error: (_, _) => AppErrorWidget(
+            message: 'Failed to load playlists. Please try again.',
+            retryButtonText: 'Retry',
+            onRetry: () =>
+                ref.read(myPlaylistsProvider.notifier).loadPlaylists(),
+          ),
+          data: (playlists) {
+            final visible = playlists
+                .where((p) => !_systemPlaylistNames.contains(p.name))
+                .toList();
+
+            if (visible.isEmpty) {
+              return AppEmptyStateWidget(
+                icon: Icons.queue_music,
+                title: 'No Playlists Yet',
+                subtitle: 'Create a playlist to organize your music',
+                buttonLabel: 'Create Playlist',
+                onButtonPressed: () => _showCreatePlaylistDialog(context, ref),
+              );
+            }
+
+            return Column(
+              children: visible
+                  .map((p) => _buildPlaylistItem(context, ref, p))
+                  .toList(),
+            );
+          },
+        ),
       ],
     );
   }
@@ -527,73 +573,152 @@ class _ProfileContent extends ConsumerWidget {
   Widget _buildPlaylistItem(
     BuildContext context,
     WidgetRef ref,
-    PlaylistItem playlist,
+    Playlist playlist,
   ) {
+    final songCount = playlist.songs?.length ?? playlist.songIds?.length ?? 0;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        children: [
-          // Thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: playlist.thumbnailUrl != null
-                ? Image.network(
-                    playlist.thumbnailUrl!,
-                    width: 60,
-                    height: 60,
-                    fit: BoxFit.cover,
-                  )
-                : Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () async {
+          await context.push(Routes.playlistById(playlist.id));
+          if (context.mounted) {
+            ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+          }
+        },
+        child: Row(
+          children: [
+            // Thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child:
+                  playlist.coverImageUrl != null &&
+                      playlist.coverImageUrl!.isNotEmpty
+                  ? Image.network(
+                      playlist.coverImageUrl!,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _playlistPlaceholder(),
+                    )
+                  : _playlistPlaceholder(),
+            ),
+
+            const SizedBox(width: 16),
+
+            // Name and song count
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    playlist.name,
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.onSurface,
                     ),
-                    child: const Icon(
-                      Icons.music_note,
-                      color: AppColors.primary,
-                      size: 28,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$songCount song${songCount == 1 ? '' : 's'}',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.hint,
+                      fontSize: 12,
                     ),
                   ),
-          ),
+                ],
+              ),
+            ),
 
-          const SizedBox(width: 16),
+            // Delete button
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              onPressed: () async {
+                final confirmed = await showConfirmDialog(
+                  context: context,
+                  title: 'Delete Playlist',
+                  message:
+                      'Are you sure you want to delete "${playlist.name}"? This cannot be undone.',
+                  confirmText: 'Delete',
+                  cancelText: 'Cancel',
+                );
 
-          // Title
-          Expanded(
-            child: Text(
-              playlist.title,
-              style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
+                if (confirmed && context.mounted) {
+                  await ref
+                      .read(myPlaylistsProvider.notifier)
+                      .deletePlaylist(playlist.id);
+                  if (context.mounted) {
+                    showSuccessSnackbar(
+                      context,
+                      message: '"${playlist.name}" deleted successfully.',
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _playlistPlaceholder() {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Icon(Icons.music_note, color: AppColors.primary, size: 28),
+    );
+  }
+
+  void _showCreatePlaylistDialog(BuildContext context, WidgetRef ref) {
+    final nameCtrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: Text(
+          'New Playlist',
+          style: AppTextStyles.header.copyWith(fontSize: 20),
+        ),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: AppTextStyles.body,
+          decoration: InputDecoration(
+            hintText: 'Playlist Name',
+            hintStyle: AppTextStyles.body.copyWith(color: AppColors.hint),
+            enabledBorder: const UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.primary),
             ),
           ),
-
-          // ── DELETE button → triggers confirm dialog ────────────────────
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            onPressed: () async {
-              // Show confirm dialog before deleting
-              final confirmed = await showConfirmDialog(
-                context: context,
-                title: 'Delete Playlist',
-                message:
-                    'Are you sure you want to delete "${playlist.title}"? This cannot be undone.',
-                confirmText: 'Delete',
-                cancelText: 'Cancel',
-              );
-
-              if (confirmed) {
-                // Show success snackbar after delete
-                if (context.mounted) {
-                  showSuccessSnackbar(
-                    context,
-                    message: '"${playlist.title}" deleted successfully.',
-                    undoLabel: 'Undo',
-                    onUndo: () => debugPrint('Undo delete tapped'),
-                  );
-                }
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: TextButton.styleFrom(foregroundColor: Colors.grey),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              if (name.isNotEmpty) {
+                ref.read(myPlaylistsProvider.notifier).createPlaylist(name);
+                Navigator.pop(ctx);
               }
             },
+            child: Text(
+              'Create',
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

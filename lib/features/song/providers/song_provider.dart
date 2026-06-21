@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/features/song/services/song_service.dart';
 
@@ -10,16 +11,28 @@ final songsProvider = FutureProvider<List<Song>>((ref) async {
   return service.fetchSongs();
 });
 
+final mySongsProvider = FutureProvider<List<Song>>((ref) async {
+  final service = ref.watch(songServiceProvider);
+  return service.fetchMySongs();
+});
+
 final songByIdProvider = FutureProvider.family<Song, String>((ref, id) async {
   final service = ref.watch(songServiceProvider);
   return service.fetchSongById(id);
 });
 
-final searchSongsProvider =
-    FutureProvider.family<List<Song>, String>((ref, query) async {
-  if (query.isEmpty) return [];
+final likedSongsProvider = FutureProvider<List<Song>>((ref) async {
+  return LikedSongsService().fetchLikedSongs();
+});
+
+final searchSongsProvider = FutureProvider.family<List<Song>, String>((
+  ref,
+  query,
+) async {
+  final cleanQuery = query.trim();
+  if (cleanQuery.isEmpty) return [];
   final service = ref.watch(songServiceProvider);
-  return service.searchSongs(query);
+  return service.searchSongs(cleanQuery);
 });
 
 /// Debounced search query — updates 400 ms after the user stops typing.
@@ -27,8 +40,8 @@ final searchSongsProvider =
 /// request on every keystroke.
 final debouncedSearchQueryProvider =
     StateNotifierProvider<DebouncedSearchNotifier, String>(
-  (ref) => DebouncedSearchNotifier(),
-);
+      (ref) => DebouncedSearchNotifier(),
+    );
 
 class DebouncedSearchNotifier extends StateNotifier<String> {
   Timer? _timer;
