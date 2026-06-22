@@ -129,6 +129,40 @@ class SongQueries {
     }
   ''';
 
+  static const String toggleFavoriteSong = '''
+    mutation ToggleFavoriteSong(\$songId: ID!) {
+      toggleFavoriteSong(songId: \$songId) {
+        isFavorite
+      }
+    }
+  ''';
+
+  static const String getMyFavoriteSongs = r'''
+    query GetMyFavoriteSongs {
+      myFavoriteSongs {
+        _id
+        title
+        artist
+        albumName
+        duration
+        key
+        tempo
+        difficulty
+        tags
+        source
+        sourcePath
+        fileUrl
+        videoUrl
+        coverImageUrl
+        lyrics
+        chordNotationStyle
+        isPublic
+        playCount
+        userId
+      }
+    }
+  ''';
+
   static const String removeSong = r'''
     mutation RemoveSong($id: ID!) {
       removeSong(id: $id)
@@ -158,6 +192,12 @@ class SongQueries {
         playCount
         userId
       }
+    }
+  ''';
+
+  static const String isSongFavorite = '''
+    query IsSongFavorite(\$songId: ID!) {
+      isSongFavorite(songId: \$songId)
     }
   ''';
 }

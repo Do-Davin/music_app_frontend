@@ -287,6 +287,52 @@ class PlaylistQueries {
     }
   ''';
 
+  static const String isSongInLikedSongs = r'''
+    query IsSongInLikedSongs($songId: ID!) {
+      isSongInLikedSongs(songId: $songId)
+    }
+  ''';
+
+  static const String toggleSongInLikedSongs = r'''
+    mutation ToggleSongInLikedSongs($songId: ID!) {
+      toggleSongInLikedSongs(songId: $songId) {
+        isLiked
+      }
+    }
+  ''';
+
+  static const String getLikedSongsPlaylist = r'''
+    query GetLikedSongsPlaylist {
+      likedSongsPlaylist {
+        _id
+        userId
+        name
+        description
+        coverImageUrl
+        isPublic
+        songIds
+        songs {
+          _id
+          title
+          artist
+          albumName
+          coverImageUrl
+          duration
+          source
+          sourcePath
+          fileUrl
+          videoUrl
+          difficulty
+          key
+          tempo
+          tags
+        }
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
   static const String searchPlaylists = r'''
     query SearchPlaylists($query: String!) {
       searchPlaylists(query: $query) {

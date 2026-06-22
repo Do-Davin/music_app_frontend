@@ -18,6 +18,7 @@ class LyricLine extends StatelessWidget {
   final List<LrcWord>? words;
   final Duration currentPosition;
   final void Function(int wordIndex)? onWordLongPress;
+  final double fontScale;
 
   const LyricLine({
     super.key,
@@ -26,6 +27,7 @@ class LyricLine extends StatelessWidget {
     this.words,
     this.currentPosition = Duration.zero,
     this.onWordLongPress,
+    this.fontScale = 1.0,
   });
 
   @override
@@ -49,7 +51,7 @@ class LyricLine extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       style: TextStyle(
-        fontSize: isActive ? 26 : 18,
+        fontSize: (isActive ? 26 : 18) * fontScale,
         fontWeight: isActive ? FontWeight.w800 : FontWeight.w400,
         color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.3),
         height: 1.4,
@@ -147,7 +149,7 @@ class LyricLine extends StatelessWidget {
               style: TextStyle(
                 color: wordColor,
                 fontWeight: wordWeight,
-                fontSize: 26,
+                fontSize: 26 * fontScale,
                 height: 1.4,
                 letterSpacing: 0.5,
                 shadows: wordShadows,

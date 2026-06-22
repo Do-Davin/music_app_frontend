@@ -52,7 +52,8 @@ class PlaylistService {
       if (data == null) throw Exception('Playlist not found');
       final playlist = Playlist.fromJson(data);
       debugPrint(
-        'PlaylistService: getPlaylistById(${playlist.name}) returned ${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs',
+        'PlaylistService: getPlaylistById(${playlist.name}) returned '
+        '${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs',
       );
       return playlist;
     } catch (e) {
@@ -100,7 +101,8 @@ class PlaylistService {
       if (data == null) throw Exception('Failed to add song to playlist');
       final playlist = Playlist.fromJson(data);
       debugPrint(
-        'PlaylistService: addSongToPlaylist returned ${playlist.name} with ${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs',
+        'PlaylistService: addSongToPlaylist returned ${playlist.name} '
+        'with ${playlist.songIds?.length} songIds and ${playlist.songs?.length} songs',
       );
       return playlist;
     } catch (e) {
@@ -156,8 +158,9 @@ class PlaylistService {
 
       final data =
           result.data?['moveSongBetweenPlaylists'] as Map<String, dynamic>?;
-      if (data == null)
+      if (data == null) {
         throw Exception('Failed to move song between playlists');
+      }
       return Playlist.fromJson(data);
     } catch (e) {
       rethrow;
@@ -209,6 +212,71 @@ class PlaylistService {
     }
   }
 
+  // ── Liked Songs methods ────────────────────────────────────────────────────
+  // These were removed from the dev branch but are still required by
+  // playlist_provider.dart, liked_songs_screen.dart, and favorite_icon_button.dart.
+
+  Future<Playlist> getLikedSongsPlaylist() async {
+    try {
+      final QueryOptions options = QueryOptions(
+        document: gql(PlaylistQueries.getLikedSongsPlaylist),
+        fetchPolicy: FetchPolicy.networkOnly,
+      );
+
+      final QueryResult result = await _client.query(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      final data = result.data?['likedSongsPlaylist'] as Map<String, dynamic>?;
+      if (data == null) throw Exception('Liked songs playlist not found');
+      return Playlist.fromJson(data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> isSongInLikedSongs(String songId) async {
+    try {
+      final QueryOptions options = QueryOptions(
+        document: gql(PlaylistQueries.isSongInLikedSongs),
+        variables: {'songId': songId},
+        fetchPolicy: FetchPolicy.networkOnly,
+      );
+
+      final QueryResult result = await _client.query(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      return result.data?['isSongInLikedSongs'] as bool? ?? false;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<bool> toggleSongInLikedSongs(String songId) async {
+    try {
+      final MutationOptions options = MutationOptions(
+        document: gql(PlaylistQueries.toggleSongInLikedSongs),
+        variables: {'songId': songId},
+      );
+
+      final QueryResult result = await _client.mutate(options);
+
+      if (result.hasException) {
+        throw Exception(parseGraphQlException(result.exception!));
+      }
+
+      return result.data?['toggleSongInLikedSongs']['isLiked'] as bool? ??
+          false;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<Playlist>> searchPlaylists(String query) async {
     try {
       if (query.isEmpty) return [];
@@ -244,7 +312,8 @@ class PlaylistService {
         throw Exception(parseGraphQlException(result.exception!));
       }
 
-      final data = result.data?['savePlaylistToLibrary'] as Map<String, dynamic>?;
+      final data =
+          result.data?['savePlaylistToLibrary'] as Map<String, dynamic>?;
       if (data == null) throw Exception('Failed to save playlist to library');
       return Playlist.fromJson(data);
     } catch (e) {
@@ -265,8 +334,11 @@ class PlaylistService {
         throw Exception(parseGraphQlException(result.exception!));
       }
 
-      final data = result.data?['removePlaylistFromLibrary'] as Map<String, dynamic>?;
-      if (data == null) throw Exception('Failed to remove playlist from library');
+      final data =
+          result.data?['removePlaylistFromLibrary'] as Map<String, dynamic>?;
+      if (data == null) {
+        throw Exception('Failed to remove playlist from library');
+      }
       return Playlist.fromJson(data);
     } catch (e) {
       rethrow;

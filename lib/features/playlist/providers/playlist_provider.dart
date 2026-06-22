@@ -143,3 +143,21 @@ final searchPlaylistsProvider =
   final service = ref.watch(playlistServiceProvider);
   return service.searchPlaylists(query);
 });
+
+final likedSongsPlaylistProvider = FutureProvider<Playlist>((ref) async {
+  return ref.watch(playlistServiceProvider).getLikedSongsPlaylist();
+});
+
+final isSongInLikedSongsProvider = FutureProvider.family<bool, String>((
+  ref,
+  songId,
+) async {
+  return ref.watch(playlistServiceProvider).isSongInLikedSongs(songId);
+});
+
+final toggleSongInLikedSongsProvider = FutureProvider.family<bool, String>((
+  ref,
+  songId,
+) async {
+  return ref.watch(playlistServiceProvider).toggleSongInLikedSongs(songId);
+});

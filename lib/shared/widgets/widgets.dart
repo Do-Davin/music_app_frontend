@@ -15,3 +15,4 @@ export 'app_error_widget.dart'; // error message with retry
 export 'app_success_snackbar.dart'; // floating success snackbar
 export 'app_empty_state_widget.dart'; // empty state (no data)
 export 'app_confirm_dialog.dart'; // confirm/cancel popup dialog
+export 'favorite_icon_button.dart'; // heart icon for favoriting songs
