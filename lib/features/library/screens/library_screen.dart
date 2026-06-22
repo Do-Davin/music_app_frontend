@@ -186,6 +186,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           ? _buildMySongsContent(context, mySongsAsync)
                           : playlistsAsync.when(
                         data: (playlists) {
+                          if (searchQuery.isNotEmpty && selectedFilter == 'All') {
+                            final songs = mySongsAsync.value ?? [];
+                            return _buildCombinedSearchContent(context, playlists, songs);
+                          }
                           final filteredList = playlists.where((playlist) {
                             final matchesSearch = playlist.name
                                 .toLowerCase()
@@ -319,25 +323,47 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         width: 64,
         height: 64,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withValues(alpha: 0.7),
-              AppColors.primary,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          borderRadius: BorderRadius.circular(8),
+          color: AppColors.primary.withValues(alpha: 0.1),
+          border: Border.all(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            width: 1.5,
           ),
         ),
         child: const Icon(
-          Icons.favorite_rounded,
-          color: Colors.white,
-          size: 28,
+          Icons.favorite_border,
+          color: AppColors.primary,
+          size: 32,
         ),
       ),
-      title: Text(
-        'Liked Songs',
-        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Liked Songs',
+            style: AppTextStyles.body.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.orangeAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.orangeAccent, width: 0.5),
+            ),
+            child: const Text(
+              'Your favourite',
+              style: TextStyle(
+                color: Colors.orangeAccent,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
       subtitle: Text(
         'Playlist',
@@ -356,33 +382,55 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary.withValues(alpha: 0.7),
-                    AppColors.primary,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                borderRadius: BorderRadius.circular(8),
+                color: AppColors.primary.withValues(alpha: 0.1),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  width: 1.5,
                 ),
               ),
               child: const Center(
                 child: Icon(
-                  Icons.favorite_rounded,
-                  color: Colors.white,
+                  Icons.favorite_border,
+                  color: AppColors.primary,
                   size: 40,
                 ),
               ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Liked Songs',
-            style: AppTextStyles.body.copyWith(
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-            maxLines: 1,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Liked Songs',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: AppColors.primary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orangeAccent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: Colors.orangeAccent, width: 0.5),
+                ),
+                child: const Text(
+                  'Favourite',
+                  style: TextStyle(
+                    color: Colors.orangeAccent,
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
           Text(
             'Playlist',
@@ -408,6 +456,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         final songCount = item.songIds?.length ?? 0;
         final isUploadingPlaylist = item.name == 'My Uploading';
         final isSystemPlaylist = item.name == 'My Uploading' || item.name == 'Liked Songs';
+
+        final me = ref.watch(meProvider).valueOrNull;
+        final isPlaylistOwner = me != null && item.userId == me.id;
+
+        final String badgeText = isPlaylistOwner 
+            ? (item.isPublic ? 'Yours • Public' : 'Yours • Private')
+            : (item.isPublic ? 'Public' : 'Private');
+
+        final Color badgeColor = isPlaylistOwner
+            ? (item.isPublic ? AppColors.primary : Colors.orangeAccent)
+            : (item.isPublic ? Colors.orangeAccent : Colors.grey);
+
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(vertical: 6),
           leading: _buildImageTile(item, 64),
@@ -438,6 +498,27 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     'My Uploads',
                     style: TextStyle(
                       color: AppColors.primary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ] else if (!isSystemPlaylist) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: badgeColor.withValues(alpha: 0.4),
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: TextStyle(
+                      color: badgeColor,
                       fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),
@@ -483,6 +564,19 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         if (index == 0) return _buildLikedSongsGridTile(context);
         final item = playlists[index - 1];
         final isUploadingPlaylist = item.name == 'My Uploading';
+        final isSystemPlaylist = item.name == 'My Uploading' || item.name == 'Liked Songs';
+
+        final me = ref.watch(meProvider).valueOrNull;
+        final isPlaylistOwner = me != null && item.userId == me.id;
+
+        final String badgeText = isPlaylistOwner 
+            ? (item.isPublic ? 'Yours • Public' : 'Yours • Private')
+            : (item.isPublic ? 'Public' : 'Private');
+
+        final Color badgeColor = isPlaylistOwner
+            ? (item.isPublic ? AppColors.primary : Colors.orangeAccent)
+            : (item.isPublic ? Colors.orangeAccent : Colors.grey);
+
         return GestureDetector(
           onTap: () {
             context.push(Routes.playlistById(item.id));
@@ -519,6 +613,27 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                         'Uploads',
                         style: TextStyle(
                           color: AppColors.primary,
+                          fontSize: 8,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ] else if (!isSystemPlaylist) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: badgeColor.withValues(alpha: 0.4),
+                          width: 0.5,
+                        ),
+                      ),
+                      child: Text(
+                        badgeText,
+                        style: TextStyle(
+                          color: badgeColor,
                           fontSize: 8,
                           fontWeight: FontWeight.bold,
                         ),
@@ -602,7 +717,27 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ),
               const Divider(color: Colors.white24, height: 1),
               
-              if (isPlaylistOwner)
+              if (isPlaylistOwner) ...[
+                ListTile(
+                  leading: Icon(
+                    playlist.isPublic ? Icons.lock : Icons.public,
+                    color: Colors.blue,
+                  ),
+                  title: Text(
+                    playlist.isPublic ? 'Make Private' : 'Make Public',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  subtitle: Text(
+                    playlist.isPublic
+                        ? 'Only you can see this playlist'
+                        : 'Anyone can discover this playlist',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _togglePlaylistVisibility(context, ref, playlist);
+                  },
+                ),
                 ListTile(
                   leading: const Icon(
                     Icons.delete_outline,
@@ -621,6 +756,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     _deletePlaylist(context, ref, playlist);
                   },
                 ),
+              ],
               
               if (!isPlaylistOwner)
                 ListTile(
@@ -648,6 +784,54 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         );
       },
     );
+  }
+
+  Future<void> _togglePlaylistVisibility(BuildContext context, WidgetRef ref, model.Playlist playlist) async {
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+    final newIsPublic = !playlist.isPublic;
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final updated = await playlistService.updatePlaylistVisibility(
+        playlistId: playlist.id,
+        isPublic: newIsPublic,
+      );
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      myPlaylistsNotifier.updatePlaylist(updated);
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: newIsPublic ? 'Playlist is now Public' : 'Playlist is now Private',
+          subtitle: 'Visibility updated successfully',
+          icon: newIsPublic ? Icons.public : Icons.lock,
+          iconColor: Colors.blue,
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update visibility: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _deletePlaylist(BuildContext context, WidgetRef ref, model.Playlist playlist) async {
@@ -1062,5 +1246,163 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ).showSnackBar(SnackBar(content: Text('Failed to delete song: $e')));
       }
     }
+  }
+
+  Widget _buildCombinedSearchContent(
+    BuildContext context,
+    List<model.Playlist> playlists,
+    List<song_model.Song> songs,
+  ) {
+    final query = searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return const SizedBox.shrink();
+
+    final matchedPlaylists = playlists.where((p) => p.name.toLowerCase().contains(query)).toList();
+    final matchedSongs = songs.where((s) => s.title.toLowerCase().contains(query) || s.artist.toLowerCase().contains(query)).toList();
+
+    final combined = <dynamic>[...matchedPlaylists, ...matchedSongs];
+
+    if (combined.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.2),
+          AppEmptyStateWidget(
+            icon: Icons.search_off,
+            title: 'No Results Found',
+            subtitle: 'No playlists or songs match "$searchQuery"',
+            iconColor: AppColors.primary,
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: combined.length,
+      itemBuilder: (context, index) {
+        final item = combined[index];
+        if (item is song_model.Song) {
+          return _buildSearchSongTile(context, item);
+        } else if (item is model.Playlist) {
+          return _buildSearchPlaylistTile(context, item);
+        }
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  Widget _buildSearchPlaylistTile(BuildContext context, model.Playlist item) {
+    final songCount = item.songIds?.length ?? 0;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 6),
+      leading: _buildImageTile(item, 64),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              item.name,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.purpleAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.purpleAccent.withValues(alpha: 0.4), width: 0.5),
+            ),
+            child: const Text(
+              'PLAYLIST',
+              style: TextStyle(
+                color: Colors.purpleAccent,
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        'Playlist • $songCount songs',
+        style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
+      ),
+      onTap: () {
+        context.push(Routes.playlistById(item.id));
+      },
+    );
+  }
+
+  Widget _buildSearchSongTile(BuildContext context, song_model.Song song) {
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+      leading: Container(
+        width: 50,
+        height: 50,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          color: AppColors.surface,
+          image: song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty
+              ? DecorationImage(
+                  image: NetworkImage(song.coverImageUrl!),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: song.coverImageUrl == null || song.coverImageUrl!.isEmpty
+            ? const Icon(Icons.music_note, color: AppColors.onSurface)
+            : null,
+      ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              song.title,
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.blueAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.4), width: 0.5),
+            ),
+            child: const Text(
+              'SONG',
+              style: TextStyle(
+                color: Colors.blueAccent,
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        song.artist,
+        style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 13),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      onTap: () {
+        context.push(
+          Routes.songById(song.id),
+          extra: SongPlayerRouteData(song: song, category: 'My Songs'),
+        );
+      },
+    );
   }
 }

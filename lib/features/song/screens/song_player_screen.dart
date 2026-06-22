@@ -14,6 +14,7 @@ import 'package:provider/provider.dart' as provider;
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:music_app_frontend/features/karaoke/data/repositories/karaoke_repository.dart';
 import 'package:music_app_frontend/features/karaoke/data/models/karaoke_song.dart';
+import 'package:music_app_frontend/core/utils/youtube_parser.dart';
 
 class SongPlayerScreen extends ConsumerStatefulWidget {
   final Song song;
@@ -61,12 +62,8 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
     if (songUrl == null) return false;
 
     if (song.isYoutube) {
-      final songYtId =
-          YoutubePlayer.convertUrlToId(songUrl) ??
-          (songUrl.length == 11 ? songUrl : null);
-      final karaokeYtId =
-          YoutubePlayer.convertUrlToId(karaoke.sourcePath) ??
-          karaoke.sourcePath;
+      final songYtId = extractYoutubeId(songUrl);
+      final karaokeYtId = extractYoutubeId(karaoke.sourcePath);
       if (songYtId != null && songYtId == karaokeYtId) {
         return true;
       }
@@ -91,10 +88,17 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   void _checkKaraokeLyricsStatus() async {
     try {
       final repo = KaraokeRepository();
-      final karaokeSongs = await repo.getAllSongs();
-      final hasSaved = karaokeSongs.any(
+      final ownSongs = await repo.getAllSongs();
+      final publicSongs = await repo.getPublicSongs();
+
+      final hasSavedOwn = ownSongs.any(
         (s) => _isSongMatch(s, widget.song) && s.lyrics.isNotEmpty,
       );
+      final hasSavedPublic = publicSongs.any(
+        (s) => _isSongMatch(s, widget.song) && s.lyrics.isNotEmpty,
+      );
+      final hasSaved = hasSavedOwn || hasSavedPublic;
+
       if (mounted) {
         setState(() {
           _hasKaraokeLyrics = hasSaved;
@@ -134,10 +138,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   void _initYoutubePlayer(String url) {
-    final videoId =
-        (url.length == 11 && !url.contains('/') && !url.contains('?'))
-        ? url
-        : YoutubePlayer.convertUrlToId(url);
+    final videoId = extractYoutubeId(url);
     if (videoId == null) {
       debugPrint("Could not extract YouTube ID from URL: $url");
       _showPlaybackError('Unable to play this YouTube song.');
@@ -500,6 +501,8 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   Widget _buildActionButtons(bool isOwner) {
+    final showKaraoke = isOwner || _hasLyrics;
+
     return Wrap(
       spacing: 10,
       runSpacing: 8,
@@ -510,24 +513,21 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           label: 'Material',
           onTap: _openMaterial,
         ),
-        // Karaoke button is visible to everyone — owner can set up lyrics,
-        // anyone can sing if lyrics are already ready.
-        _ActionButton(
-          icon: Icons.mic_outlined,
-          label: 'Karaoke',
-          onTap: _hasLyrics
-              ? () => _startKaraokeConversion(context, widget.song)
-              : isOwner
-              ? () {
-                  if (_isPreparingKaraoke) return;
-                  _showConvertToKaraokeDialog(context, widget.song);
-                }
-              : null, // non-owner, no lyrics yet → greyed out
-          showEditIcon: isOwner && _hasLyrics,
-          onEditTap: isOwner && _hasLyrics
-              ? () => _showEditLyricDialog(context, widget.song)
-              : null,
-        ),
+        if (showKaraoke)
+          _ActionButton(
+            icon: Icons.mic_outlined,
+            label: 'Karaoke',
+            onTap: _hasLyrics
+                ? () => _startKaraokeConversion(context, widget.song)
+                : () {
+                    if (_isPreparingKaraoke) return;
+                    _showConvertToKaraokeDialog(context, widget.song);
+                  },
+            showEditIcon: isOwner && _hasLyrics,
+            onEditTap: isOwner && _hasLyrics
+                ? () => _showEditLyricDialog(context, widget.song)
+                : null,
+          ),
         _ActionButton(
           icon: Icons.grid_on_outlined,
           label: 'Chord',
@@ -842,7 +842,27 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
 
     try {
       final controller = KaraokeController();
-      final karaokeSong = await controller.convertSongToKaraoke(song);
+      await controller.loadSongs();
+      final ownSongs = controller.songs;
+      final publicSongs = controller.publicSongs;
+
+      KaraokeSong? matchingKaraoke;
+      for (final s in ownSongs) {
+        if (_isSongMatch(s, song) && s.lyrics.isNotEmpty) {
+          matchingKaraoke = s;
+          break;
+        }
+      }
+      if (matchingKaraoke == null) {
+        for (final s in publicSongs) {
+          if (_isSongMatch(s, song) && s.lyrics.isNotEmpty) {
+            matchingKaraoke = s;
+            break;
+          }
+        }
+      }
+
+      final karaokeSong = matchingKaraoke ?? await controller.convertSongToKaraoke(song);
 
       if (context.mounted) {
         Navigator.pop(context);

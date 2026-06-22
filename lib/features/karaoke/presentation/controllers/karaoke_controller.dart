@@ -31,6 +31,9 @@ class KaraokeController extends ChangeNotifier {
   List<KaraokeSong> _songs = [];
   List<KaraokeSong> get songs => _songs;
 
+  List<KaraokeSong> _publicSongs = [];
+  List<KaraokeSong> get publicSongs => _publicSongs;
+
   // States
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -74,8 +77,41 @@ class KaraokeController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _songs = await _repository.getAllSongs();
+    try {
+      final results = await Future.wait([
+        _repository.getAllSongs(),
+        _repository.getPublicSongs(),
+      ]);
+      _songs = results[0];
+      _publicSongs = results[1];
+    } catch (e) {
+      debugPrint('Error loading karaoke songs: $e');
+    }
 
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> searchOwn(String query) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _songs = await _repository.searchOwnSongs(query);
+    } catch (e) {
+      debugPrint('Error searching own: $e');
+    }
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> searchPublic(String query) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _publicSongs = await _repository.searchPublicSongs(query);
+    } catch (e) {
+      debugPrint('Error searching public: $e');
+    }
     _isLoading = false;
     notifyListeners();
   }
@@ -371,6 +407,39 @@ class KaraokeController extends ChangeNotifier {
     }
   }
 
+  Future<KaraokeSong?> addPublicSongToSpace(KaraokeSong publicSong) async {
+    try {
+      final song = KaraokeSong(
+        id: _uuid.v4(),
+        title: publicSong.title,
+        artist: publicSong.artist,
+        source: publicSong.source,
+        sourcePath: publicSong.sourcePath,
+        lyrics: publicSong.lyrics,
+        duration: publicSong.duration,
+        isPublic: false,
+      );
+
+      await _repository.saveSong(song);
+      await loadSongs();
+
+      KaraokeSong? savedSong;
+      for (final s in _songs) {
+        if (s.title.trim().toLowerCase() == song.title.trim().toLowerCase() &&
+            s.sourcePath == song.sourcePath) {
+          savedSong = s;
+          break;
+        }
+      }
+
+      return savedSong ?? song;
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
   // ==================== SAVE LYRICS ====================
 
   Future<void> saveLyrics(String songId, List<LrcLine> lyrics) async {
@@ -381,6 +450,7 @@ class KaraokeController extends ChangeNotifier {
   Future<void> saveLyricsForSong(KaraokeSong song, List<LrcLine> lyrics) async {
     final updated = KaraokeSong(
       id: song.id,
+      userId: song.userId,
       title: song.title,
       artist: song.artist,
       source: song.source,
@@ -569,6 +639,26 @@ class KaraokeController extends ChangeNotifier {
     isPlayingNotifier.value = false;
   }
 
+  void stopPlayback() {
+    _disposePlayers();
+    notifyListeners();
+  }
+
+  Future<void> updateSongVisibility(String id, bool isPublic) async {
+    try {
+      await _repository.updateVisibility(id, isPublic);
+      if (_currentSong?.id == id) {
+        _currentSong = _currentSong!.copyWith(isPublic: isPublic);
+      }
+      await loadSongs();
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Error updating karaoke song visibility: $e');
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<void> deleteSong(String id) async {
     if (_currentSong?.id == id) {
       _disposePlayers();
@@ -664,6 +754,7 @@ class KaraokeController extends ChangeNotifier {
 
     final karaokeSong = KaraokeSong(
       id: backendSong.id,
+      userId: backendSong.userId,
       title: backendSong.title,
       artist: backendSong.artist,
       source: backendSong.isYoutube ? SongSource.youtube : SongSource.local,
@@ -671,6 +762,7 @@ class KaraokeController extends ChangeNotifier {
           ? youtubeVideoId ?? playbackUrl
           : playbackUrl,
       lyrics: fetchedLyrics,
+      isPublic: backendSong.isPublic ?? false,
     );
 
     return karaokeSong;

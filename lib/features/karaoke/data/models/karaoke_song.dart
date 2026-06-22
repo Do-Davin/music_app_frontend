@@ -4,6 +4,7 @@ enum SongSource { youtube, local }
 
 class KaraokeSong {
   final String id;
+  final String? userId;
   final String title;
   final String? artist;
   final SongSource source;
@@ -11,9 +12,11 @@ class KaraokeSong {
   final List<LrcLine> lyrics;
   final DateTime createdAt;
   final Duration? duration;
+  final bool isPublic;
 
   KaraokeSong({
     required this.id,
+    this.userId,
     required this.title,
     this.artist,
     required this.source,
@@ -21,10 +24,12 @@ class KaraokeSong {
     required this.lyrics,
     this.duration,
     DateTime? createdAt,
+    this.isPublic = false,
   }) : createdAt = createdAt ?? DateTime.now();
-  // Add this method inside the KaraokeSong class
+
   KaraokeSong copyWith({
     String? id,
+    String? userId,
     String? title,
     String? artist,
     SongSource? source,
@@ -32,9 +37,11 @@ class KaraokeSong {
     List<LrcLine>? lyrics,
     Duration? duration,
     DateTime? createdAt,
+    bool? isPublic,
   }) {
     return KaraokeSong(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       artist: artist ?? this.artist,
       source: source ?? this.source,
@@ -42,12 +49,14 @@ class KaraokeSong {
       lyrics: lyrics ?? this.lyrics,
       duration: duration ?? this.duration,
       createdAt: createdAt ?? this.createdAt,
+      isPublic: isPublic ?? this.isPublic,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'userId': userId,
       'title': title,
       'artist': artist,
       'source': source.name,
@@ -55,12 +64,14 @@ class KaraokeSong {
       'lyrics': lyrics.map((l) => l.toJson()).toList(),
       'duration': duration?.inMilliseconds,
       'createdAt': createdAt.toIso8601String(),
+      'isPublic': isPublic,
     };
   }
 
   factory KaraokeSong.fromJson(Map<String, dynamic> json) {
     return KaraokeSong(
       id: (json['id'] ?? json['_id']) as String,
+      userId: json['userId'] as String?,
       title: json['title'] as String,
       artist: json['artist'] as String?,
       source: SongSource.values.byName(
@@ -76,6 +87,7 @@ class KaraokeSong {
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
+      isPublic: (json['isPublic'] as bool?) ?? false,
     );
   }
 }
