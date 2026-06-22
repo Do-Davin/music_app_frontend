@@ -2014,15 +2014,17 @@ class _KaraokeOptionTileState extends State<KaraokeOptionTile> {
     if (widget.isSongOwner) {
       final isConverted = _matchingOwnKaraoke != null && _matchingOwnKaraoke!.lyrics.isNotEmpty;
       return ListTile(
-        leading: const Icon(Icons.mic, color: Colors.purpleAccent),
-        title: Text(isConverted ? 'Sing Karaoke' : 'Add to Karaoke / Sing', style: const TextStyle(color: Colors.white)),
+        leading: Icon(
+          isConverted ? Icons.edit : Icons.mic,
+          color: Colors.purpleAccent,
+        ),
+        title: Text(
+          isConverted ? 'Edit Karaoke Lyrics' : 'Add to Karaoke / Sing',
+          style: const TextStyle(color: Colors.white),
+        ),
         onTap: () {
           Navigator.pop(context);
-          if (isConverted) {
-            _playKaraokeDirectly(widget.parentContext, _matchingOwnKaraoke!);
-          } else {
-            _startLyricSetup(widget.parentContext);
-          }
+          _startLyricSetup(widget.parentContext);
         },
       );
     }

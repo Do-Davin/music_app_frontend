@@ -6,7 +6,9 @@ import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
 import '../controllers/karaoke_controller.dart';
 import '../../data/models/karaoke_song.dart';
-import 'karaoke_detail_screen.dart';
+import '../widgets/karaoke_options_sheet.dart';
+import 'player_screen.dart';
+import 'lyric_editor_screen.dart';
 import 'my_karaoke_list_screen.dart';
 import 'karaoke_playlist_songs_screen.dart';
 
@@ -152,8 +154,9 @@ class _SongListScreenState extends State<SongListScreen> {
               ),
             ),
             title: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
+                Flexible(
                   child: Text(
                     song.title,
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -196,24 +199,43 @@ class _SongListScreenState extends State<SongListScreen> {
                 ),
               ],
             ),
-            subtitle: Text(
-              song.artist ?? 'Unknown Artist',
-              style: const TextStyle(color: Colors.grey),
-            ),
-            trailing: Icon(
-              hasLyrics ? Icons.check_circle : Icons.pending_actions,
-              color: hasLyrics ? Colors.green : Colors.orange,
+             subtitle: Text(
+               song.artist ?? 'Unknown Artist',
+               style: const TextStyle(color: Colors.grey),
+               maxLines: 1,
+               overflow: TextOverflow.ellipsis,
+             ),
+            trailing: rp.Consumer(
+              builder: (context, ref, _) {
+                return IconButton(
+                  icon: const Icon(Icons.more_vert, color: Colors.white70),
+                  onPressed: () {
+                    showKaraokeOptionsSheet(
+                      context: context,
+                      ref: ref,
+                      song: song,
+                      controller: controller,
+                    );
+                  },
+                );
+              },
             ),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => KaraokeDetailScreen(
-                    song: song,
-                    controller: controller,
+              if (hasLyrics) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PlayerScreen(song: song, controller: controller),
                   ),
-                ),
-              );
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LyricEditorScreen(song: song, controller: controller),
+                  ),
+                );
+              }
             },
           ),
         );
@@ -282,25 +304,89 @@ class _SongListScreenState extends State<SongListScreen> {
                     ),
                     child: const Icon(Icons.music_note, color: AppColors.primary),
                   ),
-                  title: Text(
-                    song.title,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  title: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          song.title,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      rp.Consumer(
+                        builder: (context, ref, _) {
+                          final me = ref.watch(meProvider).valueOrNull;
+                          final isOwner = me != null && song.userId == me.id;
+                          final badgeText = isOwner
+                              ? (song.isPublic ? 'Yours • Public' : 'Yours • Private')
+                              : (song.isPublic ? 'Public' : 'Private');
+                          final badgeColor = isOwner
+                              ? (song.isPublic ? AppColors.primary : Colors.orangeAccent)
+                              : (song.isPublic ? Colors.blue : Colors.grey);
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: badgeColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: badgeColor.withValues(alpha: 0.4),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Text(
+                              badgeText,
+                              style: TextStyle(
+                                color: badgeColor,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                   subtitle: Text(
                     song.artist ?? 'Unknown Artist',
                     style: const TextStyle(color: Colors.grey, fontSize: 13),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.white30),
+                  trailing: rp.Consumer(
+                    builder: (context, ref, _) {
+                      return IconButton(
+                        icon: const Icon(Icons.more_vert, color: Colors.white70),
+                        onPressed: () {
+                          showKaraokeOptionsSheet(
+                            context: context,
+                            ref: ref,
+                            song: song,
+                            controller: controller,
+                          );
+                        },
+                      );
+                    },
+                  ),
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => KaraokeDetailScreen(
-                          song: song,
-                          controller: controller,
+                    if (hasLyrics) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PlayerScreen(song: song, controller: controller),
                         ),
-                      ),
-                    );
+                      );
+                    } else {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LyricEditorScreen(song: song, controller: controller),
+                        ),
+                      );
+                    }
                   },
                 ),
               );
@@ -558,15 +644,21 @@ class _SongListScreenState extends State<SongListScreen> {
           final song = publicSongs[index];
           return GestureDetector(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => KaraokeDetailScreen(
-                    song: song,
-                    controller: controller,
+              if (song.lyrics.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PlayerScreen(song: song, controller: controller),
                   ),
-                ),
-              );
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => LyricEditorScreen(song: song, controller: controller),
+                  ),
+                );
+              }
             },
             child: Container(
               width: 140,
@@ -612,6 +704,37 @@ class _SongListScreenState extends State<SongListScreen> {
                               color: Colors.white,
                               size: 16,
                             ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 8,
+                          top: 8,
+                          child: rp.Consumer(
+                            builder: (context, ref, _) {
+                              return GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  showKaraokeOptionsSheet(
+                                    context: context,
+                                    ref: ref,
+                                    song: song,
+                                    controller: controller,
+                                  );
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.more_vert,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ],

@@ -5,7 +5,9 @@ import 'package:music_app_frontend/features/auth/presentation/providers/user_pro
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import '../controllers/karaoke_controller.dart';
 import '../../data/models/karaoke_song.dart';
-import 'karaoke_detail_screen.dart';
+import '../widgets/karaoke_options_sheet.dart';
+import 'player_screen.dart';
+import 'lyric_editor_screen.dart';
 
 class MyKaraokeListScreen extends StatefulWidget {
   const MyKaraokeListScreen({super.key});
@@ -142,8 +144,9 @@ class _MyKaraokeListScreenState extends State<MyKaraokeListScreen> {
                                     ),
                                   ),
                                   title: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Expanded(
+                                      Flexible(
                                         child: Text(
                                           song.title,
                                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -189,21 +192,40 @@ class _MyKaraokeListScreenState extends State<MyKaraokeListScreen> {
                                   subtitle: Text(
                                     song.artist ?? 'Unknown Artist',
                                     style: const TextStyle(color: Colors.grey),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  trailing: Icon(
-                                    hasLyrics ? Icons.check_circle_outline : Icons.pending_actions_rounded,
-                                    color: hasLyrics ? Colors.green : Colors.orange,
+                                  trailing: rp.Consumer(
+                                    builder: (context, ref, _) {
+                                      return IconButton(
+                                        icon: const Icon(Icons.more_vert, color: Colors.white70),
+                                        onPressed: () {
+                                          showKaraokeOptionsSheet(
+                                            context: context,
+                                            ref: ref,
+                                            song: song,
+                                            controller: controller,
+                                          );
+                                        },
+                                      );
+                                    },
                                   ),
                                   onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => KaraokeDetailScreen(
-                                          song: song,
-                                          controller: controller,
+                                    if (hasLyrics) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => PlayerScreen(song: song, controller: controller),
                                         ),
-                                      ),
-                                    );
+                                      );
+                                    } else {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => LyricEditorScreen(song: song, controller: controller),
+                                        ),
+                                      );
+                                    }
                                   },
                                 ),
                               );

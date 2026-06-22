@@ -4,7 +4,9 @@ import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/playlist/models/playlist.dart';
 import 'package:music_app_frontend/features/karaoke/data/models/karaoke_song.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/controllers/karaoke_controller.dart';
-import 'package:music_app_frontend/features/karaoke/presentation/screens/karaoke_detail_screen.dart';
+import '../widgets/karaoke_options_sheet.dart';
+import 'player_screen.dart';
+import 'lyric_editor_screen.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 
 class KaraokePlaylistSongsScreen extends ConsumerWidget {
@@ -93,8 +95,9 @@ class KaraokePlaylistSongsScreen extends ConsumerWidget {
                           ),
                         ),
                         title: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Expanded(
+                            Flexible(
                               child: Text(
                                 song.title,
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -127,21 +130,36 @@ class KaraokePlaylistSongsScreen extends ConsumerWidget {
                         subtitle: Text(
                           song.artist ?? 'Unknown Artist',
                           style: const TextStyle(color: Colors.grey),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        trailing: Icon(
-                          hasLyrics ? Icons.check_circle_outline : Icons.pending_actions_rounded,
-                          color: hasLyrics ? Colors.green : Colors.orange,
+                        trailing: IconButton(
+                          icon: const Icon(Icons.more_vert, color: Colors.white70),
+                          onPressed: () {
+                            showKaraokeOptionsSheet(
+                              context: context,
+                              ref: ref,
+                              song: song,
+                              controller: controller,
+                            );
+                          },
                         ),
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => KaraokeDetailScreen(
-                                song: song,
-                                controller: controller,
+                          if (hasLyrics) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PlayerScreen(song: song, controller: controller),
                               ),
-                            ),
-                          );
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => LyricEditorScreen(song: song, controller: controller),
+                              ),
+                            );
+                          }
                         },
                       ),
                     );

@@ -452,33 +452,10 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                           ],
                         ),
                       ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (isOwner)
-                            IconButton(
-                              tooltip: _hasLyrics
-                                  ? 'Karaoke lyrics ready'
-                                  : 'Set up lyrics',
-                              icon: Icon(
-                                Icons.lyrics,
-                                color: _hasLyrics
-                                    ? Colors.grey.shade600
-                                    : AppColors.primary,
-                                size: 28,
-                              ),
-                              onPressed: _hasLyrics || _isPreparingKaraoke
-                                  ? null
-                                  : () =>
-                                        _startLyricSetup(context, widget.song),
-                            ),
-                          if (isOwner) const SizedBox(height: 10),
-                          const Icon(
-                            Icons.favorite,
-                            color: AppColors.primary,
-                            size: 30,
-                          ),
-                        ],
+                      const Icon(
+                        Icons.favorite,
+                        color: AppColors.primary,
+                        size: 30,
                       ),
                     ],
                   ),
@@ -488,8 +465,6 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                   _buildProgressBar(),
                   const SizedBox(height: 20),
                   _buildPlayerControls(),
-                  const SizedBox(height: 30),
-                  _buildFeatureActions(isOwner),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -537,63 +512,6 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
     );
   }
 
-  Widget _buildFeatureActions(bool isOwner) {
-    // Bottom sing karaoke button: visible ONLY for non-owner users
-    if (isOwner) return const SizedBox.shrink();
-
-    // For non-owner: disabled if song is private, or not converted to karaoke
-    final canSing = _hasLyrics && widget.song.isPublic && !_isPreparingKaraoke;
-    final screenWidth = MediaQuery.of(context).size.width;
-    final buttonMaxWidth = screenWidth > 600 ? 320.0 : 260.0;
-
-    String disabledReason = '';
-    if (!widget.song.isPublic) {
-      disabledReason = 'This song is private';
-    } else if (!_hasLyrics) {
-      disabledReason = 'Karaoke not available yet';
-    }
-
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: buttonMaxWidth),
-        child: Tooltip(
-          message: canSing ? 'Sing Karaoke' : disabledReason,
-          child: ElevatedButton.icon(
-            onPressed: canSing
-                ? () => _startKaraokeConversion(context, widget.song)
-                : null,
-            icon: Icon(
-              Icons.mic,
-              color: canSing ? Colors.white : Colors.white38,
-              size: 20,
-            ),
-            label: Text(
-              'SING KARAOKE',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                letterSpacing: 1.2,
-                color: canSing ? Colors.white : Colors.white38,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              disabledBackgroundColor: const Color(0xFF2A2A2A),
-              disabledForegroundColor: Colors.white38,
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(0, 52),
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              elevation: canSing ? 8 : 0,
-              shadowColor: AppColors.primary.withValues(alpha: 0.5),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _buildMedia(BuildContext context) {
     final controller = _youtubeController;
