@@ -7,6 +7,7 @@ class FriendQueries {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';
@@ -19,6 +20,7 @@ class FriendQueries {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';
@@ -31,6 +33,7 @@ class FriendQueries {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';
@@ -43,6 +46,7 @@ class FriendQueries {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';

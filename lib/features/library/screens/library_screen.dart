@@ -556,6 +556,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ? DecorationImage(
                 image: NetworkImage(item.coverImageUrl!),
                 fit: BoxFit.cover,
+                onError: (_, _) {},
               )
             : null,
       ),
@@ -813,6 +814,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       ? DecorationImage(
                           image: NetworkImage(song.coverImageUrl!),
                           fit: BoxFit.cover,
+                          onError: (_, _) {},
                         )
                       : null,
                 ),

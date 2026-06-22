@@ -111,3 +111,43 @@ class SwitchToProfessionalAccountNotifier
     state = const AsyncData(null);
   }
 }
+
+// ─── Profile image upload ─────────────────────────────────────────────────────
+
+final profileImageUploadProvider = StateNotifierProvider<
+  ProfileImageUploadNotifier,
+  AsyncValue<User?>
+>((ref) => ProfileImageUploadNotifier(ref, ref.watch(userServiceProvider)));
+
+class ProfileImageUploadNotifier extends StateNotifier<AsyncValue<User?>> {
+  ProfileImageUploadNotifier(this._ref, this._service)
+    : super(const AsyncData(null));
+
+  final Ref _ref;
+  final UserService _service;
+
+  Future<User?> uploadImage({
+    required List<int> imageBytes,
+    required String filename,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final updatedUser = await _service.uploadProfileImage(
+        imageBytes: imageBytes,
+        filename: filename,
+      );
+      // Invalidate meProvider so the full user (practiceGoals, practiceStreak)
+      // is refreshed in the background. profileProvider is a FutureProvider that
+      // already watches meProvider.future, so it rebuilds automatically —
+      // explicit invalidation is redundant and is intentionally omitted.
+      _ref.invalidate(meProvider);
+      state = AsyncData(updatedUser);
+      return updatedUser;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      return null;
+    }
+  }
+
+  void clear() => state = const AsyncData(null);
+}

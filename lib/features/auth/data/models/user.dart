@@ -7,6 +7,7 @@ class User {
   final String email;
   final String profileType;
   final String? profileImageUrl;
+  final String? profileImageThumbnailUrl;
   final int? practiceGoalsDailyMinutes;
   final int? practiceGoalsWeeklyDays;
   final int? practiceStreakCurrentStreak;
@@ -18,11 +19,15 @@ class User {
     required this.email,
     this.profileType = personalProfileType,
     this.profileImageUrl,
+    this.profileImageThumbnailUrl,
     this.practiceGoalsDailyMinutes,
     this.practiceGoalsWeeklyDays,
     this.practiceStreakCurrentStreak,
     this.practiceStreakLongestStreak,
   });
+
+  /// Thumbnail URL for small avatar display; falls back to full-size URL.
+  String? get effectiveAvatarUrl => profileImageThumbnailUrl ?? profileImageUrl;
 
   factory User.fromJson(Map<String, dynamic> json) {
     final practiceGoals = json['practiceGoals'] as Map<String, dynamic>?;
@@ -34,6 +39,7 @@ class User {
       email: json['email'] as String,
       profileType: _parseProfileType(json['profileType']),
       profileImageUrl: json['profileImageUrl'] as String?,
+      profileImageThumbnailUrl: json['profileImageThumbnailUrl'] as String?,
       practiceGoalsDailyMinutes: practiceGoals?['dailyMinutes'] as int?,
       practiceGoalsWeeklyDays: practiceGoals?['weeklyDays'] as int?,
       practiceStreakCurrentStreak: practiceStreak?['currentStreak'] as int?,

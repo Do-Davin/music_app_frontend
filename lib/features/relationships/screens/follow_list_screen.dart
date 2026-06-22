@@ -131,10 +131,17 @@ class _UserRow extends StatelessWidget {
           radius: 24,
           backgroundColor: AppColors.surface,
           backgroundImage:
-              user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
-              ? NetworkImage(user.profileImageUrl!)
+              user.effectiveAvatarUrl != null &&
+                  user.effectiveAvatarUrl!.isNotEmpty
+              ? NetworkImage(user.effectiveAvatarUrl!)
               : null,
-          child: user.profileImageUrl == null || user.profileImageUrl!.isEmpty
+          onBackgroundImageError:
+              user.effectiveAvatarUrl != null &&
+                  user.effectiveAvatarUrl!.isNotEmpty
+              ? (_, _) {}
+              : null,
+          child: user.effectiveAvatarUrl == null ||
+                  user.effectiveAvatarUrl!.isEmpty
               ? const Icon(Icons.person, color: AppColors.primary)
               : null,
         ),

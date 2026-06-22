@@ -1621,7 +1621,13 @@ class SongTile extends ConsumerWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           color: AppColors.surface,
-          image: hasImage ? DecorationImage(image: NetworkImage(song.coverImageUrl!), fit: BoxFit.cover) : null,
+          image: hasImage
+              ? DecorationImage(
+                  image: NetworkImage(song.coverImageUrl!),
+                  fit: BoxFit.cover,
+                  onError: (_, _) {},
+                )
+              : null,
         ),
         child: !hasImage ? const Icon(Icons.music_note, color: AppColors.hint, size: 24) : null,
       ),
