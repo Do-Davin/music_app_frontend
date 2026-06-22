@@ -6,6 +6,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
+import 'package:path/path.dart' as p;
 import 'package:music_app_frontend/core/network/graphql_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/reference_material.dart';
@@ -161,11 +162,17 @@ class ReferenceMaterialService {
     request.fields['operations'] = jsonEncode(operations);
     request.fields['map'] = jsonEncode(map);
 
+    // Read file bytes eagerly into memory to avoid issues on physical
+    // devices where file_picker returns a temporary cached path that may
+    // be cleaned up before the multipart stream finishes reading.
+    final fileBytes = await file.readAsBytes();
+    final fileName = p.basename(file.path);
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
     request.files.add(
-      await http.MultipartFile.fromPath(
+      http.MultipartFile.fromBytes(
         '0',
-        file.path,
+        fileBytes,
+        filename: fileName,
         contentType: MediaType.parse(mimeType),
       ),
     );
@@ -305,11 +312,17 @@ class ReferenceMaterialService {
     request.fields['operations'] = jsonEncode(operations);
     request.fields['map'] = jsonEncode(map);
 
+    // Read file bytes eagerly into memory to avoid issues on physical
+    // devices where file_picker returns a temporary cached path that may
+    // be cleaned up before the multipart stream finishes reading.
+    final fileBytes = await file.readAsBytes();
+    final fileName = p.basename(file.path);
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
     request.files.add(
-      await http.MultipartFile.fromPath(
+      http.MultipartFile.fromBytes(
         '0',
-        file.path,
+        fileBytes,
+        filename: fileName,
         contentType: MediaType.parse(mimeType),
       ),
     );

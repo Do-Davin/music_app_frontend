@@ -767,6 +767,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: _allowedExtensions,
+      withReadStream: true,
     );
     if (result != null && result.files.single.path != null) {
       _handleFileSelection(result.files.single.path);
