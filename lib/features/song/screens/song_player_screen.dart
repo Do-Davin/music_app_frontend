@@ -657,6 +657,16 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
+                errorBuilder: (_, _, _) => Container(
+                  color: AppColors.surface,
+                  child: const Center(
+                    child: Icon(
+                      Icons.music_note,
+                      color: Colors.white24,
+                      size: 80,
+                    ),
+                  ),
+                ),
               )
             : Container(
                 color: AppColors.surface,

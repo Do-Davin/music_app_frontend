@@ -85,13 +85,18 @@ class _UserDetailScreenState extends ConsumerState<UserDetailScreen> {
                       radius: 64,
                       backgroundColor: colorScheme.surface,
                       backgroundImage:
-                          user.profileImageUrl != null &&
-                              user.profileImageUrl!.isNotEmpty
-                          ? NetworkImage(user.profileImageUrl!)
+                          user.effectiveAvatarUrl != null &&
+                              user.effectiveAvatarUrl!.isNotEmpty
+                          ? NetworkImage(user.effectiveAvatarUrl!)
+                          : null,
+                      onBackgroundImageError:
+                          user.effectiveAvatarUrl != null &&
+                              user.effectiveAvatarUrl!.isNotEmpty
+                          ? (_, _) {}
                           : null,
                       child:
-                          user.profileImageUrl == null ||
-                              user.profileImageUrl!.isEmpty
+                          user.effectiveAvatarUrl == null ||
+                              user.effectiveAvatarUrl!.isEmpty
                           ? const Icon(
                               Icons.person,
                               size: 64,

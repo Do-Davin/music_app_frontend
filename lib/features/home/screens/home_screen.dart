@@ -354,6 +354,7 @@ class HomeScreen extends ConsumerWidget {
                 ? DecorationImage(
                     image: NetworkImage(playlist.coverImageUrl!),
                     fit: BoxFit.cover,
+                    onError: (_, _) {},
                     colorFilter: ColorFilter.mode(
                       Colors.black.withValues(alpha: 0.4),
                       BlendMode.darken,
@@ -397,11 +398,29 @@ class HomeScreen extends ConsumerWidget {
   // ── Browse by Mood — static local categories ──────────────────────────────
 
   Widget _buildMoodGrid() {
-    const moods = [
-      {'name': 'Focus', 'url': 'https://picsum.photos/seed/focus99/300/150'},
-      {'name': 'Chill', 'url': 'https://picsum.photos/seed/relax99/300/150'},
-      {'name': 'Workout', 'url': 'https://picsum.photos/seed/gym88/300/150'},
-      {'name': 'Party', 'url': 'https://picsum.photos/seed/party55/300/150'},
+    // Local gradients instead of random third-party images so the grid stays
+    // visible even when offline / when an external host (e.g. picsum) errors.
+    const moods = <_MoodTile>[
+      _MoodTile(
+        name: 'Focus',
+        icon: Icons.center_focus_strong,
+        gradient: [Color(0xFF1F3A5F), Color(0xFF4A6FA5)],
+      ),
+      _MoodTile(
+        name: 'Chill',
+        icon: Icons.nightlight_round,
+        gradient: [Color(0xFF2C2C54), Color(0xFF6C5CE7)],
+      ),
+      _MoodTile(
+        name: 'Workout',
+        icon: Icons.fitness_center,
+        gradient: [Color(0xFF7A1D1D), Color(0xFFE17055)],
+      ),
+      _MoodTile(
+        name: 'Party',
+        icon: Icons.celebration,
+        gradient: [Color(0xFF6B0E5C), Color(0xFFE84393)],
+      ),
     ];
     return GridView.builder(
       physics: const NeverScrollableScrollPhysics(),
@@ -418,23 +437,28 @@ class HomeScreen extends ConsumerWidget {
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            image: DecorationImage(
-              image: NetworkImage(mood['url']!),
-              fit: BoxFit.cover,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: mood.gradient,
             ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: Text(
-                mood['name']!,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mood.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
+                Icon(mood.icon, color: Colors.white70, size: 20),
+              ],
             ),
           ),
         );
@@ -538,4 +562,16 @@ class HomeScreen extends ConsumerWidget {
       child: const Icon(Icons.music_note, color: Colors.white24),
     );
   }
+}
+
+class _MoodTile {
+  const _MoodTile({
+    required this.name,
+    required this.icon,
+    required this.gradient,
+  });
+
+  final String name;
+  final IconData icon;
+  final List<Color> gradient;
 }

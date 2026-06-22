@@ -212,7 +212,14 @@ class SearchScreen extends ConsumerWidget {
                 Expanded(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(song.imageUrl, fit: BoxFit.cover),
+                    child: song.imageUrl.isNotEmpty
+                        ? Image.network(
+                            song.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                const _SongCoverPlaceholder(),
+                          )
+                        : const _SongCoverPlaceholder(),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -412,7 +419,11 @@ class SearchScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(8),
           color: AppColors.surface,
           image: hasImage
-              ? DecorationImage(image: NetworkImage(playlist.coverImageUrl!), fit: BoxFit.cover)
+              ? DecorationImage(
+                  image: NetworkImage(playlist.coverImageUrl!),
+                  fit: BoxFit.cover,
+                  onError: (_, _) {},
+                )
               : null,
         ),
         child: !hasImage
@@ -747,6 +758,23 @@ class SearchScreen extends ConsumerWidget {
             ),
           )
           .toList(),
+    );
+  }
+}
+
+class _SongCoverPlaceholder extends StatelessWidget {
+  const _SongCoverPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.surface,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.music_note,
+        color: AppColors.hint,
+        size: 22,
+      ),
     );
   }
 }

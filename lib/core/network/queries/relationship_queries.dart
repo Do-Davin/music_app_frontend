@@ -7,6 +7,7 @@ class RelationshipQueries {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';
@@ -19,6 +20,7 @@ class RelationshipQueries {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';

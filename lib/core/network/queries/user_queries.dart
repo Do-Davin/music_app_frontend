@@ -7,6 +7,7 @@ class UserQueries {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
         practiceGoals {
           dailyMinutes
           weeklyDays
@@ -75,6 +76,7 @@ class UserQueries {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';
@@ -89,6 +91,7 @@ class UserMutations {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';
@@ -101,6 +104,7 @@ class UserMutations {
         email
         profileType
         profileImageUrl
+        profileImageThumbnailUrl
       }
     }
   ''';
