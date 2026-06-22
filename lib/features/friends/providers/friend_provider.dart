@@ -6,18 +6,15 @@ import 'package:music_app_frontend/features/relationships/providers/relationship
 
 final friendServiceProvider = Provider<FriendService>((ref) => FriendService());
 
-final friendSearchQueryProvider = StateProvider.autoDispose<String>(
-  (ref) => '',
-);
-
-final userSearchProvider = FutureProvider.autoDispose<List<User>>((ref) async {
+// Keyed by search query so the string is passed directly through the
+// provider argument, avoiding autoDispose timing issues with an intermediary
+// StateProvider.
+final userSearchProvider =
+    FutureProvider.autoDispose.family<List<User>, String>((ref, search) async {
+  if (search.trim().isEmpty) return const [];
   await ref.watch(meProvider.future);
-
-  final search = ref.watch(friendSearchQueryProvider).trim();
-  if (search.isEmpty) return const [];
-
   final service = ref.watch(friendServiceProvider);
-  return service.searchUsers(search);
+  return service.searchUsers(search.trim());
 });
 
 final myFriendsProvider = FutureProvider<List<User>>((ref) async {

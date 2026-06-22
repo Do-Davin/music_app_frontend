@@ -213,7 +213,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _ref.invalidate(incomingFriendRequestsProvider);
     _ref.invalidate(outgoingFriendRequestsProvider);
     _ref.invalidate(userSearchProvider);
-    _ref.invalidate(friendSearchQueryProvider);
     _ref.invalidate(friendActionsProvider);
     _ref.invalidate(recentSongsProvider);
     _ref.invalidate(myFollowingProvider);
