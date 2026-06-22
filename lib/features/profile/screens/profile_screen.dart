@@ -10,6 +10,8 @@ import 'package:music_app_frontend/features/auth/data/models/user.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/features/friends/providers/friend_provider.dart';
+import 'package:music_app_frontend/features/friends/screens/friends_screen.dart'
+    show FriendsFilter;
 import 'package:music_app_frontend/features/playlist/models/playlist.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
 import 'package:music_app_frontend/features/profile/providers/profile_provider.dart';
@@ -117,7 +119,10 @@ class _ProfileContent extends ConsumerWidget {
                   label: 'Friends',
                   value: friendsCount,
                   isLoading: friendsAsync.isLoading,
-                  onTap: () => context.push(Routes.friends),
+                  onTap: () => context.push(
+                    Routes.friends,
+                    extra: FriendsFilter.myFriends,
+                  ),
                 ),
                 ProfileStat(
                   label: 'Followers',

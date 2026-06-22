@@ -11,8 +11,12 @@ import 'package:music_app_frontend/features/relationships/models/relationship_st
 import 'package:music_app_frontend/features/relationships/providers/relationship_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
+enum FriendsFilter { myFriends, incoming, outgoing }
+
 class FriendsScreen extends ConsumerStatefulWidget {
-  const FriendsScreen({super.key});
+  const FriendsScreen({super.key, this.initialFilter});
+
+  final FriendsFilter? initialFilter;
 
   @override
   ConsumerState<FriendsScreen> createState() => _FriendsScreenState();
@@ -20,6 +24,14 @@ class FriendsScreen extends ConsumerStatefulWidget {
 
 class _FriendsScreenState extends ConsumerState<FriendsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  late FriendsFilter _activeFilter;
+  String _localFilterText = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _activeFilter = widget.initialFilter ?? FriendsFilter.myFriends;
+  }
 
   @override
   void dispose() {
@@ -27,11 +39,44 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     super.dispose();
   }
 
+  // ─── Search/filter helpers ──────────────────────────────────────────────────
+
+  void _onSearchChanged(String value) {
+    setState(() => _localFilterText = value);
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _localFilterText = '');
+  }
+
+  void _setFilter(FriendsFilter filter) {
+    if (_activeFilter == filter) return;
+    _searchController.clear();
+    setState(() {
+      _activeFilter = filter;
+      _localFilterText = '';
+    });
+  }
+
+  List<User> _applyLocalFilter(List<User> users) {
+    final q = _localFilterText.toLowerCase().trim();
+    if (q.isEmpty) return users;
+    return users
+        .where(
+          (u) =>
+              u.username.toLowerCase().contains(q) ||
+              u.email.toLowerCase().contains(q),
+        )
+        .toList();
+  }
+
+  // ─── Build ──────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     ref.listen<AsyncValue<void>>(friendActionsProvider, (previous, next) {
       if (!mounted) return;
-
       if (next.hasError && next.error != previous?.error) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -41,26 +86,12 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
 
     ref.listen<AsyncValue<void>>(relationshipActionsProvider, (previous, next) {
       if (!mounted) return;
-
       if (next.hasError && next.error != previous?.error) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(content: Text(_normalizeError(next.error!))));
       }
     });
-
-    final actionState = ref.watch(friendActionsProvider);
-    final relationshipActionState = ref.watch(relationshipActionsProvider);
-    final searchState = ref.watch(userSearchProvider);
-    final friendsState = ref.watch(myFriendsProvider);
-    final incomingState = ref.watch(incomingFriendRequestsProvider);
-    final outgoingState = ref.watch(outgoingFriendRequestsProvider);
-    final meState = ref.watch(meProvider);
-
-    final currentUserId = meState.maybeWhen(
-      data: (user) => user.id,
-      orElse: () => null,
-    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -80,109 +111,30 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
           ref.invalidate(myFriendsProvider);
           ref.invalidate(incomingFriendRequestsProvider);
           ref.invalidate(outgoingFriendRequestsProvider);
-          ref.invalidate(userSearchProvider);
+          if (_localFilterText.isNotEmpty) {
+            ref.invalidate(userSearchProvider(_localFilterText));
+          }
         },
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            _buildSearchField(),
-            const SizedBox(height: 24),
-            _buildSectionTitle('Search Users'),
-            _buildSearchResults(
-              searchState: searchState,
-              currentUserId: currentUserId,
-              isFriendActionLoading: actionState.isLoading,
-              isRelationshipActionLoading: relationshipActionState.isLoading,
-            ),
-            const SizedBox(height: 28),
-            _buildSectionTitle('Incoming Requests'),
-            _buildUserList(
-              state: incomingState,
-              emptyIcon: Icons.mark_email_unread_outlined,
-              emptyTitle: 'No Incoming Requests',
-              emptySubtitle: 'Friend requests sent to you will appear here',
-              trailingBuilder: (user) => Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ElevatedButton(
-                    onPressed: actionState.isLoading
-                        ? null
-                        : () => ref
-                              .read(friendActionsProvider.notifier)
-                              .acceptFriendRequest(user.id),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text('Confirm'),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: actionState.isLoading
-                        ? null
-                        : () => ref
-                              .read(friendActionsProvider.notifier)
-                              .rejectFriendRequest(user.id),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      minimumSize: const Size(0, 36),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text('Delete'),
-                  ),
-                ],
-              ),
-              onRetry: () => ref.invalidate(incomingFriendRequestsProvider),
-            ),
-            const SizedBox(height: 28),
-            _buildSectionTitle('Outgoing Requests'),
-            _buildUserList(
-              state: outgoingState,
-              emptyIcon: Icons.outgoing_mail,
-              emptyTitle: 'No Outgoing Requests',
-              emptySubtitle: 'Requests you send will appear here',
-              trailingBuilder: (_) => Text(
-                'Pending',
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.hint,
-                  fontSize: 13,
-                ),
-              ),
-              onRetry: () => ref.invalidate(outgoingFriendRequestsProvider),
-            ),
-            const SizedBox(height: 28),
-            _buildSectionTitle('My Friends'),
-            _buildUserList(
-              state: friendsState,
-              emptyIcon: Icons.people_outline,
-              emptyTitle: 'No Friends Yet',
-              emptySubtitle: 'Search for users and send a friend request',
-              trailingBuilder: (_) =>
-                  const Icon(Icons.people, color: AppColors.primary),
-              onRetry: () => ref.invalidate(myFriendsProvider),
-            ),
+            _buildSearchBar(),
+            const SizedBox(height: 10),
+            _buildFilterRow(),
+            const SizedBox(height: 16),
+            _buildActiveSection(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSearchField() {
+  // ─── Search bar ─────────────────────────────────────────────────────────────
+
+  Widget _buildSearchBar() {
     return TextField(
       controller: _searchController,
-      onChanged: (value) {
-        ref.read(friendSearchQueryProvider.notifier).state = value;
-        setState(() {});
-      },
+      onChanged: _onSearchChanged,
       style: AppTextStyles.body.copyWith(fontSize: 15),
       decoration: InputDecoration(
         hintText: 'Search by username or email',
@@ -195,11 +147,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
             ? null
             : IconButton(
                 icon: const Icon(Icons.close, color: AppColors.hint),
-                onPressed: () {
-                  _searchController.clear();
-                  ref.read(friendSearchQueryProvider.notifier).state = '';
-                  setState(() {});
-                },
+                onPressed: _clearSearch,
               ),
         filled: true,
         fillColor: AppColors.surface,
@@ -215,29 +163,230 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     );
   }
 
-  Widget _buildSearchResults({
-    required AsyncValue<List<User>> searchState,
-    required String? currentUserId,
-    required bool isFriendActionLoading,
-    required bool isRelationshipActionLoading,
+  // ─── Filter pill row ────────────────────────────────────────────────────────
+
+  Widget _buildFilterRow() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: FriendsFilter.values.map((filter) {
+          final isSelected = _activeFilter == filter;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => _setFilter(filter),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primary : AppColors.card,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.inputBorder,
+                  ),
+                ),
+                child: Text(
+                  _filterLabel(filter),
+                  style: AppTextStyles.body.copyWith(
+                    color: isSelected
+                        ? AppColors.background
+                        : AppColors.hint,
+                    fontSize: 13,
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  String _filterLabel(FriendsFilter filter) => switch (filter) {
+    FriendsFilter.myFriends => 'My Friends',
+    FriendsFilter.incoming => 'Incoming',
+    FriendsFilter.outgoing => 'Outgoing',
+  };
+
+  // ─── Active section dispatcher ──────────────────────────────────────────────
+
+  Widget _buildActiveSection() => switch (_activeFilter) {
+    FriendsFilter.myFriends => _buildMyFriendsSection(),
+    FriendsFilter.incoming => _buildIncomingSection(),
+    FriendsFilter.outgoing => _buildOutgoingSection(),
+  };
+
+  // ─── My Friends ─────────────────────────────────────────────────────────────
+
+  Widget _buildMyFriendsSection() {
+    return _buildFilterableSection(
+      state: ref.watch(myFriendsProvider),
+      emptyIcon: Icons.people_outline,
+      emptyTitle: 'No Friends Yet',
+      emptySubtitle: 'Search for users above to send a friend request',
+      trailingBuilder: (_) =>
+          const Icon(Icons.people, color: AppColors.primary),
+      onRetry: () => ref.invalidate(myFriendsProvider),
+      retryMessage: 'Failed to load friends.',
+    );
+  }
+
+  // ─── Incoming requests ──────────────────────────────────────────────────────
+
+  Widget _buildIncomingSection() {
+    final actionState = ref.watch(friendActionsProvider);
+
+    return _buildFilterableSection(
+      state: ref.watch(incomingFriendRequestsProvider),
+      emptyIcon: Icons.mark_email_unread_outlined,
+      emptyTitle: 'No Incoming Requests',
+      emptySubtitle: 'Friend requests sent to you will appear here',
+      trailingBuilder: (user) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ElevatedButton(
+            onPressed: actionState.isLoading
+                ? null
+                : () => ref
+                      .read(friendActionsProvider.notifier)
+                      .acceptFriendRequest(user.id),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.onPrimary,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              minimumSize: const Size(0, 36),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Confirm'),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: actionState.isLoading
+                ? null
+                : () => ref
+                      .read(friendActionsProvider.notifier)
+                      .rejectFriendRequest(user.id),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.error,
+              side: const BorderSide(color: AppColors.error),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              minimumSize: const Size(0, 36),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+      onRetry: () => ref.invalidate(incomingFriendRequestsProvider),
+      retryMessage: 'Failed to load incoming requests.',
+    );
+  }
+
+  // ─── Outgoing requests ──────────────────────────────────────────────────────
+
+  Widget _buildOutgoingSection() {
+    return _buildFilterableSection(
+      state: ref.watch(outgoingFriendRequestsProvider),
+      emptyIcon: Icons.outgoing_mail,
+      emptyTitle: 'No Outgoing Requests',
+      emptySubtitle: 'Requests you send will appear here',
+      trailingBuilder: (_) => Text(
+        'Pending',
+        style: AppTextStyles.body.copyWith(
+          color: AppColors.hint,
+          fontSize: 13,
+        ),
+      ),
+      onRetry: () => ref.invalidate(outgoingFriendRequestsProvider),
+      retryMessage: 'Failed to load outgoing requests.',
+    );
+  }
+
+  // ─── Shared filterable section ───────────────────────────────────────────────
+  //
+  // When search text is empty: show the provider list as-is.
+  // When search text is not empty:
+  //   • Apply local filter to the loaded list.
+  //   • If local matches exist → show them with [trailingBuilder].
+  //   • If no local matches → fall back to global user search.
+
+  Widget _buildFilterableSection({
+    required AsyncValue<List<User>> state,
+    required IconData emptyIcon,
+    required String emptyTitle,
+    required String emptySubtitle,
+    required Widget Function(User user) trailingBuilder,
+    required VoidCallback onRetry,
+    required String retryMessage,
   }) {
-    final query = ref.watch(friendSearchQueryProvider).trim();
-    if (query.isEmpty) {
-      return _compactEmptyState(
-        icon: Icons.person_search_outlined,
-        title: 'Search for a User',
-        subtitle: 'Type a username or email to send a request',
+    if (_localFilterText.isEmpty) {
+      return _buildUserList(
+        state: state,
+        emptyIcon: emptyIcon,
+        emptyTitle: emptyTitle,
+        emptySubtitle: emptySubtitle,
+        trailingBuilder: trailingBuilder,
+        onRetry: onRetry,
       );
     }
 
+    // Search text present — check local list first.
+    return state.when(
+      skipLoadingOnRefresh: false,
+      loading: () => _loadingBox(),
+      error: (_, _) => _compactError(message: retryMessage, onRetry: onRetry),
+      data: (items) {
+        final localMatches = _applyLocalFilter(items);
+        if (localMatches.isNotEmpty) {
+          return _cardList(
+            localMatches
+                .map((u) => _userTile(u, trailing: trailingBuilder(u)))
+                .toList(),
+          );
+        }
+        // No local matches — show global user search results.
+        return _buildGlobalSearchFallback();
+      },
+    );
+  }
+
+  // ─── Global search fallback ──────────────────────────────────────────────────
+  //
+  // Shown when local list has no matches for the current search text.
+  // Uses [userSearchProvider] (keyed by [_localFilterText]) and
+  // [relationshipStatusProvider] for the correct per-user action button.
+
+  Widget _buildGlobalSearchFallback() {
+    final searchState = ref.watch(userSearchProvider(_localFilterText));
+    final actionState = ref.watch(friendActionsProvider);
+    final relationshipActionState = ref.watch(relationshipActionsProvider);
+    final currentUserId = ref
+        .watch(meProvider)
+        .maybeWhen(data: (u) => u.id, orElse: () => null);
+
     return searchState.when(
       skipLoadingOnRefresh: false,
+      loading: () => _loadingBox(),
+      error: (_, _) => _compactError(
+        message: 'Failed to search users.',
+        onRetry: () => ref.invalidate(userSearchProvider(_localFilterText)),
+      ),
       data: (users) {
-        final visibleUsers = users
-            .where((user) => user.id != currentUserId)
-            .toList();
+        final visible =
+            users.where((u) => u.id != currentUserId).toList();
 
-        if (visibleUsers.isEmpty) {
+        if (visible.isEmpty) {
           return _compactEmptyState(
             icon: Icons.search_off,
             title: 'No Users Found',
@@ -246,25 +395,25 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         }
 
         return _cardList(
-          visibleUsers.map((user) {
-            return _userTile(
-              user,
-              trailing: _buildSearchActionButton(
-                user,
-                isFriendActionLoading: isFriendActionLoading,
-                isRelationshipActionLoading: isRelationshipActionLoading,
-              ),
-            );
-          }).toList(),
+          visible
+              .map(
+                (user) => _userTile(
+                  user,
+                  trailing: _buildSearchActionButton(
+                    user,
+                    isFriendActionLoading: actionState.isLoading,
+                    isRelationshipActionLoading:
+                        relationshipActionState.isLoading,
+                  ),
+                ),
+              )
+              .toList(),
         );
       },
-      loading: () => _loadingBox(),
-      error: (error, _) => _compactError(
-        message: 'Failed to search users.',
-        onRetry: () => ref.invalidate(userSearchProvider),
-      ),
     );
   }
+
+  // ─── Per-user relationship action button ─────────────────────────────────────
 
   Widget _buildSearchActionButton(
     User user, {
@@ -295,7 +444,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
           ),
         ),
       ),
-      error: (error, _) => TextButton(
+      error: (_, _) => TextButton(
         onPressed: null,
         child: Text(
           'Retry',
@@ -354,19 +503,7 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
     return const TextButton(onPressed: null, child: Text('Unavailable'));
   }
 
-  Future<void> _unfollowUser(User user) async {
-    final confirmed = await showConfirmDialog(
-      context: context,
-      title: 'Unfollow User',
-      message: 'Stop following ${user.username}?',
-      confirmText: 'Unfollow',
-      cancelText: 'Cancel',
-    );
-
-    if (!confirmed) return;
-
-    await ref.read(relationshipActionsProvider.notifier).unfollowUser(user.id);
-  }
+  // ─── Shared list renderer ────────────────────────────────────────────────────
 
   Widget _buildUserList({
     required AsyncValue<List<User>> state,
@@ -394,25 +531,30 @@ class _FriendsScreenState extends ConsumerState<FriendsScreen> {
         );
       },
       loading: () => _loadingBox(),
-      error: (error, _) => _compactError(
+      error: (_, _) => _compactError(
         message: 'Failed to load this section.',
         onRetry: onRetry,
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: AppTextStyles.subtitle.copyWith(
-          color: AppColors.onSurface,
-          fontSize: 19,
-        ),
-      ),
+  // ─── Action methods ──────────────────────────────────────────────────────────
+
+  Future<void> _unfollowUser(User user) async {
+    final confirmed = await showConfirmDialog(
+      context: context,
+      title: 'Unfollow User',
+      message: 'Stop following ${user.username}?',
+      confirmText: 'Unfollow',
+      cancelText: 'Cancel',
     );
+
+    if (!confirmed) return;
+
+    await ref.read(relationshipActionsProvider.notifier).unfollowUser(user.id);
   }
+
+  // ─── Shared tile / list widgets ─────────────────────────────────────────────
 
   Widget _cardList(List<Widget> children) {
     return Container(

@@ -9,7 +9,8 @@ import 'package:music_app_frontend/features/auth/presentation/screens/forgot_pas
 import 'package:music_app_frontend/features/auth/presentation/screens/forgot_password/verify_account_screen.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/login/login_screen.dart';
 import 'package:music_app_frontend/features/auth/presentation/screens/register/register_screen.dart';
-import 'package:music_app_frontend/features/friends/screens/friends_screen.dart';
+import 'package:music_app_frontend/features/friends/screens/friends_screen.dart'
+    show FriendsFilter, FriendsScreen;
 import 'package:music_app_frontend/features/home/screens/main_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/onboarding_screen.dart';
 import 'package:music_app_frontend/features/onboarding/screens/splash_screen.dart';
@@ -75,7 +76,12 @@ final appRouter = GoRouter(
     GoRoute(path: Routes.main, builder: (context, state) => const MainScreen()),
     GoRoute(
       path: Routes.friends,
-      builder: (context, state) => const FriendsScreen(),
+      builder: (context, state) {
+        final extra = state.extra;
+        return FriendsScreen(
+          initialFilter: extra is FriendsFilter ? extra : null,
+        );
+      },
     ),
     GoRoute(
       path: Routes.followers,
