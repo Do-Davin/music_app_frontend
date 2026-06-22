@@ -15,7 +15,7 @@ class KaraokeHomeScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF121212),
         appBar: AppBar(
           backgroundColor: const Color(0xFF121212),
-          title: const Text('Karaoke', style: TextStyle(color: Colors.white)),
+          title: const Text('Your Karaoke', style: TextStyle(color: Colors.white)),
           centerTitle: true,
           actions: [
             IconButton(

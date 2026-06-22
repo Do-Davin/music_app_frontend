@@ -103,6 +103,39 @@ class KaraokeRepository {
     }
   }
 
+  Future<void> updateVisibility(String id, bool isPublic) async {
+    final existing = await _getLocalSongs();
+    final index = existing.indexWhere((s) => s.id == id);
+    if (index >= 0) {
+      existing[index] = existing[index].copyWith(isPublic: isPublic);
+      await _saveLocalSongs(existing);
+    }
+
+    try {
+      final result = await _client.mutate(
+        MutationOptions(
+          document: gql(_updateKaraokeSongVisibilityMutation),
+          variables: {'id': id, 'isPublic': isPublic},
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception('GraphQL Error: ${result.exception.toString()}');
+      }
+
+      if (result.data != null && result.data!['updateKaraokeSongVisibility'] != null) {
+        final updated = KaraokeSong.fromJson(
+          result.data!['updateKaraokeSongVisibility'] as Map<String, dynamic>,
+        );
+        await _saveLocalSong(updated);
+      }
+    } catch (e) {
+      debugPrint('❌ Error updating visibility on backend: $e');
+      rethrow;
+    }
+  }
+
+
   Map<String, dynamic> _toInput(KaraokeSong song) {
     return {
       'title': song.title,
@@ -113,7 +146,79 @@ class KaraokeRepository {
         return {'timestamp': line.timestamp.inMilliseconds, 'text': line.text};
       }).toList(),
       'duration': song.duration?.inMilliseconds,
+      'isPublic': song.isPublic,
     };
+  }
+
+  Future<List<KaraokeSong>> getPublicSongs() async {
+    try {
+      final result = await _client.query(
+        QueryOptions(
+          document: gql(_publicKaraokeSongsQuery),
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception(result.exception.toString());
+      }
+
+      final List<dynamic> data = result.data?['publicKaraokeSongs'] ?? [];
+      return data
+          .map((json) => KaraokeSong.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Error fetching public karaoke songs: $e');
+      return [];
+    }
+  }
+
+  Future<List<KaraokeSong>> searchOwnSongs(String query) async {
+    try {
+      final result = await _client.query(
+        QueryOptions(
+          document: gql(_searchOwnKaraokeSongsQuery),
+          variables: {'query': query},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception(result.exception.toString());
+      }
+
+      final List<dynamic> data = result.data?['searchOwnKaraokeSongs'] ?? [];
+      return data
+          .map((json) => KaraokeSong.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Error searching own karaoke songs: $e');
+      return [];
+    }
+  }
+
+  Future<List<KaraokeSong>> searchPublicSongs(String query) async {
+    try {
+      final result = await _client.query(
+        QueryOptions(
+          document: gql(_searchPublicKaraokeSongsQuery),
+          variables: {'query': query},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+
+      if (result.hasException) {
+        throw Exception(result.exception.toString());
+      }
+
+      final List<dynamic> data = result.data?['searchPublicKaraokeSongs'] ?? [];
+      return data
+          .map((json) => KaraokeSong.fromJson(json as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Error searching public karaoke songs: $e');
+      return [];
+    }
   }
 
   Future<List<KaraokeSong>> _getLocalSongs() async {
@@ -149,12 +254,74 @@ class KaraokeRepository {
     query KaraokeSongs {
       karaokeSongs {
         _id
+        userId
         title
         artist
         source
         sourcePath
         duration
         createdAt
+        isPublic
+        lyrics {
+          timestamp
+          text
+        }
+      }
+    }
+  ''';
+
+  static const String _publicKaraokeSongsQuery = r'''
+    query PublicKaraokeSongs {
+      publicKaraokeSongs {
+        _id
+        userId
+        title
+        artist
+        source
+        sourcePath
+        duration
+        createdAt
+        isPublic
+        lyrics {
+          timestamp
+          text
+        }
+      }
+    }
+  ''';
+
+  static const String _searchOwnKaraokeSongsQuery = r'''
+    query SearchOwnKaraokeSongs($query: String!) {
+      searchOwnKaraokeSongs(query: $query) {
+        _id
+        userId
+        title
+        artist
+        source
+        sourcePath
+        duration
+        createdAt
+        isPublic
+        lyrics {
+          timestamp
+          text
+        }
+      }
+    }
+  ''';
+
+  static const String _searchPublicKaraokeSongsQuery = r'''
+    query SearchPublicKaraokeSongs($query: String!) {
+      searchPublicKaraokeSongs(query: $query) {
+        _id
+        userId
+        title
+        artist
+        source
+        sourcePath
+        duration
+        createdAt
+        isPublic
         lyrics {
           timestamp
           text
@@ -167,12 +334,14 @@ class KaraokeRepository {
     mutation CreateKaraokeSong($input: CreateKaraokeSongInput!) {
       createKaraokeSong(input: $input) {
         _id
+        userId
         title
         artist
         source
         sourcePath
         duration
         createdAt
+        isPublic
         lyrics {
           timestamp
           text
@@ -184,6 +353,26 @@ class KaraokeRepository {
   static const String _removeKaraokeSongMutation = r'''
     mutation RemoveKaraokeSong($id: ID!) {
       removeKaraokeSong(id: $id)
+    }
+  ''';
+
+  static const String _updateKaraokeSongVisibilityMutation = r'''
+    mutation UpdateKaraokeSongVisibility($id: ID!, $isPublic: Boolean!) {
+      updateKaraokeSongVisibility(id: $id, isPublic: $isPublic) {
+        _id
+        userId
+        title
+        artist
+        source
+        sourcePath
+        duration
+        createdAt
+        isPublic
+        lyrics {
+          timestamp
+          text
+        }
+      }
     }
   ''';
 }

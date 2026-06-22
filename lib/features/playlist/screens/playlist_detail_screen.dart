@@ -12,11 +12,14 @@ import 'package:music_app_frontend/core/routing/app_router.dart';
 import 'package:music_app_frontend/shared/widgets/success_popup.dart';
 import 'package:go_router/go_router.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:music_app_frontend/features/karaoke/data/models/karaoke_song.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/controllers/karaoke_controller.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_editor_screen.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/screens/player_screen.dart';
 import 'package:music_app_frontend/features/song/services/song_service.dart';
 import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
 import 'package:provider/provider.dart' as provider;
+import 'package:music_app_frontend/core/utils/youtube_parser.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -697,10 +700,10 @@ class _PlaylistDetailContent extends ConsumerWidget {
 
               final artist = artistInput.isEmpty ? 'Unknown Artist' : artistInput;
 
-              final videoId = YoutubePlayer.convertUrlToId(url);
+              final videoId = extractYoutubeId(url);
               if (videoId == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invalid YouTube URL')),
+                  const SnackBar(content: Text('Invalid YouTube URL or Video ID')),
                 );
                 return;
               }
@@ -948,16 +951,8 @@ class SongTile extends ConsumerWidget {
                       _toggleSongPrivacy(context, ref);
                     },
                   ),
-                // Only song owner can convert to karaoke
-                if (isSongOwner)
-                  ListTile(
-                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
-                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _startLyricSetup(context, ref);
-                    },
-                  ),
+                // Add / Convert to Karaoke
+                KaraokeOptionTile(song: song, isSongOwner: isSongOwner, parentContext: context),
                 // Add to queue (feature placeholder)
                 const ListTile(
                   leading: Icon(Icons.queue_music, color: Colors.grey),
@@ -996,16 +991,8 @@ class SongTile extends ConsumerWidget {
                       _toggleSongPrivacy(context, ref);
                     },
                   ),
-                // Only song owner can convert to karaoke
-                if (isSongOwner)
-                  ListTile(
-                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
-                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _startLyricSetup(context, ref);
-                    },
-                  ),
+                // Add / Convert to Karaoke
+                KaraokeOptionTile(song: song, isSongOwner: isSongOwner, parentContext: context),
                 // Add to queue (feature placeholder)
                 const ListTile(
                   leading: Icon(Icons.queue_music, color: Colors.grey),
@@ -1056,16 +1043,8 @@ class SongTile extends ConsumerWidget {
                       _toggleSongPrivacy(context, ref);
                     },
                   ),
-                // Only song owner can convert to karaoke
-                if (isSongOwner)
-                  ListTile(
-                    leading: const Icon(Icons.mic, color: Colors.purpleAccent),
-                    title: const Text('Convert to Karaoke', style: TextStyle(color: Colors.white)),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      _startLyricSetup(context, ref);
-                    },
-                  ),
+                // Add / Convert to Karaoke
+                KaraokeOptionTile(song: song, isSongOwner: isSongOwner, parentContext: context),
                 // Add to queue (feature placeholder)
                 const ListTile(
                   leading: Icon(Icons.queue_music, color: Colors.grey),
@@ -1172,52 +1151,7 @@ class SongTile extends ConsumerWidget {
     }
   }
 
-  Future<void> _startLyricSetup(BuildContext context, WidgetRef ref) async {
-    BuildContext? dialogContext;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        dialogContext = ctx;
-        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-      },
-    );
 
-    try {
-      final controller = KaraokeController();
-      final karaokeSong = await controller.convertSongToKaraoke(song);
-
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.pop(dialogContext!);
-      }
-
-      if (context.mounted) {
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) =>
-                provider.ChangeNotifierProvider<KaraokeController>.value(
-                  value: controller,
-                  child: LyricEditorScreen(
-                    song: karaokeSong,
-                    controller: controller,
-                    sourceSongId: song.id,
-                  ),
-                ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (dialogContext != null && dialogContext!.mounted) {
-        Navigator.pop(dialogContext!);
-      }
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to start karaoke conversion: $e')),
-        );
-      }
-    }
-  }
 
   Future<void> _removeSongFromPlaylist(BuildContext context, WidgetRef ref) async {
     if (playlist == null) return;
@@ -1253,10 +1187,16 @@ class SongTile extends ConsumerWidget {
   }
 
   Future<void> _toggleSongPrivacy(BuildContext context, WidgetRef ref) async {
+    final newIsPublic = !song.isPublic;
+
+    if (newIsPublic && playlist?.name == 'My Uploading') {
+      _showAddToPublicPlaylistSheet(context, ref);
+      return;
+    }
+
     // Capture providers before any async gap to avoid "ref used after dispose"
     final songService = ref.read(songServiceProvider);
     final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
-    final newIsPublic = !song.isPublic;
 
     BuildContext? dialogContext;
     showDialog(
@@ -1297,6 +1237,231 @@ class SongTile extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to update visibility: $e')),
+        );
+      }
+    }
+  }
+
+  void _showAddToPublicPlaylistSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E1E1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Consumer(
+          builder: (ctx, ref, _) {
+            final playlistsAsync = ref.watch(myPlaylistsProvider);
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Publish Song',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "To make '${song.title}' public, please add it to an existing public playlist or create a new one.",
+                    style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    leading: const Icon(Icons.add, color: AppColors.primary),
+                    title: const Text('Create New Public Playlist', style: TextStyle(color: Colors.white)),
+                    tileColor: const Color(0xFF2A2A2A),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showNewPublicPlaylistAndPublish(context, ref);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  playlistsAsync.when(
+                    data: (playlists) {
+                      final publicPlaylists = playlists
+                          .where((p) => p.isPublic && p.name != 'My Uploading' && p.name != 'Liked Songs')
+                          .toList();
+                      if (publicPlaylists.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text('No existing public playlists found.', style: TextStyle(color: Colors.grey)),
+                        );
+                      }
+                      return ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 200),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: publicPlaylists.length,
+                          itemBuilder: (context, index) {
+                            final p = publicPlaylists[index];
+                            return ListTile(
+                              leading: const Icon(Icons.playlist_play, color: AppColors.primary),
+                              title: Text(p.name, style: const TextStyle(color: Colors.white)),
+                              subtitle: Text(
+                                '${p.songs?.length ?? p.songIds?.length ?? 0} songs',
+                                style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                              ),
+                              onTap: () async {
+                                Navigator.pop(ctx);
+                                _publishSongToTargetPlaylist(context, ref, p);
+                              },
+                            );
+                          },
+                        ),
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    error: (e, _) => Text('Error: $e', style: const TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _showNewPublicPlaylistAndPublish(BuildContext context, WidgetRef ref) async {
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+    final songService = ref.read(songServiceProvider);
+
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('New Public Playlist', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Playlist Name',
+            hintStyle: TextStyle(color: Colors.grey),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(ctx);
+
+              BuildContext? dialogContext;
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (c) {
+                  dialogContext = c;
+                  return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                },
+              );
+
+              try {
+                // 1. Create public playlist
+                final newPlaylist = await myPlaylistsNotifier.createPlaylist(name, isPublic: true);
+                if (newPlaylist == null) {
+                  throw Exception('Failed to create public playlist');
+                }
+
+                // 2. Make song public
+                await songService.updateSongVisibility(songId: song.id, isPublic: true);
+
+                // 3. Add song to playlist
+                final updatedPlaylist = await playlistService.addSongToPlaylist(newPlaylist.id, song.id);
+                myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
+
+                if (dialogContext != null && dialogContext!.mounted) {
+                  Navigator.pop(dialogContext!);
+                }
+
+                await myPlaylistsNotifier.refreshPlaylists();
+
+                if (context.mounted) {
+                  SuccessPopup.show(
+                    context,
+                    title: 'Song is now Public!',
+                    subtitle: 'Published to "$name" successfully',
+                    icon: Icons.public,
+                    iconColor: Colors.blue,
+                  );
+                }
+              } catch (e) {
+                if (dialogContext != null && dialogContext!.mounted) {
+                  Navigator.pop(dialogContext!);
+                }
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Create & Publish', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _publishSongToTargetPlaylist(BuildContext context, WidgetRef ref, Playlist targetPlaylist) async {
+    final playlistService = ref.read(playlistServiceProvider);
+    final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+    final songService = ref.read(songServiceProvider);
+
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      // 1. Make song public
+      await songService.updateSongVisibility(songId: song.id, isPublic: true);
+
+      // 2. Add song to target playlist
+      final updatedPlaylist = await playlistService.addSongToPlaylist(targetPlaylist.id, song.id);
+      myPlaylistsNotifier.updatePlaylist(updatedPlaylist);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      await myPlaylistsNotifier.refreshPlaylists();
+
+      if (context.mounted) {
+        SuccessPopup.show(
+          context,
+          title: 'Song is now Public!',
+          subtitle: 'Published to "${targetPlaylist.name}" successfully',
+          icon: Icons.public,
+          iconColor: Colors.blue,
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to publish song: $e')),
         );
       }
     }
@@ -1589,20 +1754,29 @@ class SongTile extends ConsumerWidget {
   Widget _buildSongOwnerBadge(WidgetRef ref, Song song) {
     final me = ref.watch(meProvider).valueOrNull;
     final isOwner = me != null && song.userId == me.id;
+    final text = isOwner 
+        ? (song.isPublic ? 'Yours • Public' : 'Yours • Private')
+        : (song.isPublic ? 'Public' : 'Private');
+    
+    // Choose color: public is blue/primary, private is grey/red
+    final Color badgeColor = isOwner 
+        ? (song.isPublic ? AppColors.primary : Colors.orangeAccent)
+        : (song.isPublic ? Colors.blue : Colors.grey);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: isOwner ? AppColors.primary.withValues(alpha: 0.2) : Colors.white10,
+        color: badgeColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(
-          color: isOwner ? AppColors.primary : Colors.white24,
+          color: badgeColor.withValues(alpha: 0.4),
           width: 0.5,
         ),
       ),
       child: Text(
-        isOwner ? 'Yours' : 'Public',
+        text,
         style: TextStyle(
-          color: isOwner ? AppColors.primary : Colors.grey,
+          color: badgeColor,
           fontSize: 9,
           fontWeight: FontWeight.bold,
         ),
@@ -1612,8 +1786,39 @@ class SongTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final me = ref.watch(meProvider).valueOrNull;
+    final isSongOwner = me != null && song.userId == me.id;
+
+    // Check if the current user is the owner of the playlist
+    final bool isOwnerOfPlaylist = isPlaylistOwner;
+
+    // Determine if the song is unaccessible/disabled for the current user:
+    final bool isUnaccessible = () {
+      // If the user owns the song or owns the playlist, it's always accessible.
+      if (isSongOwner || isOwnerOfPlaylist) {
+        return false;
+      }
+      // Otherwise:
+      if (playlist != null) {
+        // If the playlist is private, all songs in it are unaccessible.
+        if (!playlist!.isPublic) {
+          return true;
+        }
+        // If the playlist is public, private songs in it are unaccessible.
+        if (playlist!.isPublic && !song.isPublic) {
+          return true;
+        }
+      } else {
+        // If there is no playlist context, private songs are unaccessible
+        if (!song.isPublic) {
+          return true;
+        }
+      }
+      return false;
+    }();
+
     final bool hasImage = song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
-    return ListTile(
+    final Widget tile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       leading: Container(
         width: 52,
@@ -1683,15 +1888,274 @@ class SongTile extends ConsumerWidget {
         children: [
           Text(_formatDuration(song.duration), style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12)),
           const SizedBox(width: 4),
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: AppColors.hint, size: 20),
-            onPressed: () => _showSongOptionsSheet(context, ref),
-          ),
+          if (!isUnaccessible)
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: AppColors.hint, size: 20),
+              onPressed: () => _showSongOptionsSheet(context, ref),
+            ),
         ],
       ),
-      onTap: onTap ?? () {
+      onTap: isUnaccessible ? null : onTap ?? () {
         context.push(Routes.songById(song.id), extra: SongPlayerRouteData(song: song, category: 'PLAYLIST'));
       },
     );
+
+    if (isUnaccessible) {
+      return Opacity(
+        opacity: 0.4,
+        child: IgnorePointer(
+          child: tile,
+        ),
+      );
+    }
+    return tile;
+  }
+}
+
+class KaraokeOptionTile extends StatefulWidget {
+  final Song song;
+  final bool isSongOwner;
+  final BuildContext parentContext;
+
+  const KaraokeOptionTile({
+    super.key,
+    required this.song,
+    required this.isSongOwner,
+    required this.parentContext,
+  });
+
+  @override
+  State<KaraokeOptionTile> createState() => _KaraokeOptionTileState();
+}
+
+class _KaraokeOptionTileState extends State<KaraokeOptionTile> {
+  bool _isLoading = true;
+  KaraokeSong? _matchingPublicKaraoke;
+  bool _alreadyInOwnSpace = false;
+  KaraokeSong? _matchingOwnKaraoke;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkKaraokeStatus();
+  }
+
+  bool _isSongMatch(KaraokeSong karaoke, Song song) {
+    if (karaoke.id == song.id) return true;
+    final titleMatches = karaoke.title.trim().toLowerCase() == song.title.trim().toLowerCase();
+    if (!titleMatches) return false;
+    final songUrl = song.audioUrl;
+    if (songUrl == null) return false;
+    if (song.isYoutube) {
+      final songYtId = extractYoutubeId(songUrl);
+      final karaokeYtId = extractYoutubeId(karaoke.sourcePath);
+      if (songYtId != null && songYtId == karaokeYtId) return true;
+    } else {
+      final songFilename = songUrl.split('/').last.split('\\').last;
+      final karaokeFilename = karaoke.sourcePath.split('/').last.split('\\').last;
+      if (songFilename == karaokeFilename) return true;
+    }
+    final artistMatches = (karaoke.artist?.trim().toLowerCase() ?? '') == song.artist.trim().toLowerCase();
+    return artistMatches;
+  }
+
+  Future<void> _checkKaraokeStatus() async {
+    try {
+      final controller = KaraokeController();
+      await controller.loadSongs();
+      final ownSongs = controller.songs;
+      final publicSongs = controller.publicSongs;
+
+      KaraokeSong? publicMatch;
+      for (final s in publicSongs) {
+        if (_isSongMatch(s, widget.song) && s.lyrics.isNotEmpty) {
+          publicMatch = s;
+          break;
+        }
+      }
+
+      KaraokeSong? ownMatch;
+      for (final s in ownSongs) {
+        if (_isSongMatch(s, widget.song)) {
+          ownMatch = s;
+          break;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _matchingPublicKaraoke = publicMatch;
+          _matchingOwnKaraoke = ownMatch;
+          _alreadyInOwnSpace = ownMatch != null;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking karaoke status: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const ListTile(
+        leading: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.purpleAccent),
+        ),
+        title: Text('Checking karaoke status...', style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    if (widget.isSongOwner) {
+      final isConverted = _matchingOwnKaraoke != null && _matchingOwnKaraoke!.lyrics.isNotEmpty;
+      return ListTile(
+        leading: const Icon(Icons.mic, color: Colors.purpleAccent),
+        title: Text(isConverted ? 'Sing Karaoke' : 'Add to Karaoke / Sing', style: const TextStyle(color: Colors.white)),
+        onTap: () {
+          Navigator.pop(context);
+          if (isConverted) {
+            _playKaraokeDirectly(widget.parentContext, _matchingOwnKaraoke!);
+          } else {
+            _startLyricSetup(widget.parentContext);
+          }
+        },
+      );
+    }
+
+    if (_matchingPublicKaraoke == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (_alreadyInOwnSpace) {
+      return ListTile(
+        leading: const Icon(Icons.mic, color: Colors.purpleAccent),
+        title: const Text('Sing Karaoke (Go to Space)', style: TextStyle(color: Colors.white)),
+        onTap: () {
+          Navigator.pop(context);
+          _playKaraokeDirectly(widget.parentContext, _matchingOwnKaraoke!);
+        },
+      );
+    } else {
+      return ListTile(
+        leading: const Icon(Icons.playlist_add, color: Colors.purpleAccent),
+        title: const Text('Add to KaraokeSpace', style: TextStyle(color: Colors.white)),
+        onTap: () {
+          Navigator.pop(context);
+          _addToKaraokeSpace(widget.parentContext);
+        },
+      );
+    }
+  }
+
+  void _playKaraokeDirectly(BuildContext context, KaraokeSong karaokeSong) {
+    final controller = KaraokeController();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => provider.ChangeNotifierProvider<KaraokeController>.value(
+          value: controller,
+          child: PlayerScreen(
+            song: karaokeSong,
+            controller: controller,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _startLyricSetup(BuildContext context) async {
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final controller = KaraokeController();
+      final karaokeSong = await controller.convertSongToKaraoke(widget.song);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      if (context.mounted) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => provider.ChangeNotifierProvider<KaraokeController>.value(
+              value: controller,
+              child: LyricEditorScreen(
+                song: karaokeSong,
+                controller: controller,
+                sourceSongId: widget.song.id,
+              ),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to start karaoke conversion: $e')),
+        );
+      }
+    }
+  }
+
+  void _addToKaraokeSpace(BuildContext context) async {
+    BuildContext? dialogContext;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        dialogContext = ctx;
+        return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+      },
+    );
+
+    try {
+      final controller = KaraokeController();
+      final result = await controller.addPublicSongToSpace(_matchingPublicKaraoke!);
+
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+
+      if (context.mounted) {
+        if (result != null) {
+          SuccessPopup.show(
+            context,
+            title: 'Added to Karaoke!',
+            subtitle: 'Song is now in your Karaoke Space',
+            icon: Icons.mic_external_on_rounded,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to add song to Karaoke Space')),
+          );
+        }
+      }
+    } catch (e) {
+      if (dialogContext != null && dialogContext!.mounted) {
+        Navigator.pop(dialogContext!);
+      }
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add song to Karaoke Space: $e')),
+        );
+      }
+    }
   }
 }

@@ -45,11 +45,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
       // Start playing when screen opens
       WidgetsBinding.instance.addPostFrameCallback((_) {
         try {
-          if (widget.controller.currentSong?.id != widget.song.id) {
-            widget.controller.playSong(
-              widget.song.copyWith(lyrics: _lyricsWithWords),
-            );
-          }
+          widget.controller.playSong(
+            widget.song.copyWith(lyrics: _lyricsWithWords),
+          );
         } catch (e) {
           debugPrint('❌ Error playing song: $e');
           setState(() => _initError = 'Error playing song: ${e.toString()}');
@@ -60,6 +58,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
       setState(() => _initError = 'Error loading lyrics: ${e.toString()}');
       _lyricsWithWords = [];
     }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.stopPlayback();
+    super.dispose();
   }
 
   @override

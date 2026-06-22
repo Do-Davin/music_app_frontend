@@ -61,12 +61,12 @@ class PlaylistService {
     }
   }
 
-  Future<Playlist> createPlaylist(String name, {String? description}) async {
+  Future<Playlist> createPlaylist(String name, {String? description, bool isPublic = false}) async {
     try {
       final MutationOptions options = MutationOptions(
         document: gql(PlaylistQueries.createPlaylist),
         variables: {
-          'input': {'name': name, 'description': description},
+          'input': {'name': name, 'description': description, 'isPublic': isPublic},
         },
       );
 

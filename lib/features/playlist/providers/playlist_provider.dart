@@ -77,19 +77,22 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
     });
   }
 
-  Future<void> createPlaylist(String name, {String? description}) async {
+  Future<Playlist?> createPlaylist(String name, {String? description, bool isPublic = false}) async {
     try {
       final newPlaylist = await _service.createPlaylist(
         name,
         description: description,
+        isPublic: isPublic,
       );
-      if (!mounted) return;
+      if (!mounted) return newPlaylist;
       final currentPlaylists = state.value ?? [];
       state = AsyncValue.data([...currentPlaylists, newPlaylist]);
       debugPrint('Successfully created playlist: ${newPlaylist.name}');
+      return newPlaylist;
     } catch (e, st) {
       debugPrint('Error creating playlist: $e');
       debugPrint('$st');
+      return null;
     }
   }
 
