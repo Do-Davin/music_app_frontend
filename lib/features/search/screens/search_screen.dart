@@ -703,62 +703,76 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildRecentList(BuildContext context, WidgetRef ref, List<dynamic> items) {
     return Column(
       children: items
-          .map(
-            (item) => Column(
-              children: [
-                if (item is Song)
-                  ListTile(
-                    title: Text(
-                      item.title,
-                      style: AppTextStyles.body.copyWith(fontSize: 14),
-                    ),
-                    subtitle: Text(
-                      item.artist,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.hint,
-                        fontSize: 12,
+          .map((item) {
+            final id = item is Song ? item.id : (item as model.Playlist).id;
+            return Dismissible(
+              key: Key(id),
+              direction: DismissDirection.endToStart,
+              onDismissed: (direction) {
+                ref.read(recentItemsProvider.notifier).removeItem(id);
+              },
+              background: Container(
+                color: Colors.red.withValues(alpha: 0.8),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                child: const Icon(Icons.delete, color: Colors.white),
+              ),
+              child: Column(
+                children: [
+                  if (item is Song)
+                    ListTile(
+                      title: Text(
+                        item.title,
+                        style: AppTextStyles.body.copyWith(fontSize: 14),
                       ),
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => SongPlayerScreen(
-                            song: item,
-                            category: 'Recent',
-                          ),
+                      subtitle: Text(
+                        item.artist,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.hint,
+                          fontSize: 12,
                         ),
-                      );
-                    },
-                  )
-                else if (item is model.Playlist)
-                  ListTile(
-                    title: Text(
-                      item.name,
-                      style: AppTextStyles.body.copyWith(fontSize: 14),
-                    ),
-                    subtitle: Text(
-                      'Playlist',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.hint,
-                        fontSize: 12,
                       ),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SongPlayerScreen(
+                              song: item,
+                              category: 'Recent',
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  else if (item is model.Playlist)
+                    ListTile(
+                      title: Text(
+                        item.name,
+                        style: AppTextStyles.body.copyWith(fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        'Playlist',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.hint,
+                          fontSize: 12,
+                        ),
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      onTap: () {
+                        context.push(Routes.playlistById(item.id));
+                      },
                     ),
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    onTap: () {
-                      context.push(Routes.playlistById(item.id));
-                    },
+                  Divider(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    height: 1,
                   ),
-                Divider(
-                  color: Colors.white.withValues(alpha: 0.10),
-                  height: 1,
-                ),
-              ],
-            ),
-          )
+                ],
+              ),
+            );
+          })
           .toList(),
     );
   }
