@@ -2,23 +2,24 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
+import 'package:music_app_frontend/features/playlist/models/playlist.dart' as model;
 import 'package:music_app_frontend/features/auth/data/services/token_storage_service.dart';
 
-class RecentSongsNotifier extends StateNotifier<List<Song>> {
-  static const _baseKey = 'recent_songs';
+class RecentItemsNotifier extends StateNotifier<List<dynamic>> {
+  static const _baseKey = 'recent_items';
   String? _userId;
 
-  RecentSongsNotifier() : super([]) {
+  RecentItemsNotifier() : super([]) {
     _initAndLoad();
   }
 
   /// Derives a per-user storage key so each account has its own recent list.
   String get _storageKey => _userId != null ? '${_baseKey}_$_userId' : _baseKey;
 
-  /// Extracts the userId from the JWT token to scope recent songs per account.
+  /// Extracts the userId from the JWT token to scope recent items per account.
   Future<void> _initAndLoad() async {
     _userId = await _extractUserId();
-    await _loadRecentSongs();
+    await _loadRecentItems();
   }
 
   /// Decodes the JWT access token to extract the user ID (sub claim).
@@ -51,20 +52,42 @@ class RecentSongsNotifier extends StateNotifier<List<Song>> {
     }
   }
 
-  Future<void> _loadRecentSongs() async {
+  Future<void> _loadRecentItems() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = prefs.getStringList(_storageKey) ?? [];
     if (!mounted) return;
-    state = jsonList.map((s) => Song.fromJson(jsonDecode(s))).toList();
+    
+    final List<dynamic> loadedItems = [];
+    for (final s in jsonList) {
+      try {
+        final Map<String, dynamic> json = jsonDecode(s);
+        if (json['item_type'] == 'playlist') {
+          loadedItems.add(model.Playlist.fromJson(json));
+        } else {
+          // Default to Song for backwards compatibility
+          loadedItems.add(Song.fromJson(json));
+        }
+      } catch (e) {
+        // Skip invalid items
+      }
+    }
+    state = loadedItems;
   }
 
-  Future<void> addSong(Song song) async {
-    // Remove if already exists to move to top
-    final newState = [...state];
-    newState.removeWhere((s) => s.id == song.id);
-    newState.insert(0, song);
+  Future<void> addItem(dynamic item) async {
+    if (item is! Song && item is! model.Playlist) return;
 
-    // Limit to 10 recent songs
+    final newState = [...state];
+    // Remove if already exists to move to top
+    final itemId = item is Song ? item.id : (item as model.Playlist).id;
+    newState.removeWhere((s) {
+      final sId = s is Song ? s.id : (s as model.Playlist).id;
+      return sId == itemId;
+    });
+    
+    newState.insert(0, item);
+
+    // Limit to 10 recent items
     if (newState.length > 10) {
       newState.removeLast();
     }
@@ -73,10 +96,13 @@ class RecentSongsNotifier extends StateNotifier<List<Song>> {
     await _persist();
   }
 
-  /// Remove a single song from the recent list.
-  Future<void> removeSong(String songId) async {
+  /// Remove a single item from the recent list.
+  Future<void> removeItem(String itemId) async {
     final newState = [...state];
-    newState.removeWhere((s) => s.id == songId);
+    newState.removeWhere((s) {
+      final sId = s is Song ? s.id : (s as model.Playlist).id;
+      return sId == itemId;
+    });
     state = newState;
     await _persist();
   }
@@ -93,20 +119,31 @@ class RecentSongsNotifier extends StateNotifier<List<Song>> {
     _userId = null;
   }
 
-  /// Reload recent songs for the current user (call after login).
+  /// Reload recent items for the current user (call after login).
   Future<void> reload() async {
     _userId = await _extractUserId();
-    await _loadRecentSongs();
+    await _loadRecentItems();
   }
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonList = state.map((s) => jsonEncode(s.toJson())).toList();
+    final jsonList = state.map((s) {
+      if (s is model.Playlist) {
+        final json = s.toJson();
+        json['item_type'] = 'playlist';
+        return jsonEncode(json);
+      } else if (s is Song) {
+        final json = s.toJson();
+        json['item_type'] = 'song';
+        return jsonEncode(json);
+      }
+      return '{}';
+    }).toList();
     await prefs.setStringList(_storageKey, jsonList);
   }
 }
 
-final recentSongsProvider =
-    StateNotifierProvider<RecentSongsNotifier, List<Song>>((ref) {
-      return RecentSongsNotifier();
+final recentItemsProvider =
+    StateNotifierProvider<RecentItemsNotifier, List<dynamic>>((ref) {
+      return RecentItemsNotifier();
     });

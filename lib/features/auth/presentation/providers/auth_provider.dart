@@ -168,8 +168,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    // Clear recent songs for the current user before clearing session
-    _ref.read(recentSongsProvider.notifier).reset();
+    // Clear recent items for the current user before clearing session
+    _ref.read(recentItemsProvider.notifier).reset();
     await _clearStoredSession();
     state = const AuthState(isValidatingSession: false);
     _resetUserScopedProviders();
@@ -214,7 +214,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _ref.invalidate(outgoingFriendRequestsProvider);
     _ref.invalidate(userSearchProvider);
     _ref.invalidate(friendActionsProvider);
-    _ref.invalidate(recentSongsProvider);
+    _ref.invalidate(recentItemsProvider);
     _ref.invalidate(myFollowingProvider);
     _ref.invalidate(myFollowersProvider);
     _ref.invalidate(relationshipActionsProvider);
