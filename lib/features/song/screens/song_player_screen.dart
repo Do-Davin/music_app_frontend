@@ -508,7 +508,16 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
         _ActionButton(
           icon: Icons.grid_on_outlined,
           label: 'Chord',
-          onTap: () => _openChordOptions(isOwner),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChordViewerScreen(
+                songId: widget.song.id,
+                songTitle: widget.song.title,
+                isOwner: isOwner,
+              ),
+            ),
+          ),
         ),
       ],
     );
