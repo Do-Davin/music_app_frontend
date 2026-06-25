@@ -1371,14 +1371,15 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
     return Positioned(
       left: item.position.dx,
       top: item.position.dy,
-      child: GestureDetector(
-        onPanUpdate: (details) => _moveItem(item.id, details.delta),
-        onLongPress: () => _removeItem(item.id),
-        onTap: isChord ? () => _showEditChordDialog(item) : null,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            SizedBox(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── Main draggable container ──────────────────────────
+          GestureDetector(
+            onPanUpdate: (details) => _moveItem(item.id, details.delta),
+            onLongPress: () => _removeItem(item.id),
+            onTap: isChord ? () => _showEditChordDialog(item) : null,
+            child: SizedBox(
               width: item.width,
               height: item.height,
               child: Container(
@@ -1436,67 +1437,71 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
                       ),
               ),
             ),
-            // Edit button — top-right corner
-            if (!isChord)
-              Positioned(
-                left: item.width - 8,
-                top: -6,
+          ),
+
+          // ── Edit button (independent hit area) ───────────────
+          if (!isChord)
+            Positioned(
+              left: item.width - 8,
+              top: -6,
+              child: GestureDetector(
+                onTap: () => _showEditItemDialog(item),
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: const Icon(
+                    Icons.edit,
+                    size: 16,
+                    color: Colors.white70,
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Resize button (independent hit area) ─────────────
+          if (!isChord)
+            Positioned(
+              left: item.width - 8,
+              top: item.height - 8,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.resizeUpLeftDownRight,
                 child: GestureDetector(
-                  onTap: () => _showEditItemDialog(item),
+                  onPanStart: (d) => _startResize(item.id, d.globalPosition),
+                  onPanUpdate: (d) => _updateResize(d.globalPosition),
+                  onPanEnd: (_) => _finishResize(),
+                  behavior: HitTestBehavior.opaque,
                   child: Container(
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
+                      color: _resizingItemId == item.id
+                          ? AppColors.primary
+                          : const Color(0xFF1E1E1E),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: const Icon(
-                      Icons.edit,
-                      size: 16,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ),
-              ),
-            // Resize button — bottom-right corner
-            if (!isChord)
-              Positioned(
-                left: item.width - 8,
-                top: item.height - 8,
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.resizeUpLeftDownRight,
-                  child: GestureDetector(
-                    onPanStart: (d) => _startResize(item.id, d.globalPosition),
-                    onPanUpdate: (d) => _updateResize(d.globalPosition),
-                    onPanEnd: (_) => _finishResize(),
-                    child: Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: _resizingItemId == item.id
-                            ? AppColors.primary
-                            : const Color(0xFF1E1E1E),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _resizingItemId == item.id
-                              ? Colors.white
-                              : Colors.white12,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.open_in_full,
-                        size: 16,
+                      border: Border.all(
                         color: _resizingItemId == item.id
                             ? Colors.white
-                            : Colors.white70,
+                            : Colors.white12,
                       ),
+                    ),
+                    child: Icon(
+                      Icons.open_in_full,
+                      size: 16,
+                      color: _resizingItemId == item.id
+                          ? Colors.white
+                          : Colors.white70,
                     ),
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

@@ -6,6 +6,8 @@ import 'package:music_app_frontend/features/auth/presentation/providers/user_pro
 import 'package:music_app_frontend/features/karaoke/presentation/controllers/karaoke_controller.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_editor_screen.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/screens/player_screen.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/screens/chord_viewer_screen.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_chord_builder_screen.dart';
 import 'package:music_app_frontend/features/references/screens/reference_material_screen.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/features/song/services/song_service.dart';
@@ -506,12 +508,11 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
         _ActionButton(
           icon: Icons.grid_on_outlined,
           label: 'Chord',
-          onTap: () {},
+          onTap: () => _openChordOptions(isOwner),
         ),
       ],
     );
   }
-
 
   Widget _buildMedia(BuildContext context) {
     final controller = _youtubeController;
@@ -790,7 +791,8 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
         }
       }
 
-      final karaokeSong = matchingKaraoke ?? await controller.convertSongToKaraoke(song);
+      final karaokeSong =
+          matchingKaraoke ?? await controller.convertSongToKaraoke(song);
 
       if (context.mounted) {
         Navigator.pop(context);
@@ -835,10 +837,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF1E1E2E),
-                Color(0xFF2A1F3D),
-              ],
+              colors: [Color(0xFF1E1E2E), Color(0xFF2A1F3D)],
             ),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
@@ -919,10 +918,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                   ),
                   child: const Text(
                     'Convert to Karaoke',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ),
@@ -931,10 +927,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                 onPressed: () => Navigator.pop(ctx),
                 child: Text(
                   'Maybe Later',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
                 ),
               ),
             ],
@@ -957,10 +950,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF1E2A1E),
-                Color(0xFF1A2F3D),
-              ],
+              colors: [Color(0xFF1E2A1E), Color(0xFF1A2F3D)],
             ),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
@@ -1040,10 +1030,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                   ),
                   child: const Text(
                     'Open Lyric Editor',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ),
@@ -1052,10 +1039,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                 onPressed: () => Navigator.pop(ctx),
                 child: Text(
                   'Cancel',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
                 ),
               ),
             ],
