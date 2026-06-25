@@ -51,7 +51,7 @@ class SongService {
 
   Future<Song> fetchSongById(String id) async {
     try {
-      final result = await _client.query(
+      final result = await _authClient.query(
         QueryOptions(
           document: gql(SongQueries.getSongById),
           variables: {'id': id},

@@ -45,10 +45,30 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   @override
   void initState() {
     _currentSong = widget.song;
-    _loadLatestSongDetails();
     _checkKaraokeLyricsStatus();
     super.initState();
-    _initPlayer();
+    _loadLatestSongDetailsAndInitPlayer();
+  }
+
+  void _loadLatestSongDetailsAndInitPlayer() async {
+    try {
+      final freshSong = await SongService().fetchSongById(widget.song.id);
+      if (mounted) {
+        setState(() {
+          _currentSong = freshSong;
+        });
+        _initPlayer();
+      }
+    } catch (e) {
+      debugPrint("Failed to fetch fresh song details in player: $e");
+      if (mounted) {
+        final errorMsg = e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
+        if (errorMsg.toLowerCase().contains('private')) {
+          Navigator.of(context).pop();
+        }
+      }
+    }
   }
 
   bool _isSongMatch(KaraokeSong karaoke, Song song) {
@@ -106,19 +126,6 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       }
     } catch (e) {
       debugPrint("Error checking karaoke lyrics status: $e");
-    }
-  }
-
-  void _loadLatestSongDetails() async {
-    try {
-      final freshSong = await SongService().fetchSongById(widget.song.id);
-      if (mounted) {
-        setState(() {
-          _currentSong = freshSong;
-        });
-      }
-    } catch (e) {
-      debugPrint("Failed to fetch fresh song details in player: $e");
     }
   }
 
