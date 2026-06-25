@@ -144,10 +144,7 @@ const List<_ColorSwatch> _kColorSwatches = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 class LyricChordBuilderScreen extends StatefulWidget {
-  /// When provided, canvas state is saved/loaded per song.
   final String? songId;
-
-  /// Optional song title shown in the AppBar.
   final String? songTitle;
 
   const LyricChordBuilderScreen({super.key, this.songId, this.songTitle});
@@ -162,14 +159,12 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
   static const _defaultCanvasHeight = 800.0;
   static const _maxHistory = 50;
 
-  // ── Storage key is per-song when songId is given ───────────
   String get _storageKey => lyricChordStorageKey(widget.songId);
 
   final TextEditingController _lyricController = TextEditingController();
   final List<LyricChordItem> _items = [];
   final GlobalKey _canvasKey = GlobalKey();
 
-  // Undo / redo stacks
   final List<List<LyricChordItem>> _undoStack = [];
   final List<List<LyricChordItem>> _redoStack = [];
 
@@ -179,7 +174,6 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
   bool _loading = true;
   ChordNotationStyle _chordNotationStyle = ChordNotationStyle.abc;
 
-  // Resize state tracking
   int? _resizingItemId;
   Offset? _resizeStartPosition;
   double? _resizeStartWidth;
@@ -265,7 +259,6 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
     await prefs.setString(_storageKey, jsonEncode(state));
   }
 
-  /// Snapshot current _items before a mutation so it can be undone.
   void _pushHistory() {
     _undoStack.add(_items.map((e) => e.copyWith()).toList());
     if (_undoStack.length > _maxHistory) _undoStack.removeAt(0);
@@ -1361,6 +1354,8 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
     );
   }
 
+  // ── KEY FIX: edit/resize buttons are siblings of the drag GestureDetector,
+  // and the outer SizedBox is large enough to include them in hit-test bounds.
   Widget _buildDraggableItem(LyricChordItem item) {
     final isChord = item.type == CanvasItemType.chord;
     final accent = isChord ? const Color(0xFF6FA8FF) : AppColors.primary;
@@ -1370,138 +1365,152 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
 
     return Positioned(
       left: item.position.dx,
-      top: item.position.dy,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          // ── Main draggable container ──────────────────────────
-          GestureDetector(
-            onPanUpdate: (details) => _moveItem(item.id, details.delta),
-            onLongPress: () => _removeItem(item.id),
-            onTap: isChord ? () => _showEditChordDialog(item) : null,
-            child: SizedBox(
-              width: item.width,
-              height: item.height,
-              child: Container(
-                padding: isChord
-                    ? EdgeInsets.zero
-                    : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: background,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: accent.withAlpha(204), width: 1.2),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x59000000),
-                      blurRadius: 20,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: isChord
-                    ? Center(
-                        child: Text(
-                          item.text,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24 * item.fontScale,
-                            fontWeight: FontWeight.w700,
+      top: item.position.dy - 6,
+      child: SizedBox(
+        width: item.width + 28,
+        height: item.height + 34,
+        child: Stack(
+          children: [
+            // ── Main item (offset down 6px so edit button fits above) ──
+            Positioned(
+              left: 0,
+              top: 6,
+              child: GestureDetector(
+                onPanStart: (_) => _pushHistory(),
+                onPanUpdate: (details) => _moveItem(item.id, details.delta),
+                onLongPress: () => _removeItem(item.id),
+                onTap: isChord ? () => _showEditChordDialog(item) : null,
+                child: SizedBox(
+                  width: item.width,
+                  height: item.height,
+                  child: Container(
+                    padding: isChord
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
                           ),
+                    decoration: BoxDecoration(
+                      color: background,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: accent.withAlpha(204),
+                        width: 1.2,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x59000000),
+                          blurRadius: 20,
+                          offset: Offset(0, 8),
                         ),
-                      )
-                    : Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(Icons.text_snippet, color: accent, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(
+                      ],
+                    ),
+                    child: isChord
+                        ? Center(
                             child: Text(
                               item.text,
                               style: TextStyle(
-                                color: item.fontColor,
-                                fontSize: item.fontSize * item.fontScale,
-                                fontWeight: item.isBold
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                                fontStyle: item.isItalic
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
-                                decoration: item.isUnderline
-                                    ? TextDecoration.underline
-                                    : TextDecoration.none,
-                                decorationColor: item.fontColor,
+                                color: Colors.white,
+                                fontSize: 24 * item.fontScale,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
+                          )
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Icon(Icons.text_snippet, color: accent, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  item.text,
+                                  style: TextStyle(
+                                    color: item.fontColor,
+                                    fontSize: item.fontSize * item.fontScale,
+                                    fontWeight: item.isBold
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    fontStyle: item.isItalic
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
+                                    decoration: item.isUnderline
+                                        ? TextDecoration.underline
+                                        : TextDecoration.none,
+                                    decorationColor: item.fontColor,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-              ),
-            ),
-          ),
-
-          // ── Edit button (independent hit area) ───────────────
-          if (!isChord)
-            Positioned(
-              left: item.width - 8,
-              top: -6,
-              child: GestureDetector(
-                onTap: () => _showEditItemDialog(item),
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: const Icon(
-                    Icons.edit,
-                    size: 16,
-                    color: Colors.white70,
                   ),
                 ),
               ),
             ),
 
-          // ── Resize button (independent hit area) ─────────────
-          if (!isChord)
-            Positioned(
-              left: item.width - 8,
-              top: item.height - 8,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.resizeUpLeftDownRight,
+            // ── Edit button (top-right, within SizedBox bounds) ──────
+            if (!isChord)
+              Positioned(
+                left: item.width - 8,
+                top: 0,
                 child: GestureDetector(
-                  onPanStart: (d) => _startResize(item.id, d.globalPosition),
-                  onPanUpdate: (d) => _updateResize(d.globalPosition),
-                  onPanEnd: (_) => _finishResize(),
+                  onTap: () => _showEditItemDialog(item),
                   behavior: HitTestBehavior.opaque,
                   child: Container(
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: _resizingItemId == item.id
-                          ? AppColors.primary
-                          : const Color(0xFF1E1E1E),
+                      color: const Color(0xFF1E1E1E),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _resizingItemId == item.id
-                            ? Colors.white
-                            : Colors.white12,
-                      ),
+                      border: Border.all(color: Colors.white12),
                     ),
-                    child: Icon(
-                      Icons.open_in_full,
+                    child: const Icon(
+                      Icons.edit,
                       size: 16,
-                      color: _resizingItemId == item.id
-                          ? Colors.white
-                          : Colors.white70,
+                      color: Colors.white70,
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+
+            // ── Resize button (bottom-right, within SizedBox bounds) ─
+            if (!isChord)
+              Positioned(
+                left: item.width - 8,
+                top: item.height - 2,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.resizeUpLeftDownRight,
+                  child: GestureDetector(
+                    onPanStart: (d) => _startResize(item.id, d.globalPosition),
+                    onPanUpdate: (d) => _updateResize(d.globalPosition),
+                    onPanEnd: (_) => _finishResize(),
+                    behavior: HitTestBehavior.opaque,
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: _resizingItemId == item.id
+                            ? AppColors.primary
+                            : const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _resizingItemId == item.id
+                              ? Colors.white
+                              : Colors.white12,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.open_in_full,
+                        size: 16,
+                        color: _resizingItemId == item.id
+                            ? Colors.white
+                            : Colors.white70,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
