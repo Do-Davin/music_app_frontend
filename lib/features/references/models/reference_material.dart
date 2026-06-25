@@ -86,7 +86,13 @@ class ReferenceMaterial {
     if (filePath != null && filePath!.isNotEmpty) {
       final serverBase = GraphQLConfig.serverBaseUrl;
       if (serverBase.isNotEmpty) {
-        return '$serverBase/uploads/$filePath';
+        String cleanPath = filePath!;
+        if (cleanPath.startsWith('/uploads/')) {
+          cleanPath = cleanPath.substring('/uploads/'.length);
+        } else if (cleanPath.startsWith('uploads/')) {
+          cleanPath = cleanPath.substring('uploads/'.length);
+        }
+        return '$serverBase/uploads/$cleanPath';
       }
     }
     return null;
