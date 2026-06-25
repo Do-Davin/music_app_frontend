@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/routing/auth_wrapper.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
@@ -165,7 +167,7 @@ final appRouter = GoRouter(
     GoRoute(
       path: Routes.likedSongs,
       pageBuilder: (context, state) =>
-          _slidePage(state, const LikedSongsScreen()),
+          _slidePage(state, const LikedSongsPlaylistDetailWrapper()),
     ),
     GoRoute(
       path: Routes.song,
@@ -201,3 +203,27 @@ final appRouter = GoRouter(
     ),
   ],
 );
+
+class LikedSongsPlaylistDetailWrapper extends ConsumerWidget {
+  const LikedSongsPlaylistDetailWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final likedSongsAsync = ref.watch(likedSongsPlaylistProvider);
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: likedSongsAsync.when(
+        data: (playlist) => PlaylistDetailScreen(playlistId: playlist.id),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (err, st) => Center(
+          child: Text(
+            'Error: $err',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+}

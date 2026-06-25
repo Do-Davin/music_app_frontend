@@ -44,8 +44,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
-        final playlistsAsync = ref.watch(myPlaylistsProvider);
+        final playlistsAsync = ref.watch(myPlaylistsProvider).whenData(
+              (list) => list.where((p) => p.name != 'Liked Songs' && !p.isKaraoke).toList(),
+            );
         final mySongsAsync = ref.watch(mySongsProvider);
+        final likedSongsAsync = ref.watch(likedSongsPlaylistProvider);
+        final likedCount = likedSongsAsync.when(
+          data: (playlist) => playlist.songIds?.length ?? playlist.songs?.length ?? 0,
+          loading: () => 0,
+          error: (_, __) => 0,
+        );
 
         return Scaffold(
           backgroundColor: AppColors.background,
@@ -233,10 +241,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                             child: isGridView
                                 ? _buildGridView(
                                     sortedList,
+                                    likedCount: likedCount,
                                     key: const ValueKey('grid'),
                                   )
                                 : _buildListView(
                                     sortedList,
+                                    likedCount: likedCount,
                                     key: const ValueKey('list'),
                                   ),
                           );
@@ -316,7 +326,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildLikedSongsListTile(BuildContext context) {
+  Widget _buildLikedSongsListTile(BuildContext context, int count) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 6),
       leading: Container(
@@ -366,14 +376,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ],
       ),
       subtitle: Text(
-        'Playlist',
+        'Playlist • $count songs',
         style: AppTextStyles.body.copyWith(color: AppColors.hint, fontSize: 12),
       ),
       onTap: () => context.push(Routes.likedSongs),
     );
   }
 
-  Widget _buildLikedSongsGridTile(BuildContext context) {
+  Widget _buildLikedSongsGridTile(BuildContext context, int count) {
     return GestureDetector(
       onTap: () => context.push(Routes.likedSongs),
       child: Column(
@@ -433,7 +443,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ],
           ),
           Text(
-            'Playlist',
+            'Playlist • $count songs',
             style: AppTextStyles.body.copyWith(
               color: AppColors.hint,
               fontSize: 11,
@@ -444,14 +454,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildListView(List<model.Playlist> playlists, {required Key key}) {
+  Widget _buildListView(List<model.Playlist> playlists, {required int likedCount, required Key key}) {
     return ListView.builder(
       key: key,
       physics: const AlwaysScrollableScrollPhysics(),
       itemCount: playlists.length + 1,
       padding: const EdgeInsets.only(top: 10),
       itemBuilder: (context, index) {
-        if (index == 0) return _buildLikedSongsListTile(context);
+        if (index == 0) return _buildLikedSongsListTile(context, likedCount);
         final item = playlists[index - 1];
         final songCount = item.songIds?.length ?? 0;
         final isUploadingPlaylist = item.name == 'My Uploading';
@@ -548,7 +558,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     );
   }
 
-  Widget _buildGridView(List<model.Playlist> playlists, {required Key key}) {
+  Widget _buildGridView(List<model.Playlist> playlists, {required int likedCount, required Key key}) {
     return GridView.builder(
       key: key,
       physics: const AlwaysScrollableScrollPhysics(),
@@ -561,7 +571,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       ),
       itemCount: playlists.length + 1,
       itemBuilder: (context, index) {
-        if (index == 0) return _buildLikedSongsGridTile(context);
+        if (index == 0) return _buildLikedSongsGridTile(context, likedCount);
         final item = playlists[index - 1];
         final isUploadingPlaylist = item.name == 'My Uploading';
         final isSystemPlaylist = item.name == 'My Uploading' || item.name == 'Liked Songs';

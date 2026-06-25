@@ -8,6 +8,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         createdAt
@@ -24,6 +25,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         songs {
@@ -62,6 +64,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         songs {
@@ -100,6 +103,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         songs {
@@ -138,6 +142,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         songs {
@@ -182,6 +187,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         songs {
@@ -220,6 +226,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         songs {
@@ -258,6 +265,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         songs {
@@ -294,10 +302,8 @@ class PlaylistQueries {
   ''';
 
   static const String toggleSongInLikedSongs = r'''
-    mutation ToggleSongInLikedSongs($songId: ID!) {
-      toggleSongInLikedSongs(songId: $songId) {
-        isLiked
-      }
+    mutation ToggleLikeSong($songId: ID!) {
+      toggleLikeSong(songId: $songId)
     }
   ''';
 
@@ -310,6 +316,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         songs {
           _id
@@ -342,6 +349,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         createdAt
@@ -359,6 +367,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         createdAt
@@ -376,6 +385,7 @@ class PlaylistQueries {
         description
         coverImageUrl
         isPublic
+        isKaraoke
         songIds
         savedUserIds
         createdAt

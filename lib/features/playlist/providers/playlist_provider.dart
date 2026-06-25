@@ -77,12 +77,13 @@ class MyPlaylistsNotifier extends StateNotifier<AsyncValue<List<Playlist>>> {
     });
   }
 
-  Future<Playlist?> createPlaylist(String name, {String? description, bool isPublic = false}) async {
+  Future<Playlist?> createPlaylist(String name, {String? description, bool isPublic = false, bool isKaraoke = false}) async {
     try {
       final newPlaylist = await _service.createPlaylist(
         name,
         description: description,
         isPublic: isPublic,
+        isKaraoke: isKaraoke,
       );
       if (!mounted) return newPlaylist;
       final currentPlaylists = state.value ?? [];
@@ -155,7 +156,14 @@ final isSongInLikedSongsProvider = FutureProvider.family<bool, String>((
   ref,
   songId,
 ) async {
-  return ref.watch(playlistServiceProvider).isSongInLikedSongs(songId);
+  try {
+    final likedPlaylist = await ref.watch(likedSongsPlaylistProvider.future);
+    final inSongs = likedPlaylist.songs?.any((s) => s.id == songId) ?? false;
+    final inSongIds = likedPlaylist.songIds?.contains(songId) ?? false;
+    return inSongs || inSongIds;
+  } catch (_) {
+    return false;
+  }
 });
 
 final toggleSongInLikedSongsProvider = FutureProvider.family<bool, String>((

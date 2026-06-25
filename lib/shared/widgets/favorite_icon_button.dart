@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
+import 'package:music_app_frontend/shared/widgets/success_popup.dart';
 
 class FavoriteIconButton extends ConsumerStatefulWidget {
   final String songId;
@@ -53,6 +54,15 @@ class _FavoriteIconButtonState extends ConsumerState<FavoriteIconButton> {
             _isFavorite = result;
             _isLoading = false;
           });
+          if (mounted) {
+            SuccessPopup.show(
+              context,
+              title: result ? 'Liked' : 'Unliked',
+              subtitle: result ? 'Added to Liked Songs' : 'Removed from Liked Songs',
+              icon: result ? Icons.favorite : Icons.favorite_border,
+              iconColor: result ? Colors.red : AppColors.hint,
+            );
+          }
           widget.onToggle?.call();
         },
       );

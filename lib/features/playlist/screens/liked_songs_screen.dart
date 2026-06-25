@@ -32,6 +32,8 @@ class _LikedSongsScreenState extends ConsumerState<LikedSongsScreen> {
 
       // Refresh the screen's data source and Home's liked-songs section.
       ref.invalidate(likedSongsProvider);
+      ref.invalidate(likedSongsPlaylistProvider);
+      ref.invalidate(isSongInLikedSongsProvider(song.id));
       ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
     } catch (e) {
       if (mounted) {

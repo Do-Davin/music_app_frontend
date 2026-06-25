@@ -61,12 +61,17 @@ class PlaylistService {
     }
   }
 
-  Future<Playlist> createPlaylist(String name, {String? description, bool isPublic = false}) async {
+  Future<Playlist> createPlaylist(String name, {String? description, bool isPublic = false, bool isKaraoke = false}) async {
     try {
       final MutationOptions options = MutationOptions(
         document: gql(PlaylistQueries.createPlaylist),
         variables: {
-          'input': {'name': name, 'description': description, 'isPublic': isPublic},
+          'input': {
+            'name': name,
+            'description': description,
+            'isPublic': isPublic,
+            'isKaraoke': isKaraoke,
+          },
         },
       );
 
@@ -270,8 +275,7 @@ class PlaylistService {
         throw Exception(parseGraphQlException(result.exception!));
       }
 
-      return result.data?['toggleSongInLikedSongs']['isLiked'] as bool? ??
-          false;
+      return result.data?['toggleLikeSong'] as bool? ?? false;
     } catch (e) {
       rethrow;
     }
