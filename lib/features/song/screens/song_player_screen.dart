@@ -17,6 +17,10 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:music_app_frontend/features/karaoke/data/repositories/karaoke_repository.dart';
 import 'package:music_app_frontend/features/karaoke/data/models/karaoke_song.dart';
 import 'package:music_app_frontend/core/utils/youtube_parser.dart';
+import 'package:music_app_frontend/core/utils/song_matcher.dart';
+import 'package:music_app_frontend/shared/widgets/favorite_icon_button.dart';
+import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
+import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 
 class SongPlayerScreen extends ConsumerStatefulWidget {
   final Song song;
@@ -54,37 +58,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   bool _isSongMatch(KaraokeSong karaoke, Song song) {
-    if (karaoke.id == song.id) return true;
-
-    final titleMatches =
-        karaoke.title.trim().toLowerCase() == song.title.trim().toLowerCase();
-    if (!titleMatches) return false;
-
-    final songUrl = song.audioUrl;
-    if (songUrl == null) return false;
-
-    if (song.isYoutube) {
-      final songYtId = extractYoutubeId(songUrl);
-      final karaokeYtId = extractYoutubeId(karaoke.sourcePath);
-      if (songYtId != null && songYtId == karaokeYtId) {
-        return true;
-      }
-    } else {
-      final songFilename = songUrl.split('/').last.split('\\').last;
-      final karaokeFilename = karaoke.sourcePath
-          .split('/')
-          .last
-          .split('\\')
-          .last;
-      if (songFilename == karaokeFilename) {
-        return true;
-      }
-    }
-
-    final artistMatches =
-        (karaoke.artist?.trim().toLowerCase() ?? '') ==
-        song.artist.trim().toLowerCase();
-    return artistMatches;
+    return isSongMatch(karaoke, song);
   }
 
   void _checkKaraokeLyricsStatus() async {
@@ -378,6 +352,9 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       orElse: () => false,
     );
 
+    final isLikedAsync = ref.watch(isSongInLikedSongsProvider(widget.song.id));
+    final isLiked = isLikedAsync.valueOrNull ?? false;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -454,10 +431,16 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
                           ],
                         ),
                       ),
-                      const Icon(
-                        Icons.favorite,
-                        color: AppColors.primary,
-                        size: 30,
+                      FavoriteIconButton(
+                        songId: widget.song.id,
+                        initialIsFavorite: isLiked,
+                        iconSize: 28,
+                        onToggle: () {
+                          ref.invalidate(likedSongsPlaylistProvider);
+                          ref.invalidate(likedSongsProvider);
+                          ref.invalidate(isSongInLikedSongsProvider(widget.song.id));
+                          ref.read(myPlaylistsProvider.notifier).refreshPlaylists();
+                        },
                       ),
                     ],
                   ),
@@ -478,7 +461,7 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
   }
 
   Widget _buildActionButtons(bool isOwner) {
-    final showKaraoke = isOwner || _hasLyrics;
+    final bool isKaraokeDisabled = !isOwner && !_hasLyrics;
 
     return Wrap(
       spacing: 10,
@@ -490,21 +473,42 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
           label: 'Material',
           onTap: _openMaterial,
         ),
-        if (showKaraoke)
-          _ActionButton(
-            icon: Icons.mic_outlined,
-            label: 'Karaoke',
-            onTap: _hasLyrics
-                ? () => _startKaraokeConversion(context, widget.song)
-                : () {
-                    if (_isPreparingKaraoke) return;
-                    _showConvertToKaraokeDialog(context, widget.song);
-                  },
-            showEditIcon: isOwner && _hasLyrics,
-            onEditTap: isOwner && _hasLyrics
-                ? () => _showEditLyricDialog(context, widget.song)
-                : null,
-          ),
+        _ActionButton(
+          icon: Icons.mic_outlined,
+          label: 'Karaoke',
+          isDisabled: isKaraokeDisabled,
+          onTap: isKaraokeDisabled
+              ? () {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: const Color(0xFF1E1E1E),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      title: const Text('Not Available', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      content: const Text(
+                        'This song has not been converted to karaoke yet. Only the owner of this song can convert it.',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('OK', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              : (_hasLyrics
+                  ? () => _startKaraokeConversion(context, widget.song)
+                  : () {
+                      if (_isPreparingKaraoke) return;
+                      _showConvertToKaraokeDialog(context, widget.song);
+                    }),
+          showEditIcon: isOwner && _hasLyrics,
+          onEditTap: isOwner && _hasLyrics
+              ? () => _showEditLyricDialog(context, widget.song)
+              : null,
+        ),
         _ActionButton(
           icon: Icons.grid_on_outlined,
           label: 'Chord',
@@ -1065,6 +1069,7 @@ class _ActionButton extends StatelessWidget {
   final VoidCallback? onTap;
   final bool showEditIcon;
   final VoidCallback? onEditTap;
+  final bool isDisabled;
 
   const _ActionButton({
     required this.icon,
@@ -1072,11 +1077,12 @@ class _ActionButton extends StatelessWidget {
     this.onTap,
     this.showEditIcon = false,
     this.onEditTap,
+    this.isDisabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isEnabled = onTap != null;
+    final isEnabled = onTap != null && !isDisabled;
     return GestureDetector(
       onTap: onTap,
       child: Container(

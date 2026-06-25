@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart' as rp;
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
+import 'package:music_app_frontend/features/playlist/models/playlist.dart';
+import 'package:music_app_frontend/shared/widgets/success_popup.dart';
 import '../controllers/karaoke_controller.dart';
 import '../../data/models/karaoke_song.dart';
 import '../widgets/karaoke_options_sheet.dart';
@@ -11,6 +13,7 @@ import 'player_screen.dart';
 import 'lyric_editor_screen.dart';
 import 'my_karaoke_list_screen.dart';
 import 'karaoke_playlist_songs_screen.dart';
+import 'package:music_app_frontend/core/utils/song_matcher.dart';
 
 class SongListScreen extends StatefulWidget {
   const SongListScreen({super.key});
@@ -252,8 +255,8 @@ class _SongListScreenState extends State<SongListScreen> {
         _buildMyKaraokePlaylistTile(context, controller.songs.length),
         const SizedBox(height: 24),
 
-        // Karaoke Playlists Section
-        _buildKaraokePlaylistsSection(context, controller),
+        // Liked Karaoke Songs Section
+        _buildLikedKaraokeSongsSection(context, controller),
 
         // Popular Karaoke Section
         _buildSectionTitle('Popular Karaoke'),
@@ -261,137 +264,8 @@ class _SongListScreenState extends State<SongListScreen> {
         _buildPopularKaraokeList(context, controller),
         const SizedBox(height: 28),
 
-        // All My Karaoke Section (For quick access)
-        _buildSectionTitle('My Karaoke Songs'),
-        const SizedBox(height: 12),
-        if (controller.songs.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Center(
-              child: Text(
-                'No karaoke songs added yet.\nConvert your songs from the Home tab!',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, height: 1.5),
-              ),
-            ),
-          )
-        else
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: controller.songs.length.clamp(0, 5),
-            itemBuilder: (context, index) {
-              final song = controller.songs[index];
-              final hasLyrics = song.lyrics.isNotEmpty;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.music_note, color: AppColors.primary),
-                  ),
-                  title: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          song.title,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      rp.Consumer(
-                        builder: (context, ref, _) {
-                          final me = ref.watch(meProvider).valueOrNull;
-                          final isOwner = me != null && song.userId == me.id;
-                          final badgeText = isOwner
-                              ? (song.isPublic ? 'Yours • Public' : 'Yours • Private')
-                              : (song.isPublic ? 'Public' : 'Private');
-                          final badgeColor = isOwner
-                              ? (song.isPublic ? AppColors.primary : Colors.orangeAccent)
-                              : (song.isPublic ? Colors.blue : Colors.grey);
-
-                          return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: badgeColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: badgeColor.withValues(alpha: 0.4),
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Text(
-                              badgeText,
-                              style: TextStyle(
-                                color: badgeColor,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  subtitle: Text(
-                    song.artist ?? 'Unknown Artist',
-                    style: const TextStyle(color: Colors.grey, fontSize: 13),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: rp.Consumer(
-                    builder: (context, ref, _) {
-                      return IconButton(
-                        icon: const Icon(Icons.more_vert, color: Colors.white70),
-                        onPressed: () {
-                          showKaraokeOptionsSheet(
-                            context: context,
-                            ref: ref,
-                            song: song,
-                            controller: controller,
-                          );
-                        },
-                      );
-                    },
-                  ),
-                  onTap: () {
-                    if (hasLyrics) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PlayerScreen(song: song, controller: controller),
-                        ),
-                      );
-                    } else {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => LyricEditorScreen(song: song, controller: controller),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              );
-            },
-          ),
+        // My Karaoke Songs (Playlists area)
+        _buildMyKaraokeSongsAsPlaylistsSection(context, controller),
         const SizedBox(height: 24),
       ],
     );
@@ -766,6 +640,375 @@ class _SongListScreenState extends State<SongListScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildLikedKaraokeSongsSection(BuildContext context, KaraokeController controller) {
+    return rp.Consumer(
+      builder: (context, ref, _) {
+        final likedPlaylistAsync = ref.watch(likedSongsPlaylistProvider);
+        return likedPlaylistAsync.when(
+          data: (playlist) {
+            final likedSongs = playlist.songs ?? [];
+            if (likedSongs.isEmpty) return const SizedBox.shrink();
+
+            final likedKaraokeSongs = <KaraokeSong>[];
+            for (final song in likedSongs) {
+              final candidates = [...controller.songs, ...controller.publicSongs];
+              KaraokeSong? match;
+              for (final ks in candidates) {
+                if (isSongMatch(ks, song)) {
+                  match = ks;
+                  break;
+                }
+              }
+              if (match != null) {
+                likedKaraokeSongs.add(match);
+              }
+            }
+
+            if (likedKaraokeSongs.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle('Liked Karaoke Songs'),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 190,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: likedKaraokeSongs.length,
+                    itemBuilder: (context, index) {
+                      final song = likedKaraokeSongs[index];
+                      final hasLyrics = song.lyrics.isNotEmpty;
+                      return GestureDetector(
+                        onTap: () {
+                          if (hasLyrics) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => PlayerScreen(song: song, controller: controller),
+                              ),
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => LyricEditorScreen(song: song, controller: controller),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          width: 140,
+                          margin: const EdgeInsets.only(right: 16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 140,
+                                height: 120,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(16),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.redAccent.withValues(alpha: 0.8),
+                                      const Color(0xFFC0392B).withValues(alpha: 0.8),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    const Center(
+                                      child: Icon(
+                                        Icons.favorite_rounded,
+                                        color: Colors.white70,
+                                        size: 48,
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 8,
+                                      bottom: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.play_arrow_rounded,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      right: 8,
+                                      top: 8,
+                                      child: rp.Consumer(
+                                        builder: (context, ref, _) {
+                                          return GestureDetector(
+                                            behavior: HitTestBehavior.opaque,
+                                            onTap: () {
+                                              showKaraokeOptionsSheet(
+                                                context: context,
+                                                ref: ref,
+                                                song: song,
+                                                controller: controller,
+                                              );
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.all(6),
+                                              decoration: const BoxDecoration(
+                                                color: Colors.black54,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.more_vert,
+                                                color: Colors.white,
+                                                size: 16,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                song.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                song.artist ?? 'Unknown Artist',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 28),
+              ],
+            );
+          },
+          loading: () => const SizedBox.shrink(),
+          error: (e, _) => const SizedBox.shrink(),
+        );
+      },
+    );
+  }
+
+  Widget _buildMyKaraokeSongsAsPlaylistsSection(BuildContext context, KaraokeController controller) {
+    return rp.Consumer(
+      builder: (context, ref, _) {
+        final playlistsAsync = ref.watch(myPlaylistsProvider);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionTitle('My Karaoke Songs'),
+                IconButton(
+                  icon: const Icon(Icons.playlist_add_rounded, color: AppColors.primary, size: 28),
+                  tooltip: 'Create Playlist',
+                  onPressed: () {
+                    _showCreatePlaylistDialog(context, ref);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            playlistsAsync.when(
+              data: (playlists) {
+                final userPlaylists = playlists.where((p) => p.isKaraoke).toList();
+                if (userPlaylists.isEmpty) {
+                  return Container(
+                    padding: const EdgeInsets.all(24),
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'No playlists created yet.',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () => _showCreatePlaylistDialog(context, ref),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.onPrimary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create Playlist'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: userPlaylists.length,
+                  itemBuilder: (context, index) {
+                    final playlist = userPlaylists[index];
+                    final bool hasImage = playlist.coverImageUrl != null && playlist.coverImageUrl!.isNotEmpty;
+
+                    final playlistKaraokeSongs = controller.songs.where((ks) {
+                      final inSongs = playlist.songs?.any((s) => s.id == ks.id) ?? false;
+                      final inSongIds = playlist.songIds?.contains(ks.id) ?? false;
+                      return inSongs || inSongIds;
+                    }).toList();
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1E1E),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: hasImage
+                                ? DecorationImage(
+                                    image: NetworkImage(playlist.coverImageUrl!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                            gradient: !hasImage
+                                ? const LinearGradient(
+                                    colors: [
+                                      Color(0xFF8E2DE2),
+                                      Color(0xFF4A00E0),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : null,
+                          ),
+                          child: !hasImage
+                              ? const Icon(Icons.playlist_play_rounded, color: Colors.white, size: 28)
+                              : null,
+                        ),
+                        title: Text(
+                          playlist.name,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Text(
+                          '${playlistKaraokeSongs.length} karaoke songs • ${playlist.isPublic ? "Public" : "Private"}',
+                          style: const TextStyle(color: Colors.grey, fontSize: 13),
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 16),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => KaraokePlaylistSongsScreen(
+                                playlist: playlist,
+                                controller: controller,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              error: (e, _) => Text('Error loading playlists: $e', style: const TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCreatePlaylistDialog(BuildContext context, rp.WidgetRef ref) {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Create Karaoke Playlist', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Playlist Name',
+            hintStyle: TextStyle(color: Colors.grey),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(ctx);
+              try {
+                final myPlaylistsNotifier = ref.read(myPlaylistsProvider.notifier);
+                await myPlaylistsNotifier.createPlaylist(name, isKaraoke: true);
+                if (context.mounted) {
+                  SuccessPopup.show(
+                    context,
+                    title: 'Playlist Created',
+                    subtitle: 'Playlist "$name" was created successfully',
+                    icon: Icons.playlist_add_check_rounded,
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to create playlist: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Create', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

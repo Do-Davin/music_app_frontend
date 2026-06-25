@@ -10,6 +10,7 @@ class Playlist {
   final List<String>? savedUserIds;
   final List<Song>? songs;
   final bool isPublic;
+  final bool isKaraoke;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -23,6 +24,7 @@ class Playlist {
     this.savedUserIds,
     this.songs,
     this.isPublic = false,
+    this.isKaraoke = false,
     this.createdAt,
     this.updatedAt,
   });
@@ -51,6 +53,7 @@ class Playlist {
           .whereType<Song>()
           .toList(),
       isPublic: json['isPublic'] == true,
+      isKaraoke: json['isKaraoke'] == true,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
@@ -70,6 +73,7 @@ class Playlist {
     List<String>? savedUserIds,
     List<Song>? songs,
     bool? isPublic,
+    bool? isKaraoke,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -83,6 +87,7 @@ class Playlist {
       savedUserIds: savedUserIds ?? this.savedUserIds,
       songs: songs ?? this.songs,
       isPublic: isPublic ?? this.isPublic,
+      isKaraoke: isKaraoke ?? this.isKaraoke,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

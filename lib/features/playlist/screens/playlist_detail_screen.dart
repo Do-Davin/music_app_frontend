@@ -20,6 +20,7 @@ import 'package:music_app_frontend/features/song/services/song_service.dart';
 import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:music_app_frontend/core/utils/youtube_parser.dart';
+import 'package:music_app_frontend/core/utils/song_matcher.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -1020,6 +1021,22 @@ class SongTile extends ConsumerWidget {
                     _showMoveToPlaylistSheet(context, ref);
                   },
                 ),
+                // Add to playlist
+                ListTile(
+                  leading: const Icon(Icons.playlist_add, color: AppColors.primary),
+                  title: const Text('Add to playlist', style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showAddToPlaylistSheet(context, ref, excludePersonal: !isSongOwner);
+                  },
+                ),
+                // Add / Convert to Karaoke
+                KaraokeOptionTile(song: song, isSongOwner: isSongOwner, parentContext: context),
+                // Add to queue (feature placeholder)
+                const ListTile(
+                  leading: Icon(Icons.queue_music, color: Colors.grey),
+                  title: Text('Add to queue', style: TextStyle(color: Colors.grey)),
+                ),
               ],
 
               // ── NO PLAYLIST CONTEXT (e.g. search results) ────────────
@@ -1064,6 +1081,9 @@ class SongTile extends ConsumerWidget {
 
     try {
       await LikedSongsService().toggleLikeSong(song.id);
+      ref.invalidate(likedSongsPlaylistProvider);
+      ref.invalidate(likedSongsProvider);
+      ref.invalidate(isSongInLikedSongsProvider(song.id));
       myPlaylistsNotifier.refreshPlaylists();
       
       if (context.mounted) {
@@ -1941,22 +1961,7 @@ class _KaraokeOptionTileState extends State<KaraokeOptionTile> {
   }
 
   bool _isSongMatch(KaraokeSong karaoke, Song song) {
-    if (karaoke.id == song.id) return true;
-    final titleMatches = karaoke.title.trim().toLowerCase() == song.title.trim().toLowerCase();
-    if (!titleMatches) return false;
-    final songUrl = song.audioUrl;
-    if (songUrl == null) return false;
-    if (song.isYoutube) {
-      final songYtId = extractYoutubeId(songUrl);
-      final karaokeYtId = extractYoutubeId(karaoke.sourcePath);
-      if (songYtId != null && songYtId == karaokeYtId) return true;
-    } else {
-      final songFilename = songUrl.split('/').last.split('\\').last;
-      final karaokeFilename = karaoke.sourcePath.split('/').last.split('\\').last;
-      if (songFilename == karaokeFilename) return true;
-    }
-    final artistMatches = (karaoke.artist?.trim().toLowerCase() ?? '') == song.artist.trim().toLowerCase();
-    return artistMatches;
+    return isSongMatch(karaoke, song);
   }
 
   Future<void> _checkKaraokeStatus() async {
