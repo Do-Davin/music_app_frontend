@@ -1,19 +1,26 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_chord_builder_screen.dart'
-    show LyricChordItem, CanvasItemType;
+import 'package:music_app_frontend/core/constants/app_colors.dart';
+import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_chord_builder_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Read-only view of a song's lyric/chord canvas.
 /// Loads the same per-song data saved by [LyricChordBuilderScreen]
-/// but renders items as plain text (no boxes/borders) and does not
+/// but renders items as plain text with rich styling and does not
 /// allow editing, moving, or resizing.
+/// If [isOwner] is true, an edit button appears in the AppBar.
 class ChordViewerScreen extends StatefulWidget {
   final String songId;
   final String? songTitle;
+  final bool isOwner;
 
-  const ChordViewerScreen({super.key, required this.songId, this.songTitle});
+  const ChordViewerScreen({
+    super.key,
+    required this.songId,
+    this.songTitle,
+    this.isOwner = false,
+  });
 
   @override
   State<ChordViewerScreen> createState() => _ChordViewerScreenState();
@@ -37,6 +44,7 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
   }
 
   Future<void> _loadCanvasState() async {
+    setState(() => _loading = true);
     final prefs = await SharedPreferences.getInstance();
     final jsonText = prefs.getString(_storageKey);
 
@@ -68,6 +76,20 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
     }
   }
 
+  Future<void> _openEditor() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LyricChordBuilderScreen(
+          songId: widget.songId,
+          songTitle: widget.songTitle,
+        ),
+      ),
+    );
+    // Reload canvas after returning from editor
+    _loadCanvasState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -77,6 +99,14 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
         title: Text(
           widget.songTitle != null ? 'Chords: ${widget.songTitle}' : 'Chords',
         ),
+        actions: [
+          if (widget.isOwner)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
+              tooltip: 'Edit Chords',
+              onPressed: _openEditor,
+            ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -112,17 +142,35 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
+            if (widget.isOwner) ...[
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _openEditor,
+                icon: const Icon(Icons.add),
+                label: const Text('Create Chords'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  /// Renders an item as plain text only — no background, border, or
-  /// container — positioned exactly where it was placed in the editor.
+  /// Renders item with full rich styling — fontColor, fontSize,
+  /// bold/italic/underline — exactly as positioned in the editor.
   Widget _buildItem(LyricChordItem item) {
     final isChord = item.type == CanvasItemType.chord;
-    final color = isChord ? const Color(0xFF6FA8FF) : Colors.white;
 
     return Positioned(
       left: item.position.dx,
@@ -135,9 +183,18 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
           child: Text(
             item.text,
             style: TextStyle(
-              color: color,
-              fontSize: (isChord ? 24 : 16) * item.fontScale,
-              fontWeight: isChord ? FontWeight.w700 : FontWeight.w500,
+              color: isChord ? const Color(0xFF6FA8FF) : item.fontColor,
+              fontSize: (isChord ? 24 : item.fontSize) * item.fontScale,
+              fontWeight: isChord
+                  ? FontWeight.w700
+                  : item.isBold
+                  ? FontWeight.bold
+                  : FontWeight.w500,
+              fontStyle: item.isItalic ? FontStyle.italic : FontStyle.normal,
+              decoration: item.isUnderline
+                  ? TextDecoration.underline
+                  : TextDecoration.none,
+              decorationColor: item.fontColor,
             ),
           ),
         ),
