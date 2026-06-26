@@ -1938,6 +1938,7 @@ class SongTile extends ConsumerWidget {
 
     debugPrint('🎵 SongTile[${song.title}]: songId=${song.id}, songUserId=${song.userId}, meId=${me?.id}, isSongOwner=$isSongOwner, playingId=${playerState.currentSong?.id}, isCurrentPlaying=$isCurrentPlayingSong');
 
+
     // Check if the current user is the owner of the playlist
     final bool isOwnerOfPlaylist = isPlaylistOwner;
 

@@ -278,15 +278,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 showTypeBadge: true,
                 onTap: () {
                   ref.read(recentItemsProvider.notifier).addItem(item);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SongPlayerScreen(
-                        song: item,
-                        category: 'Search Result',
-                      ),
-                    ),
-                  );
+                  ref.read(globalAudioPlayerProvider.notifier).playSong(item);
                 },
               );
             } else if (item is model.Playlist) {
@@ -332,16 +324,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               onTap: () {
                 // Add to recent
                 ref.read(recentItemsProvider.notifier).addItem(song);
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SongPlayerScreen(
-                      song: song,
-                      category: 'Search Result',
-                    ),
-                  ),
-                );
+                ref.read(globalAudioPlayerProvider.notifier).playSong(song);
               },
             );
           },

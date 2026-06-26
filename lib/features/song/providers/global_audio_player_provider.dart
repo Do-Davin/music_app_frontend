@@ -61,7 +61,7 @@ class GlobalPlayerState {
 class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
   final AudioPlayer _audioPlayer = AudioPlayer();
   YoutubePlayerController? _youtubeController;
-  
+
   StreamSubscription? _justAudioPositionSub;
   StreamSubscription? _justAudioDurationSub;
   StreamSubscription? _justAudioStateSub;
@@ -91,7 +91,7 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
         final processingState = playerState.processingState;
         final isLoading = processingState == ProcessingState.buffering ||
             processingState == ProcessingState.loading;
-        
+
         state = state.copyWith(
           isPlaying: isPlaying,
           isLoading: isLoading,

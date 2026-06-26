@@ -40,7 +40,7 @@ class GlobalAudioPlayerWrapper extends ConsumerWidget {
     // The MainScreen can reside on Routes.main or Routes.root.
     final bool isMain = currentPath == Routes.main || currentPath == Routes.root;
     final double bottomPadding = MediaQuery.of(context).padding.bottom;
-    
+
     // BottomNavigationBar height on main screen is usually around 56 + bottom safe padding.
     // If not on main screen, navHeight is 0 so the mini-player sits at the very bottom.
     final double navHeight = isMain ? (56.0 + bottomPadding) : 0.0;
