@@ -92,4 +92,20 @@ class Playlist {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '_id': id,
+      'userId': userId,
+      'name': name,
+      'description': description,
+      'coverImageUrl': coverImageUrl,
+      'songIds': songIds,
+      'savedUserIds': savedUserIds,
+      'songs': songs?.map((s) => s.toJson()).toList(),
+      'isPublic': isPublic,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+    };
+  }
 }

@@ -14,64 +14,37 @@ import 'package:music_app_frontend/features/auth/presentation/providers/user_pro
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:go_router/go_router.dart';
 
-// Provider to manage the raw (un-debounced) search query for the text field UI.
-final searchQueryProvider = StateProvider<String>((ref) => "");
-final searchTabProvider = StateProvider<String>((ref) => "All");
+import 'package:music_app_frontend/features/search/providers/search_provider.dart';
 
-final searchAllProvider = FutureProvider.family<List<dynamic>, String>((ref, query) async {
-  final cleanQuery = query.trim();
-  if (cleanQuery.isEmpty) return [];
-
-  // Fetch both concurrently using watch on their future
-  final songsFuture = ref.watch(searchSongsProvider(cleanQuery).future);
-  final playlistsFuture = ref.watch(searchPlaylistsProvider(cleanQuery).future);
-
-  List<Song> songs = [];
-  List<model.Playlist> playlists = [];
-
-  try {
-    songs = await songsFuture;
-  } catch (e) {
-    debugPrint('Error searching songs: $e');
-  }
-
-  try {
-    playlists = await playlistsFuture;
-  } catch (e) {
-    debugPrint('Error searching playlists: $e');
-  }
-
-  // Combine lists
-  final combined = <dynamic>[...songs, ...playlists];
-  final me = ref.watch(meProvider).valueOrNull;
-
-  // Sort: user's own items first
-  combined.sort((a, b) {
-    final aIsMine = _isItemOwnedByUser(a, me?.id);
-    final bIsMine = _isItemOwnedByUser(b, me?.id);
-    if (aIsMine && !bIsMine) return -1;
-    if (!aIsMine && bIsMine) return 1;
-    return 0;
-  });
-
-  return combined;
-});
-
-bool _isItemOwnedByUser(dynamic item, String? currentUserId) {
-  if (currentUserId == null) return false;
-  if (item is Song) {
-    return item.userId == currentUserId;
-  } else if (item is model.Playlist) {
-    return item.userId == currentUserId;
-  }
-  return false;
-}
-
-class SearchScreen extends ConsumerWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
+}
+
+class _SearchScreenState extends ConsumerState<SearchScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final query = ref.read(searchQueryProvider);
+      if (query.isNotEmpty) {
+        _searchController.text = query;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider);
     // Use the debounced query to trigger actual API calls
     final debouncedQuery = ref.watch(debouncedSearchQueryProvider);
@@ -85,7 +58,7 @@ class SearchScreen extends ConsumerWidget {
           child: Column(
             children: [
               const SizedBox(height: 10),
-              _buildHeader(ref, query),
+              _buildHeader(query),
               const SizedBox(height: 20),
               Expanded(
                 child: isSearching
@@ -99,39 +72,20 @@ class SearchScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(WidgetRef ref, String query) {
+  Widget _buildHeader(String query) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            GestureDetector(
-              onTap: () {
-                ref.read(searchQueryProvider.notifier).state = "";
-                ref.read(debouncedSearchQueryProvider.notifier).update("");
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.arrow_back_ios_new,
-                  size: 16,
-                  color: AppColors.onSurface,
-                ),
-              ),
-            ),
-            Text(
-              'Search',
-              style: AppTextStyles.subtitle.copyWith(color: AppColors.primary),
-            ),
-            const SizedBox(width: 32),
-          ],
+        Center(
+          child: Text(
+            'Search',
+            style: AppTextStyles.subtitle.copyWith(color: AppColors.primary), 
+            textAlign: TextAlign.center,
+          ),
         ),
         const SizedBox(height: 20),
         TextField(
+          controller: _searchController,
           onChanged: (val) {
             ref.read(searchQueryProvider.notifier).state = val;
             ref.read(debouncedSearchQueryProvider.notifier).update(val);
@@ -148,6 +102,7 @@ class SearchScreen extends ConsumerWidget {
                 ? IconButton(
                     icon: const Icon(Icons.close, color: AppColors.onSurface),
                     onPressed: () {
+                      _searchController.clear();
                       ref.read(searchQueryProvider.notifier).state = "";
                       ref.read(debouncedSearchQueryProvider.notifier).update("");
                     },
@@ -171,18 +126,18 @@ class SearchScreen extends ConsumerWidget {
   }
 
   Widget _buildInitialView(BuildContext context, WidgetRef ref) {
-    final recentSongs = ref.watch(recentSongsProvider);
+    final recentItems = ref.watch(recentItemsProvider);
 
     return ListView(
       physics: const BouncingScrollPhysics(),
       children: [
-        if (recentSongs.isNotEmpty) ...[
+        if (recentItems.isNotEmpty) ...[
           _buildSectionTitle(
             "Recent",
             showAction: true,
-            onActionTap: () => ref.read(recentSongsProvider.notifier).clear(),
+            onActionTap: () => ref.read(recentItemsProvider.notifier).clear(),
           ),
-          _buildSongList(context, ref, recentSongs),
+          _buildRecentList(context, ref, recentItems),
           const SizedBox(height: 30),
         ],
         _buildSectionTitle("Trending"),
@@ -321,7 +276,7 @@ class SearchScreen extends ConsumerWidget {
                 index: index,
                 showTypeBadge: true,
                 onTap: () {
-                  ref.read(recentSongsProvider.notifier).addSong(item);
+                  ref.read(recentItemsProvider.notifier).addItem(item);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -375,7 +330,7 @@ class SearchScreen extends ConsumerWidget {
               index: index,
               onTap: () {
                 // Add to recent
-                ref.read(recentSongsProvider.notifier).addSong(song);
+                ref.read(recentItemsProvider.notifier).addItem(song);
 
                 Navigator.push(
                   context,
@@ -498,6 +453,7 @@ class SearchScreen extends ConsumerWidget {
               onPressed: () => _togglePlaylistLibrary(context, ref, playlist, isAdded),
             ),
       onTap: () {
+        ref.read(recentItemsProvider.notifier).addItem(playlist);
         context.push(Routes.playlistById(playlist.id));
       },
     );
@@ -693,45 +649,79 @@ class SearchScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSongList(BuildContext context, WidgetRef ref, List<Song> songs) {
+  Widget _buildRecentList(BuildContext context, WidgetRef ref, List<dynamic> items) {
     return Column(
-      children: songs
-          .map(
-            (song) => Column(
-              children: [
-                ListTile(
-                  title: Text(
-                    song.title,
-                    style: AppTextStyles.body.copyWith(fontSize: 14),
-                  ),
-                  subtitle: Text(
-                    song.artist,
-                    style: AppTextStyles.body.copyWith(
-                      color: AppColors.hint,
-                      fontSize: 12,
-                    ),
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SongPlayerScreen(
-                          song: song,
-                          category: 'Recent',
+      children: items
+          .map((item) {
+            final id = item is Song ? item.id : (item as model.Playlist).id;
+            return Dismissible(
+              key: Key(id),
+              direction: DismissDirection.endToStart,
+              onDismissed: (direction) {
+                ref.read(recentItemsProvider.notifier).removeItem(id);
+              },
+              background: Container(
+                color: Colors.red.withValues(alpha: 0.8),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                child: const Icon(Icons.delete, color: Colors.white),
+              ),
+              child: Column(
+                children: [
+                  if (item is Song)
+                    ListTile(
+                      title: Text(
+                        item.title,
+                        style: AppTextStyles.body.copyWith(fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        item.artist,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.hint,
+                          fontSize: 12,
                         ),
                       ),
-                    );
-                  },
-                ),
-                Divider(
-                  color: Colors.white.withValues(alpha: 0.10),
-                  height: 1,
-                ),
-              ],
-            ),
-          )
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SongPlayerScreen(
+                              song: item,
+                              category: 'Recent',
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  else if (item is model.Playlist)
+                    ListTile(
+                      title: Text(
+                        item.name,
+                        style: AppTextStyles.body.copyWith(fontSize: 14),
+                      ),
+                      subtitle: Text(
+                        'Playlist',
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.hint,
+                          fontSize: 12,
+                        ),
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      onTap: () {
+                        context.push(Routes.playlistById(item.id));
+                      },
+                    ),
+                  Divider(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    height: 1,
+                  ),
+                ],
+              ),
+            );
+          })
           .toList(),
     );
   }

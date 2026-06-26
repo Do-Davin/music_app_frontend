@@ -8,6 +8,7 @@ import 'package:music_app_frontend/features/playlist/providers/playlist_provider
 import 'package:music_app_frontend/features/references/providers/reference_material_provider.dart';
 import 'package:music_app_frontend/features/relationships/providers/relationship_provider.dart';
 import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
+import 'package:music_app_frontend/features/search/providers/search_provider.dart';
 import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -168,8 +169,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    // Clear recent songs for the current user before clearing session
-    _ref.read(recentSongsProvider.notifier).reset();
+    // Clear recent items for the current user before clearing session
+    _ref.read(recentItemsProvider.notifier).reset();
     await _clearStoredSession();
     state = const AuthState(isValidatingSession: false);
     _resetUserScopedProviders();
@@ -214,7 +215,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _ref.invalidate(outgoingFriendRequestsProvider);
     _ref.invalidate(userSearchProvider);
     _ref.invalidate(friendActionsProvider);
-    _ref.invalidate(recentSongsProvider);
+    _ref.invalidate(recentItemsProvider);
     _ref.invalidate(myFollowingProvider);
     _ref.invalidate(myFollowersProvider);
     _ref.invalidate(relationshipActionsProvider);
@@ -223,6 +224,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _ref.invalidate(songsProvider);
     _ref.invalidate(songByIdProvider);
     _ref.invalidate(searchSongsProvider);
+    _ref.invalidate(searchQueryProvider);
+    _ref.invalidate(searchTabProvider);
+    _ref.invalidate(debouncedSearchQueryProvider);
     if (includePlaylists) {
       _ref.invalidate(playlistServiceProvider);
       _ref.invalidate(myPlaylistsProvider);

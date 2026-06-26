@@ -35,34 +35,3 @@ final searchSongsProvider = FutureProvider.family<List<Song>, String>((
   return service.searchSongs(cleanQuery);
 });
 
-/// Debounced search query — updates 400 ms after the user stops typing.
-/// Use this provider for the search text field to avoid firing a network
-/// request on every keystroke.
-final debouncedSearchQueryProvider =
-    StateNotifierProvider<DebouncedSearchNotifier, String>(
-      (ref) => DebouncedSearchNotifier(),
-    );
-
-class DebouncedSearchNotifier extends StateNotifier<String> {
-  Timer? _timer;
-
-  DebouncedSearchNotifier() : super('');
-
-  void update(String query) {
-    _timer?.cancel();
-    if (query.isEmpty) {
-      // Clear immediately so the UI reacts right away
-      state = '';
-      return;
-    }
-    _timer = Timer(const Duration(milliseconds: 400), () {
-      if (mounted) state = query;
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-}
