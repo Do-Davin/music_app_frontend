@@ -13,6 +13,7 @@ import 'package:music_app_frontend/features/playlist/models/playlist.dart' as mo
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
 
 import 'package:music_app_frontend/features/search/providers/search_provider.dart';
 

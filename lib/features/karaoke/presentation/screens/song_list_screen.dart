@@ -648,6 +648,7 @@ class _SongListScreenState extends State<SongListScreen> {
     return rp.Consumer(
       builder: (context, ref, _) {
         final likedPlaylistAsync = ref.watch(likedSongsPlaylistProvider);
+        final me = ref.watch(meProvider).valueOrNull;
         return likedPlaylistAsync.when(
           data: (playlist) {
             final likedSongs = playlist.songs ?? [];
@@ -659,8 +660,16 @@ class _SongListScreenState extends State<SongListScreen> {
               KaraokeSong? match;
               for (final ks in candidates) {
                 if (isSongMatch(ks, song)) {
-                  match = ks;
-                  break;
+                  final isMySong = me != null && song.userId == me.id;
+                  if (isMySong) {
+                    if (ks.userId == me.id) {
+                      match = ks;
+                      break;
+                    }
+                  } else {
+                    match = ks;
+                    break;
+                  }
                 }
               }
               if (match != null) {

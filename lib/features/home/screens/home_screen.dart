@@ -12,6 +12,7 @@ import 'package:music_app_frontend/features/song/providers/recently_played_provi
 import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/shared/widgets/app_error_widget.dart';
 import 'package:music_app_frontend/shared/widgets/app_loading_widget.dart';
+import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -48,7 +49,7 @@ class HomeScreen extends ConsumerWidget {
                 const SizedBox(height: 32),
 
                 // ── Continue Listening ─────────────────────────────────────
-                ..._buildContinueListening(context, recentlyPlayedAsync),
+                ..._buildContinueListening(context, ref, recentlyPlayedAsync),
 
                 // ── Recently Played ────────────────────────────────────────
                 ..._buildAsyncSection<List<RecentlyPlayedEntry>>(
@@ -57,7 +58,7 @@ class HomeScreen extends ConsumerWidget {
                   onRetry: () => ref.invalidate(recentlyPlayedProvider),
                   builder: (entries) => entries.isEmpty
                       ? const SizedBox.shrink()
-                      : _buildRecentlyPlayedList(context, entries),
+                      : _buildRecentlyPlayedList(context, ref, entries),
                 ),
 
                 // ── My Uploads ─────────────────────────────────────────────
@@ -67,7 +68,7 @@ class HomeScreen extends ConsumerWidget {
                   onRetry: () => ref.invalidate(mySongsProvider),
                   builder: (songs) => songs.isEmpty
                       ? const SizedBox.shrink()
-                      : _buildSongList(context, songs, 'MY UPLOADS'),
+                      : _buildSongList(context, ref, songs, 'MY UPLOADS'),
                 ),
 
                 // ── Liked Songs ────────────────────────────────────────────
@@ -77,7 +78,7 @@ class HomeScreen extends ConsumerWidget {
                   onRetry: () => ref.invalidate(likedSongsProvider),
                   builder: (songs) => songs.isEmpty
                       ? const SizedBox.shrink()
-                      : _buildSongList(context, songs, 'LIKED SONGS'),
+                      : _buildSongList(context, ref, songs, 'LIKED SONGS'),
                 ),
 
                 // ── Your Playlists ─────────────────────────────────────────
@@ -135,6 +136,7 @@ class HomeScreen extends ConsumerWidget {
 
   List<Widget> _buildContinueListening(
     BuildContext context,
+    WidgetRef ref,
     AsyncValue<List<RecentlyPlayedEntry>> asyncValue,
   ) {
     return asyncValue.when(
@@ -144,7 +146,7 @@ class HomeScreen extends ConsumerWidget {
         if (entries.isEmpty) return [];
         return [
           _buildSectionTitle('Continue Listening'),
-          _buildContinueListeningCard(context, entries.first),
+          _buildContinueListeningCard(context, ref, entries.first),
           const SizedBox(height: 32),
         ];
       },
@@ -153,11 +155,12 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildContinueListeningCard(
     BuildContext context,
+    WidgetRef ref,
     RecentlyPlayedEntry entry,
   ) {
     final song = entry.song;
     return GestureDetector(
-      onTap: () => _navigateToSong(context, song, 'CONTINUE LISTENING'),
+      onTap: () => _navigateToSong(context, ref, song, 'CONTINUE LISTENING'),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -220,6 +223,7 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildRecentlyPlayedList(
     BuildContext context,
+    WidgetRef ref,
     List<RecentlyPlayedEntry> entries,
   ) {
     return SizedBox(
@@ -229,7 +233,7 @@ class HomeScreen extends ConsumerWidget {
         itemCount: entries.length,
         separatorBuilder: (_, _) => const SizedBox(width: 16),
         itemBuilder: (context, index) =>
-            _buildSongCard(context, entries[index].song, 'RECENTLY PLAYED'),
+            _buildSongCard(context, ref, entries[index].song, 'RECENTLY PLAYED'),
       ),
     );
   }
@@ -238,6 +242,7 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildSongList(
     BuildContext context,
+    WidgetRef ref,
     List<Song> songs,
     String category,
   ) {
@@ -248,14 +253,14 @@ class HomeScreen extends ConsumerWidget {
         itemCount: songs.length,
         separatorBuilder: (_, _) => const SizedBox(width: 16),
         itemBuilder: (context, index) =>
-            _buildSongCard(context, songs[index], category),
+            _buildSongCard(context, ref, songs[index], category),
       ),
     );
   }
 
-  Widget _buildSongCard(BuildContext context, Song song, String category) {
+  Widget _buildSongCard(BuildContext context, WidgetRef ref, Song song, String category) {
     return GestureDetector(
-      onTap: () => _navigateToSong(context, song, category),
+      onTap: () => _navigateToSong(context, ref, song, category),
       child: SizedBox(
         width: 140,
         child: Column(
@@ -534,11 +539,8 @@ class HomeScreen extends ConsumerWidget {
     return trimmedEmail.split('@').first;
   }
 
-  void _navigateToSong(BuildContext context, Song song, String category) {
-    context.push(
-      Routes.songById(song.id),
-      extra: SongPlayerRouteData(song: song, category: category),
-    );
+  void _navigateToSong(BuildContext context, WidgetRef ref, Song song, String category) {
+    ref.read(globalAudioPlayerProvider.notifier).playSong(song);
   }
 
   Widget _coverImage(String? url, double size) {

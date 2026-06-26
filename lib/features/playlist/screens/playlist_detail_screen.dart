@@ -21,6 +21,8 @@ import 'package:music_app_frontend/features/playlist/services/liked_songs_servic
 import 'package:provider/provider.dart' as provider;
 import 'package:music_app_frontend/core/utils/youtube_parser.dart';
 import 'package:music_app_frontend/core/utils/song_matcher.dart';
+import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
+import 'package:music_app_frontend/features/song/widgets/playing_equalizer_wave.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -1809,6 +1811,10 @@ class SongTile extends ConsumerWidget {
     final me = ref.watch(meProvider).valueOrNull;
     final isSongOwner = me != null && song.userId == me.id;
 
+    final playerState = ref.watch(globalAudioPlayerProvider);
+    final isCurrentPlayingSong = playerState.currentSong?.id == song.id;
+    final isPlaying = isCurrentPlayingSong && playerState.isPlaying;
+
     // Check if the current user is the owner of the playlist
     final bool isOwnerOfPlaylist = isPlaylistOwner;
 
@@ -1840,21 +1846,44 @@ class SongTile extends ConsumerWidget {
     final bool hasImage = song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
     final Widget tile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: AppColors.surface,
-          image: hasImage
-              ? DecorationImage(
-                  image: NetworkImage(song.coverImageUrl!),
-                  fit: BoxFit.cover,
-                  onError: (_, _) {},
-                )
-              : null,
-        ),
-        child: !hasImage ? const Icon(Icons.music_note, color: AppColors.hint, size: 24) : null,
+      leading: Stack(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: AppColors.surface,
+              image: hasImage
+                  ? DecorationImage(
+                      image: NetworkImage(song.coverImageUrl!),
+                      fit: BoxFit.cover,
+                      onError: (_, _) {},
+                    )
+                  : null,
+            ),
+            child: !hasImage ? const Icon(Icons.music_note, color: AppColors.hint, size: 24) : null,
+          ),
+          if (isCurrentPlayingSong)
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.black.withValues(alpha: 0.5),
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: PlayingEqualizerWave(
+                    isAnimated: isPlaying,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1862,7 +1891,10 @@ class SongTile extends ConsumerWidget {
           Flexible(
             child: Text(
               song.title,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isCurrentPlayingSong ? AppColors.primary : Colors.white,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1916,7 +1948,7 @@ class SongTile extends ConsumerWidget {
         ],
       ),
       onTap: isUnaccessible ? null : onTap ?? () {
-        context.push(Routes.songById(song.id), extra: SongPlayerRouteData(song: song, category: 'PLAYLIST'));
+        ref.read(globalAudioPlayerProvider.notifier).playSong(song);
       },
     );
 
