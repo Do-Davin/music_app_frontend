@@ -5,11 +5,6 @@ import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_chord_builder_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Read-only view of a song's lyric/chord canvas.
-/// Loads the same per-song data saved by [LyricChordBuilderScreen]
-/// but renders items as plain text with rich styling and does not
-/// allow editing, moving, or resizing.
-/// If [isOwner] is true, an edit button appears in the AppBar.
 class ChordViewerScreen extends StatefulWidget {
   final String songId;
   final String? songTitle;
@@ -34,6 +29,7 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
   double _canvasWidth = _defaultCanvasWidth;
   double _canvasHeight = _defaultCanvasHeight;
   bool _loading = true;
+  bool _isEditMode = false;
 
   String get _storageKey => 'lyric_chord_builder_state_${widget.songId}';
 
@@ -57,7 +53,6 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
       final data = jsonDecode(jsonText) as Map<String, dynamic>;
       final itemsData = (data['items'] as List<dynamic>)
           .cast<Map<String, dynamic>>();
-
       final loadedItems = itemsData
           .map((json) => LyricChordItem.fromJson(json))
           .toList();
@@ -86,8 +81,17 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
         ),
       ),
     );
-    // Reload canvas after returning from editor
+    // Back from editor → reload canvas and switch back to view mode
+    setState(() => _isEditMode = false);
     _loadCanvasState();
+  }
+
+  void _onToggleMode(bool editMode) {
+    if (editMode) {
+      _openEditor();
+    } else {
+      setState(() => _isEditMode = false);
+    }
   }
 
   @override
@@ -98,13 +102,13 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
         backgroundColor: const Color(0xFF121212),
         title: Text(
           widget.songTitle != null ? 'Chords: ${widget.songTitle}' : 'Chords',
+          style: const TextStyle(color: Colors.white),
         ),
         actions: [
           if (widget.isOwner)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
-              tooltip: 'Edit Chords',
-              onPressed: _openEditor,
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: _buildToggle(),
             ),
         ],
       ),
@@ -125,6 +129,69 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  /// Segmented toggle: View | Edit
+  Widget _buildToggle() {
+    return Container(
+      height: 34,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2A2A2A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _toggleSegment(
+            label: 'View',
+            icon: Icons.visibility_outlined,
+            active: !_isEditMode,
+            onTap: () => _onToggleMode(false),
+          ),
+          _toggleSegment(
+            label: 'Edit',
+            icon: Icons.edit_outlined,
+            active: _isEditMode,
+            onTap: () => _onToggleMode(true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toggleSegment({
+    required String label,
+    required IconData icon,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: active ? Colors.black : Colors.white54),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: active ? Colors.black : Colors.white54,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -167,8 +234,6 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
     );
   }
 
-  /// Renders item with full rich styling — fontColor, fontSize,
-  /// bold/italic/underline — exactly as positioned in the editor.
   Widget _buildItem(LyricChordItem item) {
     final isChord = item.type == CanvasItemType.chord;
 
@@ -178,26 +243,41 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
       child: SizedBox(
         width: item.width,
         height: item.height,
-        child: Align(
-          alignment: isChord ? Alignment.center : Alignment.centerLeft,
-          child: Text(
-            item.text,
-            style: TextStyle(
-              color: isChord ? const Color(0xFF6FA8FF) : item.fontColor,
-              fontSize: (isChord ? 24 : item.fontSize) * item.fontScale,
-              fontWeight: isChord
-                  ? FontWeight.w700
-                  : item.isBold
-                  ? FontWeight.bold
-                  : FontWeight.w500,
-              fontStyle: item.isItalic ? FontStyle.italic : FontStyle.normal,
-              decoration: item.isUnderline
-                  ? TextDecoration.underline
-                  : TextDecoration.none,
-              decorationColor: item.fontColor,
-            ),
-          ),
-        ),
+        child: isChord
+            ? Center(
+                child: Text(
+                  item.text,
+                  style: TextStyle(
+                    color: const Color(0xFF6FA8FF),
+                    fontSize: 24 * item.fontScale,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            : Padding(
+                // Match edit mode: 14px padding + 18px icon + 8px gap
+                padding: const EdgeInsets.only(
+                  left: 40,
+                  top: 10,
+                  right: 14,
+                  bottom: 10,
+                ),
+                child: Text(
+                  item.text,
+                  style: TextStyle(
+                    color: item.fontColor,
+                    fontSize: item.fontSize * item.fontScale,
+                    fontWeight: item.isBold ? FontWeight.bold : FontWeight.w500,
+                    fontStyle: item.isItalic
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                    decoration: item.isUnderline
+                        ? TextDecoration.underline
+                        : TextDecoration.none,
+                    decorationColor: item.fontColor,
+                  ),
+                ),
+              ),
       ),
     );
   }
