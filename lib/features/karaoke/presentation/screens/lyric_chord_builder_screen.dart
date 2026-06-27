@@ -262,7 +262,6 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
   void _pushHistory() {
     _undoStack.add(_items.map((e) => e.copyWith()).toList());
     if (_undoStack.length > _maxHistory) _undoStack.removeAt(0);
-    _redoStack.clear();
   }
 
   void _undo() {
@@ -346,7 +345,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
       id: _nextItemId++,
       type: CanvasItemType.chord,
       text: chord,
-      position: Offset(80, 80 + (_items.length * 42.0)),
+      position: Offset((_canvasWidth - 56) / 2, (_canvasHeight - 56) / 2),
       notationStyle: _chordNotationStyle,
       width: 56,
       height: 56,
