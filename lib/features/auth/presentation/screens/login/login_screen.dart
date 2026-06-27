@@ -31,9 +31,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _fullEmailController.addListener(_onEmailChanged);
   }
 
+  bool _wasLockedOut = false;
+
   void _onEmailChanged() {
-    // Always rebuild to check if the newly entered email is locked
-    setState(() {});
+    final isNowLocked = _isLockedOut;
+    // Only rebuild the UI if the locked out state actually changes for the currently typed email
+    if (_wasLockedOut != isNowLocked) {
+      setState(() {
+        _wasLockedOut = isNowLocked;
+      });
+    }
   }
 
   @override
@@ -253,9 +260,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               controller: _fullEmailController,
                               hint: 'Email',
                               prefixIcon: Icons.email_outlined,
+                              keyboardType: TextInputType.emailAddress,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Please enter your email';
+                                }
+                                if (!RegExp(
+                                  r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
+                                ).hasMatch(value.trim())) {
+                                  return 'Please enter a valid email';
                                 }
                                 return null;
                               },

@@ -45,11 +45,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   void _onBackToLogin() {
     ref.read(forgotPasswordProvider.notifier).reset();
-    if (context.canPop()) {
-      context.pop();
-      return;
-    }
-    context.go(Routes.root);
+    context.go(Routes.login);
   }
 
   @override

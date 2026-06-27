@@ -19,6 +19,7 @@ import 'package:music_app_frontend/core/utils/song_matcher.dart';
 import 'package:music_app_frontend/shared/widgets/favorite_icon_button.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
 import 'package:music_app_frontend/features/song/providers/song_provider.dart';
+import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
 
 class SongPlayerScreen extends ConsumerStatefulWidget {
   final Song song;
@@ -68,7 +69,8 @@ class _SongPlayerScreenState extends ConsumerState<SongPlayerScreen> {
       if (mounted) {
         final errorMsg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
-        if (errorMsg.toLowerCase().contains('private')) {
+        if (errorMsg.toLowerCase().contains('private') || errorMsg.toLowerCase().contains('not found')) {
+          ref.read(recentItemsProvider.notifier).removeItem(widget.song.id);
           Navigator.of(context).pop();
         }
       }

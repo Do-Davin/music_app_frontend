@@ -93,11 +93,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
 
   void _onBackToLogin() {
     ref.read(forgotPasswordProvider.notifier).reset();
-    if (context.canPop()) {
-      context.pop();
-      return;
-    }
-    context.go(Routes.root);
+    context.go(Routes.login);
   }
 
   @override
