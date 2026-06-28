@@ -87,6 +87,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
   }
 
   Future<void> _onResendCode() async {
+    if (_secondsRemaining > 0) return;
     await ref.read(forgotPasswordProvider.notifier).resendCode();
     _startTimer();
   }
@@ -316,13 +317,17 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                       const SizedBox(height: 18),
 
                       GestureDetector(
-                        onTap: _onResendCode,
+                        onTap: _secondsRemaining > 0 ? null : _onResendCode,
                         child: Text(
                           'Resend Code',
                           style: AppTextStyles.body.copyWith(
-                            color: AppColors.primary,
+                            color: _secondsRemaining > 0
+                                ? Colors.white.withValues(alpha: 0.3)
+                                : AppColors.primary,
                             fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
+                            decoration: _secondsRemaining > 0
+                                ? TextDecoration.none
+                                : TextDecoration.underline,
                             decorationColor: AppColors.primary,
                           ),
                         ),
