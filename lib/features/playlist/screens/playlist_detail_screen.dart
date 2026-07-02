@@ -1815,6 +1815,8 @@ class SongTile extends ConsumerWidget {
     final isCurrentPlayingSong = playerState.currentSong?.id == song.id;
     final isPlaying = isCurrentPlayingSong && playerState.isPlaying;
 
+    debugPrint('🎵 SongTile[${song.title}]: songId=${song.id}, songUserId=${song.userId}, meId=${me?.id}, isSongOwner=$isSongOwner, playingId=${playerState.currentSong?.id}, isCurrentPlaying=$isCurrentPlayingSong');
+
     // Check if the current user is the owner of the playlist
     final bool isOwnerOfPlaylist = isPlaylistOwner;
 
