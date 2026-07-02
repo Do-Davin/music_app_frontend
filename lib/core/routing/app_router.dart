@@ -20,7 +20,6 @@ import 'package:music_app_frontend/features/playlist/screens/no_playlists_screen
 import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 import 'package:music_app_frontend/features/relationships/screens/follow_list_screen.dart';
 import 'package:music_app_frontend/features/relationships/screens/user_detail_screen.dart';
-import 'package:music_app_frontend/features/playlist/screens/liked_songs_screen.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/song/screens/no_results_screen.dart';
 import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
@@ -61,13 +60,13 @@ CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
   );
 }
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+
 final appRouter = GoRouter(
   initialLocation: Routes.root,
+  navigatorKey: rootNavigatorKey,
   routes: [
-    GoRoute(
-      path: Routes.root,
-      builder: (context, state) => const AuthWrapper(),
-    ),
     GoRoute(
       path: Routes.splash,
       builder: (context, state) => const SplashScreen(),
@@ -97,6 +96,7 @@ final appRouter = GoRouter(
       builder: (context, state) => const CreateNewPasswordScreen(),
     ),
     ShellRoute(
+      navigatorKey: shellNavigatorKey,
       builder: (context, state, child) {
         return GlobalAudioPlayerWrapper(
           currentPath: state.matchedLocation,
@@ -104,6 +104,10 @@ final appRouter = GoRouter(
         );
       },
       routes: [
+        GoRoute(
+          path: Routes.root,
+          builder: (context, state) => const AuthWrapper(),
+        ),
         GoRoute(path: Routes.main, builder: (context, state) => const MainScreen()),
         GoRoute(
           path: Routes.friends,

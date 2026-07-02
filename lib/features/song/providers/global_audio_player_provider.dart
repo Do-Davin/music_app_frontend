@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart' hide PlayerState;
 import 'package:music_app_frontend/features/song/models/song.dart';
@@ -105,8 +104,12 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
     _youtubeController?.addListener(() {
       final ytController = _youtubeController;
       if (ytController != null && state.currentSong != null && state.currentSong!.isYoutube) {
-        final isPlaying = ytController.value.isPlaying;
-        final isBuffering = ytController.value.playerState == PlayerState.buffering;
+        final ytState = ytController.value.playerState;
+        final isPlaying = ytController.value.isPlaying ||
+            (ytState != PlayerState.paused &&
+             ytState != PlayerState.ended &&
+             ytState != PlayerState.cued);
+        final isBuffering = ytState == PlayerState.buffering;
         final position = ytController.value.position;
         final duration = ytController.metadata.duration;
 
@@ -139,7 +142,7 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
     state = state.copyWith(
       currentSong: song,
       isLoading: true,
-      isPlaying: false,
+      isPlaying: true,
       position: Duration.zero,
       duration: Duration.zero,
       queue: resolvedQueue,
@@ -150,6 +153,7 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
     if (url == null || url.isEmpty) {
       state = state.copyWith(
         isLoading: false,
+        isPlaying: false,
         errorMessage: 'No playback URL found.',
       );
       return;
@@ -161,6 +165,7 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
         if (videoId == null) {
           state = state.copyWith(
             isLoading: false,
+            isPlaying: false,
             errorMessage: 'Invalid YouTube URL.',
           );
           return;
@@ -177,12 +182,13 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
         );
         _initYoutubeListeners();
       } else {
-        await _audioPlayer.setUrl(url);
         _audioPlayer.play();
+        await _audioPlayer.setUrl(url);
       }
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
+        isPlaying: false,
         errorMessage: 'Playback error: $e',
       );
     }

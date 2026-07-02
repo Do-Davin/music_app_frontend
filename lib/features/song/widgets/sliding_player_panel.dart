@@ -77,6 +77,9 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel>
         _ac.fling(velocity: -1.0);
       }
     }
+    if (widget.navHeight != oldWidget.navHeight) {
+      _bottom += (widget.navHeight - oldWidget.navHeight);
+    }
   }
 
   @override
@@ -131,6 +134,8 @@ class _SlidingPlayerPanelState extends ConsumerState<SlidingPlayerPanel>
       _right = _right.clamp(16.0, screenWidth - miniPlayerWidth - 16.0);
       _bottom = _bottom.clamp(16.0 + minimizedBottom, totalHeight - miniPlayerHeight - 16.0);
     }
+
+    debugPrint('🎵 SlidingPlayerPanel: _bottom=$_bottom, navHeight=$minimizedBottom');
 
     return PopScope(
       canPop: !widget.isMaximized,
