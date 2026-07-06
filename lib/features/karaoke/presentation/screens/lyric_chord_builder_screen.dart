@@ -115,7 +115,6 @@ class LyricChordItem {
   }
 }
 
-// ── Storage key helper ─────────────────────────────────────
 String lyricChordStorageKey(String? songId) {
   if (songId != null && songId.isNotEmpty) {
     return 'lyric_chord_builder_state_$songId';
@@ -123,7 +122,6 @@ String lyricChordStorageKey(String? songId) {
   return 'lyric_chord_builder_state';
 }
 
-// ── Preset color swatches ──────────────────────────────────
 class _ColorSwatch {
   final Color color;
   final String label;
@@ -141,13 +139,19 @@ const List<_ColorSwatch> _kColorSwatches = [
   _ColorSwatch(color: Color(0xFF2196F3), label: 'Blue'),
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 class LyricChordBuilderScreen extends StatefulWidget {
   final String? songId;
   final String? songTitle;
+  final bool embeddedMode;
+  final void Function(VoidCallback undo, VoidCallback redo)? onActionsReady;
 
-  const LyricChordBuilderScreen({super.key, this.songId, this.songTitle});
+  const LyricChordBuilderScreen({
+    super.key,
+    this.songId,
+    this.songTitle,
+    this.embeddedMode = false,
+    this.onActionsReady,
+  });
 
   @override
   State<LyricChordBuilderScreen> createState() =>
@@ -199,6 +203,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
   void initState() {
     super.initState();
     _loadCanvasState();
+    widget.onActionsReady?.call(_undo, _redo);
   }
 
   @override
@@ -210,25 +215,20 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
   Future<void> _loadCanvasState() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonText = prefs.getString(_storageKey);
-
     if (jsonText == null) {
       setState(() => _loading = false);
       return;
     }
-
     try {
       final data = jsonDecode(jsonText) as Map<String, dynamic>;
       final itemsData = (data['items'] as List<dynamic>)
           .cast<Map<String, dynamic>>();
-
       final loadedItems = itemsData
           .map((json) => LyricChordItem.fromJson(json))
           .toList(growable: true);
-
       final maxId = loadedItems.isNotEmpty
           ? loadedItems.map((item) => item.id).reduce(max)
           : -1;
-
       setState(() {
         _items.clear();
         _items.addAll(loadedItems);
@@ -291,14 +291,12 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
   void _addLyric(String text, {bool splitLines = false}) {
     if (text.trim().isEmpty) return;
     _pushHistory();
-
     if (splitLines) {
       final lines = text
           .split('\n')
           .map((l) => l.trim())
           .where((l) => l.isNotEmpty)
           .toList();
-
       if (lines.length > 1) {
         setState(() {
           for (var i = 0; i < lines.length; i++) {
@@ -307,7 +305,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
                 id: _nextItemId++,
                 type: CanvasItemType.lyric,
                 text: lines[i],
-                position: Offset(40, 40 + ((_items.length) * 42.0)),
+                position: Offset(40, 40 + (_items.length * 42.0)),
                 notationStyle: _chordNotationStyle,
                 width: 320,
                 height: 48,
@@ -321,19 +319,19 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
         return;
       }
     }
-
-    final newItem = LyricChordItem(
-      id: _nextItemId++,
-      type: CanvasItemType.lyric,
-      text: text.trim(),
-      position: Offset(40, 40 + (_items.length * 42.0)),
-      notationStyle: _chordNotationStyle,
-      width: 320,
-      height: 48,
-      fontScale: 1.0,
-    );
     setState(() {
-      _items.add(newItem);
+      _items.add(
+        LyricChordItem(
+          id: _nextItemId++,
+          type: CanvasItemType.lyric,
+          text: text.trim(),
+          position: Offset(40, 40 + (_items.length * 42.0)),
+          notationStyle: _chordNotationStyle,
+          width: 320,
+          height: 48,
+          fontScale: 1.0,
+        ),
+      );
       _lyricController.clear();
     });
     _saveCanvasState();
@@ -341,18 +339,19 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
 
   void _addChord(String chord) {
     _pushHistory();
-    final newItem = LyricChordItem(
-      id: _nextItemId++,
-      type: CanvasItemType.chord,
-      text: chord,
-      position: Offset((_canvasWidth - 56) / 2, (_canvasHeight - 56) / 2),
-      notationStyle: _chordNotationStyle,
-      width: 56,
-      height: 56,
-      fontScale: 1.0,
-    );
     setState(() {
-      _items.add(newItem);
+      _items.add(
+        LyricChordItem(
+          id: _nextItemId++,
+          type: CanvasItemType.chord,
+          text: chord,
+          position: Offset((_canvasWidth - 56) / 2, (_canvasHeight - 56) / 2),
+          notationStyle: _chordNotationStyle,
+          width: 56,
+          height: 56,
+          fontScale: 1.0,
+        ),
+      );
     });
     _saveCanvasState();
   }
@@ -362,17 +361,18 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
       final index = _items.indexWhere((item) => item.id == itemId);
       if (index == -1) return;
       final current = _items[index];
-      final newPosition = Offset(
-        (current.position.dx + delta.dx).clamp(
-          0.0,
-          _canvasWidth - current.width,
-        ),
-        (current.position.dy + delta.dy).clamp(
-          0.0,
-          _canvasHeight - current.height,
+      _items[index] = current.copyWith(
+        position: Offset(
+          (current.position.dx + delta.dx).clamp(
+            0.0,
+            _canvasWidth - current.width,
+          ),
+          (current.position.dy + delta.dy).clamp(
+            0.0,
+            _canvasHeight - current.height,
+          ),
         ),
       );
-      _items[index] = current.copyWith(position: newPosition);
     });
     _saveCanvasState();
   }
@@ -401,24 +401,13 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
         _resizeStartWidth == null ||
         _resizeStartHeight == null)
       return;
-
     final index = _items.indexWhere((item) => item.id == _resizingItemId);
     if (index == -1) return;
-
     final delta = currentPosition - _resizeStartPosition!;
-    final newWidth = (_resizeStartWidth! + delta.dx).clamp(
-      80.0,
-      double.infinity,
-    );
-    final newHeight = (_resizeStartHeight! + delta.dy).clamp(
-      40.0,
-      double.infinity,
-    );
-
     setState(() {
       _items[index] = _items[index].copyWith(
-        width: newWidth,
-        height: newHeight,
+        width: (_resizeStartWidth! + delta.dx).clamp(80.0, double.infinity),
+        height: (_resizeStartHeight! + delta.dy).clamp(40.0, double.infinity),
       );
     });
   }
@@ -558,104 +547,97 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
   void _showAddChordDialog() {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF161616),
-          title: const Text('Add Chord', style: TextStyle(color: Colors.white)),
-          content: SizedBox(
-            width: 360,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _chordSectionLabel('Major'),
-                  _chordWrap(_majorChords),
-                  const SizedBox(height: 16),
-                  _chordSectionLabel('Minor'),
-                  _chordWrap(_minorChords),
-                  const SizedBox(height: 16),
-                  _chordSectionLabel('Sharps & Flats'),
-                  _chordWrap(_sharpFlatChords),
-                  const SizedBox(height: 16),
-                  _chordSectionLabel('7th Chords'),
-                  _chordWrap(_seventhChords),
-                ],
-              ),
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF161616),
+        title: const Text('Add Chord', style: TextStyle(color: Colors.white)),
+        content: SizedBox(
+          width: 360,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _chordSectionLabel('Major'),
+                _chordWrap(_majorChords),
+                const SizedBox(height: 16),
+                _chordSectionLabel('Minor'),
+                _chordWrap(_minorChords),
+                const SizedBox(height: 16),
+                _chordSectionLabel('Sharps & Flats'),
+                _chordWrap(_sharpFlatChords),
+                const SizedBox(height: 16),
+                _chordSectionLabel('7th Chords'),
+                _chordWrap(_seventhChords),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 
   void _showEditChordDialog(LyricChordItem item) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF161616),
-          title: Row(
-            children: [
-              const Text('Change Chord', style: TextStyle(color: Colors.white)),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6FA8FF).withAlpha(40),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF6FA8FF), width: 1),
-                ),
-                child: Text(
-                  item.text,
-                  style: const TextStyle(
-                    color: Color(0xFF6FA8FF),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF161616),
+        title: Row(
+          children: [
+            const Text('Change Chord', style: TextStyle(color: Colors.white)),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF6FA8FF).withAlpha(40),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF6FA8FF), width: 1),
+              ),
+              child: Text(
+                item.text,
+                style: const TextStyle(
+                  color: Color(0xFF6FA8FF),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
               ),
-            ],
-          ),
-          content: SizedBox(
-            width: 360,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _chordSectionLabel('Major'),
-                  _chordEditWrap(_majorChords, item),
-                  const SizedBox(height: 16),
-                  _chordSectionLabel('Minor'),
-                  _chordEditWrap(_minorChords, item),
-                  const SizedBox(height: 16),
-                  _chordSectionLabel('Sharps & Flats'),
-                  _chordEditWrap(_sharpFlatChords, item),
-                  const SizedBox(height: 16),
-                  _chordSectionLabel('7th Chords'),
-                  _chordEditWrap(_seventhChords, item),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
             ),
           ],
-        );
-      },
+        ),
+        content: SizedBox(
+          width: 360,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _chordSectionLabel('Major'),
+                _chordEditWrap(_majorChords, item),
+                const SizedBox(height: 16),
+                _chordSectionLabel('Minor'),
+                _chordEditWrap(_minorChords, item),
+                const SizedBox(height: 16),
+                _chordSectionLabel('Sharps & Flats'),
+                _chordEditWrap(_sharpFlatChords, item),
+                const SizedBox(height: 16),
+                _chordSectionLabel('7th Chords'),
+                _chordEditWrap(_seventhChords, item),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -714,16 +696,18 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-      children: chords.map((chord) {
-        return ActionChip(
-          label: Text(chord, style: const TextStyle(color: Colors.white)),
-          backgroundColor: const Color(0xFF2A2A2A),
-          onPressed: () {
-            Navigator.pop(context);
-            _addChord(chord);
-          },
-        );
-      }).toList(),
+      children: chords
+          .map(
+            (chord) => ActionChip(
+              label: Text(chord, style: const TextStyle(color: Colors.white)),
+              backgroundColor: const Color(0xFF2A2A2A),
+              onPressed: () {
+                Navigator.pop(context);
+                _addChord(chord);
+              },
+            ),
+          )
+          .toList(),
     );
   }
 
@@ -746,376 +730,370 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialog) {
-          return Dialog(
-            backgroundColor: const Color(0xFF161616),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 40,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
-                  child: Row(
-                    children: [
-                      const Text(
-                        'Edit Lyric',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
+        builder: (ctx, setDialog) => Dialog(
+          backgroundColor: const Color(0xFF161616),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 40,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Edit Lyric',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
                       ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(
-                          Icons.close,
-                          color: Colors.white54,
-                          size: 20,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white54,
+                        size: 20,
                       ),
-                    ],
-                  ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
                 ),
-                const Divider(color: Colors.white12, height: 1),
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          controller: ctrl,
-                          minLines: 2,
-                          maxLines: 4,
-                          style: const TextStyle(color: Colors.white),
-                          onChanged: (_) => setDialog(() {}),
-                          decoration: InputDecoration(
-                            hintText: 'Edit text',
-                            hintStyle: TextStyle(color: Colors.grey[500]),
-                            filled: true,
-                            fillColor: const Color(0xFF222222),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: ctrl,
+                        minLines: 2,
+                        maxLines: 4,
+                        style: const TextStyle(color: Colors.white),
+                        onChanged: (_) => setDialog(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Edit text',
+                          hintStyle: TextStyle(color: Colors.grey[500]),
+                          filled: true,
+                          fillColor: const Color(0xFF222222),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
                           ),
                         ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'FONT SIZE',
-                          style: TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                          ),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'FONT SIZE',
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
                         ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF222222),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  if (fontSize > 8)
-                                    setDialog(() => fontSize -= 1);
-                                },
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: fontSize <= 8
-                                        ? const Color(0xFF333333)
-                                        : const Color(0xFF2A2A2A),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(color: Colors.white12),
-                                  ),
-                                  child: Icon(
-                                    Icons.remove,
-                                    color: fontSize <= 8
-                                        ? Colors.white24
-                                        : Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                              Column(
-                                children: [
-                                  Text(
-                                    '${fontSize.toInt()}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const Text(
-                                    'pt',
-                                    style: TextStyle(
-                                      color: Colors.white38,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  if (fontSize < 72)
-                                    setDialog(() => fontSize += 1);
-                                },
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: fontSize >= 72
-                                        ? const Color(0xFF333333)
-                                        : AppColors.primary,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Icon(
-                                    Icons.add,
-                                    color: fontSize >= 72
-                                        ? Colors.white24
-                                        : Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'FONT COLOR',
-                          style: TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                          ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF222222),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: _kColorSwatches.map((swatch) {
-                            final isSelected =
-                                fontColor.value == swatch.color.value;
-                            return GestureDetector(
-                              onTap: () =>
-                                  setDialog(() => fontColor = swatch.color),
-                              child: Tooltip(
-                                message: swatch.label,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  width: 34,
-                                  height: 34,
-                                  decoration: BoxDecoration(
-                                    color: swatch.color,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? AppColors.primary
-                                          : Colors.white24,
-                                      width: isSelected ? 3 : 1.5,
-                                    ),
-                                    boxShadow: isSelected
-                                        ? [
-                                            BoxShadow(
-                                              color: AppColors.primary
-                                                  .withValues(alpha: 0.55),
-                                              blurRadius: 8,
-                                            ),
-                                          ]
-                                        : null,
-                                  ),
-                                  child: isSelected
-                                      ? const Icon(
-                                          Icons.check,
-                                          color: Colors.white,
-                                          size: 16,
-                                        )
-                                      : null,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'FONT STYLE',
-                          style: TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _styleToggleBtn(
-                              label: 'B',
-                              active: isBold,
-                              extraStyle: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
+                            GestureDetector(
+                              onTap: () {
+                                if (fontSize > 8)
+                                  setDialog(() => fontSize -= 1);
+                              },
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: fontSize <= 8
+                                      ? const Color(0xFF333333)
+                                      : const Color(0xFF2A2A2A),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white12),
+                                ),
+                                child: Icon(
+                                  Icons.remove,
+                                  color: fontSize <= 8
+                                      ? Colors.white24
+                                      : Colors.white,
+                                  size: 18,
+                                ),
                               ),
-                              onTap: () => setDialog(() => isBold = !isBold),
                             ),
-                            const SizedBox(width: 10),
-                            _styleToggleBtn(
-                              label: 'I',
-                              active: isItalic,
-                              extraStyle: const TextStyle(
-                                fontStyle: FontStyle.italic,
-                                fontSize: 16,
-                              ),
-                              onTap: () =>
-                                  setDialog(() => isItalic = !isItalic),
+                            Column(
+                              children: [
+                                Text(
+                                  '${fontSize.toInt()}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Text(
+                                  'pt',
+                                  style: TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            _styleToggleBtn(
-                              label: 'U',
-                              active: isUnderline,
-                              extraStyle: const TextStyle(
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white,
-                                fontSize: 16,
+                            GestureDetector(
+                              onTap: () {
+                                if (fontSize < 72)
+                                  setDialog(() => fontSize += 1);
+                              },
+                              child: Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: fontSize >= 72
+                                      ? const Color(0xFF333333)
+                                      : AppColors.primary,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.add,
+                                  color: fontSize >= 72
+                                      ? Colors.white24
+                                      : Colors.white,
+                                  size: 18,
+                                ),
                               ),
-                              onTap: () =>
-                                  setDialog(() => isUnderline = !isUnderline),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'PREVIEW',
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'FONT COLOR',
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: _kColorSwatches.map((swatch) {
+                          final isSelected =
+                              fontColor.value == swatch.color.value;
+                          return GestureDetector(
+                            onTap: () =>
+                                setDialog(() => fontColor = swatch.color),
+                            child: Tooltip(
+                              message: swatch.label,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: swatch.color,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : Colors.white24,
+                                    width: isSelected ? 3 : 1.5,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: AppColors.primary.withValues(
+                                              alpha: 0.55,
+                                            ),
+                                            blurRadius: 8,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                                child: isSelected
+                                    ? const Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 16,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'FONT STYLE',
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          _styleToggleBtn(
+                            label: 'B',
+                            active: isBold,
+                            extraStyle: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                            ),
+                            onTap: () => setDialog(() => isBold = !isBold),
+                          ),
+                          const SizedBox(width: 10),
+                          _styleToggleBtn(
+                            label: 'I',
+                            active: isItalic,
+                            extraStyle: const TextStyle(
+                              fontStyle: FontStyle.italic,
+                              fontSize: 16,
+                            ),
+                            onTap: () => setDialog(() => isItalic = !isItalic),
+                          ),
+                          const SizedBox(width: 10),
+                          _styleToggleBtn(
+                            label: 'U',
+                            active: isUnderline,
+                            extraStyle: const TextStyle(
+                              decoration: TextDecoration.underline,
+                              decorationColor: Colors.white,
+                              fontSize: 16,
+                            ),
+                            onTap: () =>
+                                setDialog(() => isUnderline = !isUnderline),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      const Text(
+                        'PREVIEW',
+                        style: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2A2A2A),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Text(
+                          ctrl.text.trim().isEmpty ? 'Preview text' : ctrl.text,
                           style: TextStyle(
-                            color: Colors.white38,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                          child: Text(
-                            ctrl.text.trim().isEmpty
-                                ? 'Preview text'
-                                : ctrl.text,
-                            style: TextStyle(
-                              color: fontColor,
-                              fontSize: fontSize,
-                              fontWeight: isBold
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              fontStyle: isItalic
-                                  ? FontStyle.italic
-                                  : FontStyle.normal,
-                              decoration: isUnderline
-                                  ? TextDecoration.underline
-                                  : TextDecoration.none,
-                              decorationColor: fontColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  ),
-                ),
-                const Divider(color: Colors.white12, height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          child: const Text(
-                            'Cancel',
-                            style: TextStyle(color: Colors.white54),
+                            color: fontColor,
+                            fontSize: fontSize,
+                            fontWeight: isBold
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            fontStyle: isItalic
+                                ? FontStyle.italic
+                                : FontStyle.normal,
+                            decoration: isUnderline
+                                ? TextDecoration.underline
+                                : TextDecoration.none,
+                            decorationColor: fontColor,
                           ),
                         ),
                       ),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          onPressed: () {
-                            _pushHistory();
-                            final idx = _items.indexWhere(
-                              (i) => i.id == item.id,
-                            );
-                            if (idx != -1) {
-                              setState(() {
-                                _items[idx] = _items[idx].copyWith(
-                                  text: ctrl.text.trim(),
-                                  fontSize: fontSize,
-                                  fontColor: fontColor,
-                                  isBold: isBold,
-                                  isItalic: isItalic,
-                                  isUnderline: isUnderline,
-                                );
-                              });
-                              _saveCanvasState();
-                            }
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text('Save'),
-                        ),
-                      ),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
-              ],
-            ),
-          );
-        },
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () {
+                          _pushHistory();
+                          final idx = _items.indexWhere((i) => i.id == item.id);
+                          if (idx != -1) {
+                            setState(() {
+                              _items[idx] = _items[idx].copyWith(
+                                text: ctrl.text.trim(),
+                                fontSize: fontSize,
+                                fontColor: fontColor,
+                                isBold: isBold,
+                                isItalic: isItalic,
+                                isUnderline: isUnderline,
+                              );
+                            });
+                            _saveCanvasState();
+                          }
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Save'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1151,15 +1129,191 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
     );
   }
 
+  // ── Small icon button for embedded toolbar ────────────────────────────────
+  Widget _buildEmbeddedActionBtn(
+    IconData icon,
+    VoidCallback onTap,
+    String tooltip,
+  ) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 44,
+          height: 52,
+          decoration: BoxDecoration(
+            color: const Color(0xFF2A2A2A),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Icon(icon, color: Colors.white70, size: 20),
+        ),
+      ),
+    );
+  }
+
+  // ── Body content (shared between standalone and embedded modes) ───────────
+  Widget _buildBodyContent() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // ── Toolbar row ─────────────────────────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _showAddLyricDialog,
+                  icon: const Icon(Icons.text_fields),
+                  label: const Text('Add Lyric'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _showAddChordDialog,
+                  icon: const Icon(Icons.music_note),
+                  label: const Text('Add Chord'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2A2A2A),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+              // Undo / Redo / Clear — only in embedded mode
+              if (widget.embeddedMode) ...[
+                const SizedBox(width: 12),
+                _buildEmbeddedActionBtn(Icons.undo, _undo, 'Undo'),
+                const SizedBox(width: 6),
+                _buildEmbeddedActionBtn(Icons.redo, _redo, 'Redo'),
+                const SizedBox(width: 6),
+                _buildEmbeddedActionBtn(
+                  Icons.delete_outline,
+                  _clearCanvas,
+                  'Clear',
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          // ── Canvas size controls ─────────────────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: _buildSizeControl(
+                  'Width',
+                  _canvasWidth.toInt(),
+                  onIncrease: () =>
+                      _updateCanvasSize(width: _canvasWidth + 200),
+                  onDecrease: () =>
+                      _updateCanvasSize(width: max(600, _canvasWidth - 200)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildSizeControl(
+                  'Height',
+                  _canvasHeight.toInt(),
+                  onIncrease: () =>
+                      _updateCanvasSize(height: _canvasHeight + 200),
+                  onDecrease: () =>
+                      _updateCanvasSize(height: max(500, _canvasHeight - 200)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // ── Canvas ───────────────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Stack(
+                  children: [
+                    Container(
+                      key: _canvasKey,
+                      width: _canvasWidth,
+                      height: _canvasHeight,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        color: const Color(0xFF1B1B1B),
+                        border: Border.all(color: Colors.white12),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x59000000),
+                            blurRadius: 24,
+                            offset: Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(painter: _CanvasGridPainter()),
+                          ),
+                          ..._items.map(_buildDraggableItem),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Row(
+            children: [
+              Icon(Icons.info_outline, color: Colors.white70, size: 18),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Drag to reposition · Long press to remove · Pencil icon to edit font',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF121212),
-        body: Center(child: CircularProgressIndicator()),
+      return widget.embeddedMode
+          ? const Center(child: CircularProgressIndicator())
+          : const Scaffold(
+              backgroundColor: Color(0xFF121212),
+              body: Center(child: CircularProgressIndicator()),
+            );
+    }
+
+    final body = _buildBodyContent();
+
+    // ── Embedded mode: body only, no Scaffold/AppBar ──────────────────────
+    if (widget.embeddedMode) {
+      return CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
+          const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
+          const SingleActivator(
+            LogicalKeyboardKey.keyZ,
+            control: true,
+            shift: true,
+          ): _redo,
+        },
+        child: Focus(autofocus: true, canRequestFocus: true, child: body),
       );
     }
 
+    // ── Standalone mode: full Scaffold with AppBar ────────────────────────
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
@@ -1204,120 +1358,7 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
               ),
             ],
           ),
-          body: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _showAddLyricDialog,
-                        icon: const Icon(Icons.text_fields),
-                        label: const Text('Add Lyric'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _showAddChordDialog,
-                        icon: const Icon(Icons.music_note),
-                        label: const Text('Add Chord'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2A2A2A),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildSizeControl(
-                        'Width',
-                        _canvasWidth.toInt(),
-                        onIncrease: () =>
-                            _updateCanvasSize(width: _canvasWidth + 200),
-                        onDecrease: () => _updateCanvasSize(
-                          width: max(600, _canvasWidth - 200),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildSizeControl(
-                        'Height',
-                        _canvasHeight.toInt(),
-                        onIncrease: () =>
-                            _updateCanvasSize(height: _canvasHeight + 200),
-                        onDecrease: () => _updateCanvasSize(
-                          height: max(500, _canvasHeight - 200),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Stack(
-                        children: [
-                          Container(
-                            key: _canvasKey,
-                            width: _canvasWidth,
-                            height: _canvasHeight,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(24),
-                              color: const Color(0xFF1B1B1B),
-                              border: Border.all(color: Colors.white12),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x59000000),
-                                  blurRadius: 24,
-                                  offset: Offset(0, 12),
-                                ),
-                              ],
-                            ),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    painter: _CanvasGridPainter(),
-                                  ),
-                                ),
-                                ..._items.map(_buildDraggableItem),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.white70, size: 18),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Drag to reposition · Long press to remove · Pencil icon to edit font',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          body: body,
         ),
       ),
     );
@@ -1353,8 +1394,6 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
     );
   }
 
-  // ── KEY FIX: edit/resize buttons are siblings of the drag GestureDetector,
-  // and the outer SizedBox is large enough to include them in hit-test bounds.
   Widget _buildDraggableItem(LyricChordItem item) {
     final isChord = item.type == CanvasItemType.chord;
     final accent = isChord ? const Color(0xFF6FA8FF) : AppColors.primary;
@@ -1370,7 +1409,6 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
         height: item.height + 34,
         child: Stack(
           children: [
-            // ── Main item (offset down 6px so edit button fits above) ──
             Positioned(
               left: 0,
               top: 6,
@@ -1445,8 +1483,6 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
                 ),
               ),
             ),
-
-            // ── Edit button (top-right, within SizedBox bounds) ──────
             if (!isChord)
               Positioned(
                 left: item.width - 8,
@@ -1470,8 +1506,6 @@ class _LyricChordBuilderScreenState extends State<LyricChordBuilderScreen> {
                   ),
                 ),
               ),
-
-            // ── Resize button (bottom-right, within SizedBox bounds) ─
             if (!isChord)
               Positioned(
                 left: item.width - 8,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/features/karaoke/presentation/screens/lyric_chord_builder_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
 
 class ChordViewerScreen extends StatefulWidget {
   final String songId;
@@ -22,6 +23,9 @@ class ChordViewerScreen extends StatefulWidget {
 }
 
 class _ChordViewerScreenState extends State<ChordViewerScreen> {
+  VoidCallback? _builderUndo;
+  VoidCallback? _builderRedo;
+
   static const _defaultCanvasWidth = 1200.0;
   static const _defaultCanvasHeight = 800.0;
 
@@ -71,27 +75,12 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
     }
   }
 
-  Future<void> _openEditor() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LyricChordBuilderScreen(
-          songId: widget.songId,
-          songTitle: widget.songTitle,
-        ),
-      ),
-    );
-    // Back from editor → reload canvas and switch back to view mode
-    setState(() => _isEditMode = false);
-    _loadCanvasState();
-  }
-
   void _onToggleMode(bool editMode) {
-    if (editMode) {
-      _openEditor();
-    } else {
-      setState(() => _isEditMode = false);
+    if (!editMode && _isEditMode) {
+      // Switching from edit → view: reload latest saved state
+      _loadCanvasState();
     }
+    setState(() => _isEditMode = editMode);
   }
 
   @override
@@ -112,27 +101,52 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-          ? _buildEmptyState()
-          : Padding(
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: SizedBox(
-                    width: _canvasWidth,
-                    height: _canvasHeight,
-                    child: Stack(children: _items.map(_buildItem).toList()),
-                  ),
+      // IndexedStack keeps both widgets alive so edit state is preserved
+      // when toggling back and forth
+      body: widget.isOwner
+          ? CallbackShortcuts(
+              bindings: {
+                const SingleActivator(
+                  LogicalKeyboardKey.keyZ,
+                  control: true,
+                ): () =>
+                    _builderUndo?.call(),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyY,
+                  control: true,
+                ): () =>
+                    _builderRedo?.call(),
+                const SingleActivator(
+                  LogicalKeyboardKey.keyZ,
+                  control: true,
+                  shift: true,
+                ): () =>
+                    _builderRedo?.call(),
+              },
+              child: Focus(
+                autofocus: true,
+                child: IndexedStack(
+                  index: _isEditMode ? 1 : 0,
+                  children: [
+                    _buildViewBody(),
+                    LyricChordBuilderScreen(
+                      key: ValueKey(widget.songId),
+                      songId: widget.songId,
+                      songTitle: widget.songTitle,
+                      embeddedMode: true,
+                      onActionsReady: (undo, redo) {
+                        _builderUndo = undo;
+                        _builderRedo = redo;
+                      },
+                    ),
+                  ],
                 ),
               ),
-            ),
+            )
+          : _buildViewBody(),
     );
   }
 
-  /// Segmented toggle: View | Edit
   Widget _buildToggle() {
     return Container(
       height: 34,
@@ -195,6 +209,52 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
     );
   }
 
+  Widget _buildViewBody() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_items.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: SingleChildScrollView(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            width: _canvasWidth,
+            height: _canvasHeight,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              color: const Color(0xFF1B1B1B),
+              border: Border.all(color: Colors.white12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x59000000),
+                  blurRadius: 24,
+                  offset: Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: CustomPaint(painter: _GridPainter()),
+                  ),
+                ),
+                ..._items.map(_buildItem),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -212,7 +272,7 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
             if (widget.isOwner) ...[
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: _openEditor,
+                onPressed: () => _onToggleMode(true),
                 icon: const Icon(Icons.add),
                 label: const Text('Create Chords'),
                 style: ElevatedButton.styleFrom(
@@ -255,7 +315,7 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
                 ),
               )
             : Padding(
-                // Match edit mode: 14px padding + 18px icon + 8px gap
+                // Match edit mode: 14px left pad + 18px icon + 8px gap = 40px
                 padding: const EdgeInsets.only(
                   left: 40,
                   top: 10,
@@ -281,4 +341,28 @@ class _ChordViewerScreenState extends State<ChordViewerScreen> {
       ),
     );
   }
+}
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white10
+      ..strokeWidth = 1;
+    const step = 80.0;
+    for (var x = 0.0; x <= size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (var y = 0.0; y <= size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+    final borderPaint = Paint()
+      ..color = Colors.white12
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+    canvas.drawRect(Offset.zero & size, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
