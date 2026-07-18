@@ -68,12 +68,73 @@ class ReferenceMaterial {
     );
   }
 
-  /// Returns the Cloudinary URL for previewing/downloading the file.
-  /// Since files are now stored on Cloudinary, [fileUrl] is always a full
-  /// absolute https URL — no fallback construction needed.
+  /// Returns the correct Cloudinary delivery URL for this file.
+  ///
+  /// Existing records uploaded when `resource_type: 'auto'` was used may have
+  /// `cloudinaryResourceType = "image"` even for PDFs. In that case the stored
+  /// `fileUrl` contains `/image/upload/` which Cloudinary cannot serve as PDF
+  /// bytes. We detect the mismatch and rewrite the URL to `/raw/upload/` so
+  /// the PDF viewer receives the actual file bytes.
+  ///
+  /// Falls back to extension/type detection when `mimeType` or
+  /// `cloudinaryResourceType` is missing (older records).
   String? get downloadUrl {
-    if (fileUrl != null && fileUrl!.isNotEmpty) return fileUrl;
-    return null;
+    if (fileUrl == null || fileUrl!.isEmpty) return null;
+
+    // A record is a "document" if we can confirm it from any available signal:
+    // MIME type, file name extension, or the material's type field.
+    final isDocument = _isDocumentMime(mimeType) ||
+        _isDocumentExtension(fileName) ||
+        _isDocumentType(type);
+
+    // Cloudinary misclassified documents as 'image' (or resourceType is null,
+    // which means it was uploaded before this field was stored — also unsafe).
+    // In both cases, if the URL still contains /image/upload/, rewrite it.
+    final storedAsImage = cloudinaryResourceType == 'image' ||
+        cloudinaryResourceType == null;
+
+    if (isDocument && storedAsImage && fileUrl!.contains('/image/upload/')) {
+      return fileUrl!.replaceFirst('/image/upload/', '/raw/upload/');
+    }
+
+    return fileUrl;
+  }
+
+  /// Returns true when the MIME type indicates a non-image document.
+  static bool _isDocumentMime(String? mime) {
+    if (mime == null) return false;
+    const docMimes = {
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain',
+    };
+    return docMimes.contains(mime.toLowerCase()) ||
+        mime.startsWith('text/') && !mime.startsWith('text/html');
+  }
+
+  /// Returns true when the file name extension indicates a document.
+  /// Used as a fallback when [mimeType] is null (older records).
+  static bool _isDocumentExtension(String? name) {
+    if (name == null) return false;
+    const docExtensions = {
+      'pdf', 'doc', 'docx', 'ppt', 'pptx',
+      'xls', 'xlsx', 'txt', 'csv', 'odt', 'odp', 'ods',
+    };
+    final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+    return docExtensions.contains(ext);
+  }
+
+  /// Returns true when the material's [type] field indicates a document.
+  /// Used as a fallback when both [mimeType] and [fileName] are unavailable.
+  static bool _isDocumentType(String? t) {
+    if (t == null) return false;
+    const docTypes = {'pdf', 'ppt', 'doc', 'sheet music', 'note'};
+    return docTypes.contains(t.toLowerCase());
   }
 
   /// Whether this material has a file attached.
