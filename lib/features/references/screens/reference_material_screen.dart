@@ -723,17 +723,6 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
   bool _isDragging = false;
   bool _isSubmitting = false;
 
-  final List<String> _allowedExtensions = [
-    'pdf',
-    'ppt',
-    'pptx',
-    'doc',
-    'docx',
-    'txt',
-    'jpg',
-    'png',
-  ];
-
   // Must stay in sync with REFERENCE_MATERIAL_TYPES on the backend
   final List<String> _materialTypes = [
     'PDF',
@@ -743,6 +732,27 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
     'Doc',
     'Other',
   ];
+
+  /// Returns the allowed file extensions for the currently selected type.
+  /// Used by both the file picker and drag-and-drop validation.
+  List<String> get _allowedExtensions {
+    switch (_selectedType) {
+      case 'PDF':
+        return ['pdf'];
+      case 'PPT':
+        return ['ppt', 'pptx'];
+      case 'Sheet Music':
+        return ['pdf', 'png', 'jpg', 'jpeg'];
+      case 'Note':
+        return ['txt', 'pdf', 'doc', 'docx'];
+      case 'Doc':
+        return ['doc', 'docx', 'pdf', 'txt'];
+      case 'Other':
+        return ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'];
+      default:
+        return ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png'];
+    }
+  }
 
   @override
   void initState() {
@@ -908,8 +918,22 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                               DropdownMenuItem(value: type, child: Text(type)),
                         )
                         .toList(),
-                    onChanged: (value) =>
-                        setState(() => _selectedType = value!),
+                    onChanged: (value) {
+                        setState(() {
+                          _selectedType = value!;
+                          // Clear the selected file if its extension is no
+                          // longer valid for the newly chosen type.
+                          if (_selectedFile != null) {
+                            final ext = _selectedFile!.path
+                                .split('.')
+                                .last
+                                .toLowerCase();
+                            if (!_allowedExtensions.contains(ext)) {
+                              _selectedFile = null;
+                            }
+                          }
+                        });
+                      },
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -974,7 +998,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Allowed: PDF, PPT, Word, Images',
+                              'Allowed: ${_allowedExtensions.map((e) => e.toUpperCase()).join(', ')}',
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.grey.withValues(alpha: 0.6),
