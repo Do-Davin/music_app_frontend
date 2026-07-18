@@ -9,10 +9,14 @@ final referenceMaterialServiceProvider = Provider<ReferenceMaterialService>((
   return ReferenceMaterialService();
 });
 
+// Sentinel used in copyWith to distinguish "reset to null" from "keep existing".
+const _keep = Object();
+
 class ReferenceMaterialState {
   final List<ReferenceMaterial> materials;
   final bool isLoading;
   final String? error;
+  /// The active type filter, or null if showing all materials.
   final String? currentFilter;
 
   const ReferenceMaterialState({
@@ -25,14 +29,17 @@ class ReferenceMaterialState {
   ReferenceMaterialState copyWith({
     List<ReferenceMaterial>? materials,
     bool? isLoading,
-    String? error,
-    String? currentFilter,
+    // Use Object? + sentinel so callers can explicitly reset to null.
+    Object? error = _keep,
+    Object? currentFilter = _keep,
   }) {
     return ReferenceMaterialState(
       materials: materials ?? this.materials,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
-      currentFilter: currentFilter ?? this.currentFilter,
+      error: identical(error, _keep) ? this.error : error as String?,
+      currentFilter: identical(currentFilter, _keep)
+          ? this.currentFilter
+          : currentFilter as String?,
     );
   }
 }
@@ -41,10 +48,17 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
   final ReferenceMaterialService _service;
 
   ReferenceMaterialNotifier(this._service)
-    : super(const ReferenceMaterialState());
+      : super(const ReferenceMaterialState());
+
+  // ── Fetch ────────────────────────────────────────────────────────
 
   Future<void> fetchMaterials({String? type, String? songId}) async {
-    state = state.copyWith(isLoading: true, error: null, currentFilter: type);
+    // Explicitly pass null so the sentinel sees it as "reset to null"
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      currentFilter: type,
+    );
 
     try {
       final materials = await _service.fetchAll(type: type, songId: songId);
@@ -53,6 +67,8 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
       state = state.copyWith(error: e.toString(), isLoading: false);
     }
   }
+
+  // ── Create ───────────────────────────────────────────────────────
 
   Future<void> createMaterial({
     required String title,
@@ -73,6 +89,7 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
         songId: songId,
         topic: topic,
       );
+      // Prepend the new material so it appears at the top of the list.
       state = state.copyWith(
         materials: [material, ...state.materials],
         isLoading: false,
@@ -82,6 +99,8 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
       rethrow;
     }
   }
+
+  // ── Update ───────────────────────────────────────────────────────
 
   Future<void> updateMaterial({
     required String id,
@@ -105,16 +124,19 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
         topic: topic,
       );
 
-      final updatedMaterials = state.materials.map((m) {
-        return m.id == id ? updatedMaterial : m;
-      }).toList();
-
-      state = state.copyWith(materials: updatedMaterials, isLoading: false);
+      state = state.copyWith(
+        materials: state.materials
+            .map((m) => m.id == id ? updatedMaterial : m)
+            .toList(),
+        isLoading: false,
+      );
     } catch (e) {
       state = state.copyWith(error: e.toString(), isLoading: false);
       rethrow;
     }
   }
+
+  // ── Delete ───────────────────────────────────────────────────────
 
   Future<void> deleteMaterial(String id) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -122,13 +144,13 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
     try {
       final success = await _service.delete(id);
       if (success) {
-        final remainingMaterials = state.materials
-            .where((m) => m.id != id)
-            .toList();
-        state = state.copyWith(materials: remainingMaterials, isLoading: false);
+        state = state.copyWith(
+          materials: state.materials.where((m) => m.id != id).toList(),
+          isLoading: false,
+        );
       } else {
         state = state.copyWith(
-          error: 'Failed to delete material',
+          error: 'Delete returned false — the server did not confirm deletion.',
           isLoading: false,
         );
       }
@@ -137,12 +159,15 @@ class ReferenceMaterialNotifier extends StateNotifier<ReferenceMaterialState> {
       rethrow;
     }
   }
+
+  /// Clear any error from state without triggering a re-fetch.
+  void clearError() {
+    state = state.copyWith(error: null);
+  }
 }
 
-final referenceMaterialProvider =
-    StateNotifierProvider<ReferenceMaterialNotifier, ReferenceMaterialState>((
-      ref,
-    ) {
-      final service = ref.watch(referenceMaterialServiceProvider);
-      return ReferenceMaterialNotifier(service);
-    });
+final referenceMaterialProvider = StateNotifierProvider<
+    ReferenceMaterialNotifier, ReferenceMaterialState>((ref) {
+  final service = ref.watch(referenceMaterialServiceProvider);
+  return ReferenceMaterialNotifier(service);
+});

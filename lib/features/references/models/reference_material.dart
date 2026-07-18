@@ -1,14 +1,23 @@
-import 'package:music_app_frontend/core/network/graphql_config.dart';
+// No imports needed — all fields are primitive types
 
 class ReferenceMaterial {
   final String id;
   final String title;
   final String type;
   final String? description;
+
+  /// Cloudinary public_id — used internally by the backend for deletion.
+  /// Not used for building preview URLs in the frontend.
   final String? filePath;
 
-  /// Full URL returned by the backend (includes BASE_URL prefix).
+  /// Cloudinary secure_url — the direct URL to the uploaded asset.
+  /// Use this for all previewing and downloading.
   final String? fileUrl;
+
+  /// Cloudinary resource_type ('image', 'video', 'raw').
+  /// Helps the frontend decide which viewer to use.
+  final String? cloudinaryResourceType;
+
   final String? fileName;
   final int? fileSize;
   final String? mimeType;
@@ -24,6 +33,7 @@ class ReferenceMaterial {
     this.description,
     this.filePath,
     this.fileUrl,
+    this.cloudinaryResourceType,
     this.fileName,
     this.fileSize,
     this.mimeType,
@@ -40,7 +50,10 @@ class ReferenceMaterial {
       type: json['type']?.toString() ?? 'Other',
       description: json['description']?.toString(),
       filePath: json['filePath']?.toString(),
-      fileUrl: _rewriteUrl(json['fileUrl']?.toString()),
+      // Cloudinary URLs are absolute (https://res.cloudinary.com/...) —
+      // no host rewriting needed; they are globally accessible.
+      fileUrl: json['fileUrl']?.toString(),
+      cloudinaryResourceType: json['cloudinaryResourceType']?.toString(),
       fileName: json['fileName']?.toString(),
       fileSize: (json['fileSize'] as num?)?.toInt(),
       mimeType: json['mimeType']?.toString(),
@@ -55,46 +68,11 @@ class ReferenceMaterial {
     );
   }
 
-  /// Rewrites the host in a backend-returned URL to match the runtime server
-  /// the app is actually talking to.
-  /// Fixes the localhost vs 10.0.2.2 vs real device IP mismatch: the backend
-  /// builds fileUrl using BASE_URL (defaults to localhost:3000), but a physical
-  /// device or a different emulator host can't reach localhost on the PC.
-  static String? _rewriteUrl(String? url) {
-    if (url == null || url.isEmpty) return null;
-    final serverBase = GraphQLConfig.serverBaseUrl;
-    if (serverBase.isEmpty) return url;
-    final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) return url;
-    final serverUri = Uri.tryParse(serverBase);
-    if (serverUri == null) return url;
-    return uri
-        .replace(
-          scheme: serverUri.scheme,
-          host: serverUri.host,
-          port: serverUri.hasPort ? serverUri.port : -1,
-        )
-        .toString();
-  }
-
-  /// Returns the best available URL for downloading/previewing the file.
-  /// Prefers [fileUrl] (full URL from the backend, now points to static file).
-  /// Falls back to building the URL from [filePath] if available.
+  /// Returns the Cloudinary URL for previewing/downloading the file.
+  /// Since files are now stored on Cloudinary, [fileUrl] is always a full
+  /// absolute https URL — no fallback construction needed.
   String? get downloadUrl {
     if (fileUrl != null && fileUrl!.isNotEmpty) return fileUrl;
-    // Fallback: build the static file URL from filePath
-    if (filePath != null && filePath!.isNotEmpty) {
-      final serverBase = GraphQLConfig.serverBaseUrl;
-      if (serverBase.isNotEmpty) {
-        String cleanPath = filePath!;
-        if (cleanPath.startsWith('/uploads/')) {
-          cleanPath = cleanPath.substring('/uploads/'.length);
-        } else if (cleanPath.startsWith('uploads/')) {
-          cleanPath = cleanPath.substring('uploads/'.length);
-        }
-        return '$serverBase/uploads/$cleanPath';
-      }
-    }
     return null;
   }
 
@@ -104,9 +82,12 @@ class ReferenceMaterial {
   // Helper to format file size
   String get formattedFileSize {
     if (fileSize == null) return 'Unknown';
-    if (fileSize! < 1024) return '$fileSize B';
-    if (fileSize! < 1024 * 1024)
+    if (fileSize! < 1024) {
+      return '$fileSize B';
+    }
+    if (fileSize! < 1024 * 1024) {
       return '${(fileSize! / 1024).toStringAsFixed(1)} KB';
+    }
     return '${(fileSize! / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 

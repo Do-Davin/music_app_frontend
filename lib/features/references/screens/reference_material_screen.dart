@@ -213,6 +213,10 @@ class _ReferenceMaterialScreenState
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip('Note', 'Note', Icons.note),
+                const SizedBox(width: 8),
+                _buildFilterChip('Doc', 'Doc', Icons.description),
+                const SizedBox(width: 8),
+                _buildFilterChip('Other', 'Other', Icons.insert_drive_file),
               ],
             ),
           ),
@@ -420,8 +424,19 @@ class _ReferenceMaterialScreenState
       ),
     );
 
-    if (confirmed == true) {
-      await ref.read(referenceMaterialProvider.notifier).deleteMaterial(id);
+    if (confirmed == true && mounted) {
+      try {
+        await ref.read(referenceMaterialProvider.notifier).deleteMaterial(id);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete: $e'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+      }
     }
   }
 }
@@ -449,6 +464,8 @@ class _MaterialCard extends StatelessWidget {
         return Icons.music_note;
       case 'note':
         return Icons.note;
+      case 'doc':
+        return Icons.description;
       default:
         return Icons.insert_drive_file;
     }
@@ -457,15 +474,19 @@ class _MaterialCard extends StatelessWidget {
   Color _getFileIconColor() {
     switch (material.type.toLowerCase()) {
       case 'pdf':
-        return const Color(0xFFE53935);
+        return const Color(0xFFE53935); // red
       case 'ppt':
-        return const Color(0xFFFF6F00);
+        return const Color(0xFFFF6F00); // orange
       case 'sheet music':
-        return const Color(0xFF7C4DFF);
+        return const Color(0xFF7C4DFF); // purple
       case 'note':
-        return const Color(0xFF42A5F5);
+        return const Color(0xFF42A5F5); // blue
+      case 'doc':
+        return const Color(0xFF1565C0); // dark blue
+      case 'other':
+        return const Color(0xFF26A69A); // teal
       default:
-        return Colors.grey;
+        return const Color(0xFF78909C); // blue-grey
     }
   }
 
@@ -700,6 +721,7 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
   String _selectedType = 'PDF';
   File? _selectedFile;
   bool _isDragging = false;
+  bool _isSubmitting = false;
 
   final List<String> _allowedExtensions = [
     'pdf',
@@ -711,11 +733,14 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
     'jpg',
     'png',
   ];
+
+  // Must stay in sync with REFERENCE_MATERIAL_TYPES on the backend
   final List<String> _materialTypes = [
     'PDF',
     'PPT',
     'Sheet Music',
     'Note',
+    'Doc',
     'Other',
   ];
 
@@ -732,9 +757,9 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
       text: widget.material?.topic ?? '',
     );
     final initialType = widget.material?.type ?? 'PDF';
-    _selectedType = _materialTypes.contains(initialType)
-        ? initialType
-        : 'Other';
+    // If the stored type isn't in the list (e.g. a legacy 'PTT' record),
+    // fall back to 'Other' rather than crashing the dropdown.
+    _selectedType = _materialTypes.contains(initialType) ? initialType : 'Other';
   }
 
   @override
@@ -767,7 +792,8 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: _allowedExtensions,
-      withReadStream: true,
+      // Don't use withReadStream — we read bytes directly from the path.
+      // withReadStream:true can return a null path on some platforms (iOS/web).
     );
     if (result != null && result.files.single.path != null) {
       _handleFileSelection(result.files.single.path);
@@ -776,39 +802,52 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_isSubmitting) return; // Guard against double-tap
+
+    setState(() => _isSubmitting = true);
+
     final notifier = ref.read(referenceMaterialProvider.notifier);
     try {
       if (widget.material == null) {
         await notifier.createMaterial(
-          title: _titleController.text,
+          title: _titleController.text.trim(),
           type: _selectedType,
-          description: _descriptionController.text.isEmpty
+          description: _descriptionController.text.trim().isEmpty
               ? null
-              : _descriptionController.text,
+              : _descriptionController.text.trim(),
           file: _selectedFile,
           songId: widget.songId,
-          topic: _topicController.text.isEmpty ? null : _topicController.text,
+          topic: _topicController.text.trim().isEmpty
+              ? null
+              : _topicController.text.trim(),
         );
       } else {
         await notifier.updateMaterial(
           id: widget.material!.id,
-          title: _titleController.text,
+          title: _titleController.text.trim(),
           type: _selectedType,
-          description: _descriptionController.text.isEmpty
+          description: _descriptionController.text.trim().isEmpty
               ? null
-              : _descriptionController.text,
+              : _descriptionController.text.trim(),
           file: _selectedFile,
           songId: widget.songId,
-          topic: _topicController.text.isEmpty ? null : _topicController.text,
+          topic: _topicController.text.trim().isEmpty
+              ? null
+              : _topicController.text.trim(),
         );
       }
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -816,7 +855,15 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(widget.material == null ? 'Add Material' : 'Edit Material'),
-      content: DropTarget(
+      // Constrain height so the dialog never overflows on small screens —
+      // SingleChildScrollView inside handles the rest.
+      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.72,
+          maxWidth: 420,
+        ),
+        child: DropTarget(
         onDragDone: (detail) {
           if (detail.files.isNotEmpty) {
             _handleFileSelection(detail.files.first.path);
@@ -993,20 +1040,30 @@ class _MaterialFormDialogState extends ConsumerState<_MaterialFormDialog> {
           ),
         ),
       ),
+      ), // closes ConstrainedBox
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          onPressed: _submit,
+          onPressed: _isSubmitting ? null : _submit,
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
           ),
-          child: Text(
-            widget.material == null ? 'Create Material' : 'Update Material',
-          ),
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Text(
+                  widget.material == null ? 'Create Material' : 'Update Material',
+                ),
         ),
       ],
     );
