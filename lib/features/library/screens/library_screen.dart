@@ -16,6 +16,8 @@ import 'package:music_app_frontend/features/auth/presentation/providers/user_pro
 import 'package:music_app_frontend/features/playlist/services/playlist_service.dart';
 import 'package:music_app_frontend/shared/widgets/success_popup.dart';
 import 'create_library_screen.dart';
+import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
+import 'package:music_app_frontend/features/song/widgets/playing_equalizer_wave.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -994,27 +996,54 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           padding: const EdgeInsets.only(top: 10),
           itemBuilder: (context, index) {
             final song = filteredList[index];
+            final playerState = ref.watch(globalAudioPlayerProvider);
+            final isCurrentPlayingSong = playerState.currentSong?.id == song.id;
+            final isPlaying = isCurrentPlayingSong && playerState.isPlaying;
+
             return ListTile(
               contentPadding: const EdgeInsets.symmetric(vertical: 4),
-              leading: Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: AppColors.surface,
-                  image:
-                      song.coverImageUrl != null &&
-                          song.coverImageUrl!.isNotEmpty
-                      ? DecorationImage(
-                          image: NetworkImage(song.coverImageUrl!),
-                          fit: BoxFit.cover,
-                          onError: (_, _) {},
-                        )
-                      : null,
-                ),
-                child: song.coverImageUrl == null || song.coverImageUrl!.isEmpty
-                    ? const Icon(Icons.music_note, color: AppColors.onSurface)
-                    : null,
+              leading: Stack(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4),
+                      color: AppColors.surface,
+                      image:
+                          song.coverImageUrl != null &&
+                              song.coverImageUrl!.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(song.coverImageUrl!),
+                              fit: BoxFit.cover,
+                              onError: (_, _) {},
+                            )
+                          : null,
+                    ),
+                    child: song.coverImageUrl == null || song.coverImageUrl!.isEmpty
+                        ? const Icon(Icons.music_note, color: AppColors.onSurface)
+                        : null,
+                  ),
+                  if (isCurrentPlayingSong)
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(4),
+                        color: Colors.black.withValues(alpha: 0.5),
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: PlayingEqualizerWave(
+                            isAnimated: isPlaying,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               title: Row(
                 children: [
@@ -1024,6 +1053,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
+                        color: isCurrentPlayingSong ? AppColors.primary : Colors.white,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1050,10 +1080,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               onTap: () {
-                context.push(
-                  Routes.songById(song.id),
-                  extra: SongPlayerRouteData(song: song, category: 'My Songs'),
-                );
+                ref.read(globalAudioPlayerProvider.notifier).playSong(song);
               },
               trailing: IconButton(
                 icon: const Icon(Icons.more_vert, color: AppColors.hint),
@@ -1350,24 +1377,51 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   Widget _buildSearchSongTile(BuildContext context, song_model.Song song) {
+    final playerState = ref.watch(globalAudioPlayerProvider);
+    final isCurrentPlayingSong = playerState.currentSong?.id == song.id;
+    final isPlaying = isCurrentPlayingSong && playerState.isPlaying;
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 4),
-      leading: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
-          color: AppColors.surface,
-          image: song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty
-              ? DecorationImage(
-                  image: NetworkImage(song.coverImageUrl!),
-                  fit: BoxFit.cover,
-                )
-              : null,
-        ),
-        child: song.coverImageUrl == null || song.coverImageUrl!.isEmpty
-            ? const Icon(Icons.music_note, color: AppColors.onSurface)
-            : null,
+      leading: Stack(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: AppColors.surface,
+              image: song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty
+                  ? DecorationImage(
+                      image: NetworkImage(song.coverImageUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: song.coverImageUrl == null || song.coverImageUrl!.isEmpty
+                ? const Icon(Icons.music_note, color: AppColors.onSurface)
+                : null,
+          ),
+          if (isCurrentPlayingSong)
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(4),
+                color: Colors.black.withValues(alpha: 0.5),
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: PlayingEqualizerWave(
+                    isAnimated: isPlaying,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1378,6 +1432,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               style: AppTextStyles.body.copyWith(
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
+                color: isCurrentPlayingSong ? AppColors.primary : Colors.white,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1410,10 +1465,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         overflow: TextOverflow.ellipsis,
       ),
       onTap: () {
-        context.push(
-          Routes.songById(song.id),
-          extra: SongPlayerRouteData(song: song, category: 'My Songs'),
-        );
+        ref.read(globalAudioPlayerProvider.notifier).playSong(song);
       },
     );
   }

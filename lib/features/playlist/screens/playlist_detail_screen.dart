@@ -21,6 +21,8 @@ import 'package:music_app_frontend/features/playlist/services/liked_songs_servic
 import 'package:provider/provider.dart' as provider;
 import 'package:music_app_frontend/core/utils/youtube_parser.dart';
 import 'package:music_app_frontend/core/utils/song_matcher.dart';
+import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
+import 'package:music_app_frontend/features/song/widgets/playing_equalizer_wave.dart';
 
 class PlaylistDetailScreen extends ConsumerWidget {
   final String playlistId;
@@ -98,7 +100,7 @@ class _PlaylistDetailContent extends ConsumerWidget {
           backgroundColor: AppColors.background,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => context.pop(),
           ),
           actions: [
             IconButton(
@@ -237,26 +239,147 @@ class _PlaylistDetailContent extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
-                // Play all button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: songs.isEmpty ? null : () {},
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Play All'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: AppTextStyles.body.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                // Play all and Recycle buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: songs.isEmpty ? null : () {
+                          ref.read(globalAudioPlayerProvider.notifier).playSong(songs.first, queue: songs);
+                        },
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: const Text('Play All'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.onPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          textStyle: AppTextStyles.body.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Builder(
+                      builder: (outerCtx) {
+                        final playerState = ref.watch(globalAudioPlayerProvider);
+                        final isLoopMode = playerState.isLoopMode;
+                        return Container(
+                          height: 48,
+                          width: 48,
+                          decoration: BoxDecoration(
+                            color: isLoopMode ? AppColors.primary.withValues(alpha: 0.15) : const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isLoopMode ? AppColors.primary : Colors.grey.withValues(alpha: 0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.repeat,
+                              color: isLoopMode ? AppColors.primary : Colors.grey,
+                              size: 22,
+                            ),
+                            tooltip: 'Recycle Playlist',
+                            onPressed: () {
+                              final willEnable = !isLoopMode;
+                              ref.read(globalAudioPlayerProvider.notifier).toggleLoopMode();
+                              showDialog(
+                                context: outerCtx,
+                                barrierColor: Colors.black.withValues(alpha: 0.6),
+                                builder: (dialogCtx) => Dialog(
+                                  backgroundColor: Colors.transparent,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(28),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1C1C2E),
+                                      borderRadius: BorderRadius.circular(24),
+                                      border: Border.all(
+                                        color: willEnable
+                                            ? AppColors.primary.withValues(alpha: 0.5)
+                                            : Colors.grey.withValues(alpha: 0.25),
+                                        width: 1.2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: willEnable
+                                              ? AppColors.primary.withValues(alpha: 0.25)
+                                              : Colors.black.withValues(alpha: 0.4),
+                                          blurRadius: 32,
+                                          spreadRadius: 0,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 64,
+                                          height: 64,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: willEnable
+                                                ? AppColors.primary.withValues(alpha: 0.15)
+                                                : Colors.grey.withValues(alpha: 0.1),
+                                          ),
+                                          child: Icon(
+                                            Icons.repeat,
+                                            color: willEnable ? AppColors.primary : Colors.grey,
+                                            size: 32,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        Text(
+                                          willEnable ? 'Recycle Mode On' : 'Recycle Mode Off',
+                                          style: AppTextStyles.header.copyWith(
+                                            fontSize: 20,
+                                            color: willEnable ? AppColors.primary : Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          willEnable
+                                              ? 'The playlist will loop from the first song after the last one finishes.'
+                                              : 'Playback will stop after the last song in the playlist.',
+                                          textAlign: TextAlign.center,
+                                          style: AppTextStyles.body.copyWith(
+                                            color: Colors.grey[400],
+                                            fontSize: 14,
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 24),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton(
+                                            onPressed: () => Navigator.pop(dialogCtx),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: willEnable ? AppColors.primary : const Color(0xFF2A2A2A),
+                                              foregroundColor: Colors.white,
+                                              padding: const EdgeInsets.symmetric(vertical: 14),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(14),
+                                              ),
+                                            ),
+                                            child: const Text('Got it'),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
                 if (isPlaylistOwner) const SizedBox(height: 10),
                 // Add Song to Playlist button
@@ -684,7 +807,7 @@ class _PlaylistDetailContent extends ConsumerWidget {
             const SizedBox(height: 12),
             _buildTextField(titleCtrl, 'Song Title'),
             const SizedBox(height: 12),
-            _buildTextField(artistCtrl, 'Artist'),
+            _buildTextField(artistCtrl, 'Artist (optional)'),
           ],
         ),
         actions: [
@@ -740,7 +863,7 @@ class _PlaylistDetailContent extends ConsumerWidget {
           children: [
             _buildTextField(titleCtrl, 'Song Title'),
             const SizedBox(height: 12),
-            _buildTextField(artistCtrl, 'Artist'),
+            _buildTextField(artistCtrl, 'Artist (optional)'),
           ],
         ),
         actions: [
@@ -1809,6 +1932,12 @@ class SongTile extends ConsumerWidget {
     final me = ref.watch(meProvider).valueOrNull;
     final isSongOwner = me != null && song.userId == me.id;
 
+    final playerState = ref.watch(globalAudioPlayerProvider);
+    final isCurrentPlayingSong = playerState.currentSong?.id == song.id;
+    final isPlaying = isCurrentPlayingSong && playerState.isPlaying;
+
+    debugPrint('🎵 SongTile[${song.title}]: songId=${song.id}, songUserId=${song.userId}, meId=${me?.id}, isSongOwner=$isSongOwner, playingId=${playerState.currentSong?.id}, isCurrentPlaying=$isCurrentPlayingSong');
+
     // Check if the current user is the owner of the playlist
     final bool isOwnerOfPlaylist = isPlaylistOwner;
 
@@ -1840,21 +1969,44 @@ class SongTile extends ConsumerWidget {
     final bool hasImage = song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
     final Widget tile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      leading: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: AppColors.surface,
-          image: hasImage
-              ? DecorationImage(
-                  image: NetworkImage(song.coverImageUrl!),
-                  fit: BoxFit.cover,
-                  onError: (_, _) {},
-                )
-              : null,
-        ),
-        child: !hasImage ? const Icon(Icons.music_note, color: AppColors.hint, size: 24) : null,
+      leading: Stack(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: AppColors.surface,
+              image: hasImage
+                  ? DecorationImage(
+                      image: NetworkImage(song.coverImageUrl!),
+                      fit: BoxFit.cover,
+                      onError: (_, _) {},
+                    )
+                  : null,
+            ),
+            child: !hasImage ? const Icon(Icons.music_note, color: AppColors.hint, size: 24) : null,
+          ),
+          if (isCurrentPlayingSong)
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.black.withValues(alpha: 0.5),
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: PlayingEqualizerWave(
+                    isAnimated: isPlaying,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       title: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1862,7 +2014,10 @@ class SongTile extends ConsumerWidget {
           Flexible(
             child: Text(
               song.title,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isCurrentPlayingSong ? AppColors.primary : Colors.white,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1916,7 +2071,7 @@ class SongTile extends ConsumerWidget {
         ],
       ),
       onTap: isUnaccessible ? null : onTap ?? () {
-        context.push(Routes.songById(song.id), extra: SongPlayerRouteData(song: song, category: 'PLAYLIST'));
+        ref.read(globalAudioPlayerProvider.notifier).playSong(song);
       },
     );
 

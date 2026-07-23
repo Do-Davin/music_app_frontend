@@ -20,11 +20,11 @@ import 'package:music_app_frontend/features/playlist/screens/no_playlists_screen
 import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 import 'package:music_app_frontend/features/relationships/screens/follow_list_screen.dart';
 import 'package:music_app_frontend/features/relationships/screens/user_detail_screen.dart';
-import 'package:music_app_frontend/features/playlist/screens/liked_songs_screen.dart';
 import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/song/screens/no_results_screen.dart';
 import 'package:music_app_frontend/shared/screens/stateless_status_screen.dart';
 import 'package:music_app_frontend/features/song/models/song.dart' as real_song;
+import 'package:music_app_frontend/features/song/widgets/global_audio_player_wrapper.dart';
 
 class SongPlayerRouteData {
   const SongPlayerRouteData({required this.song, required this.category});
@@ -60,13 +60,13 @@ CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
   );
 }
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final GlobalKey<NavigatorState> shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
+
 final appRouter = GoRouter(
   initialLocation: Routes.root,
+  navigatorKey: rootNavigatorKey,
   routes: [
-    GoRoute(
-      path: Routes.root,
-      builder: (context, state) => const AuthWrapper(),
-    ),
     GoRoute(
       path: Routes.splash,
       builder: (context, state) => const SplashScreen(),
@@ -74,47 +74,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: Routes.onboarding,
       builder: (context, state) => const OnboardingScreen(),
-    ),
-    GoRoute(path: Routes.main, builder: (context, state) => const MainScreen()),
-    GoRoute(
-      path: Routes.friends,
-      builder: (context, state) {
-        final extra = state.extra;
-        return FriendsScreen(
-          initialFilter: extra is FriendsFilter ? extra : null,
-        );
-      },
-    ),
-    GoRoute(
-      path: Routes.followers,
-      pageBuilder: (context, state) => _slidePage(
-        state,
-        const FollowListScreen(mode: FollowListMode.followers),
-      ),
-    ),
-    GoRoute(
-      path: Routes.following,
-      pageBuilder: (context, state) => _slidePage(
-        state,
-        const FollowListScreen(mode: FollowListMode.following),
-      ),
-    ),
-    GoRoute(
-      path: Routes.userDetail,
-      pageBuilder: (context, state) {
-        final extra = state.extra;
-        final child = extra is User
-            ? UserDetailScreen(user: extra)
-            : const StatelessStatusScreen(
-                icon: Icons.person_off_outlined,
-                appBarTitle: 'Profile',
-                title: 'Profile Unavailable',
-                subtitle: 'This profile could not be opened.',
-                iconColor: AppColors.error,
-                iconBackgroundColor: AppColors.errorBackground,
-              );
-        return _slidePage(state, child);
-      },
     ),
     GoRoute(
       path: Routes.login,
@@ -136,70 +95,126 @@ final appRouter = GoRouter(
       path: Routes.newPassword,
       builder: (context, state) => const CreateNewPasswordScreen(),
     ),
-    GoRoute(
-      path: Routes.status,
-      builder: (context, state) => const StatelessStatusScreen(
-        icon: Icons.signal_wifi_off,
-        appBarTitle: 'Library',
-        title: 'No Internet Connection',
-        subtitle:
-            'You\'re offline. Some content may not be available. Check your connection and try again.',
-        iconColor: AppColors.error,
-        iconBackgroundColor: Color(0x33FF5252),
-        highlightWord: 'Internet',
-      ),
-    ),
-    GoRoute(
-      path: Routes.noPlaylists,
-      builder: (context, state) => const NoPlaylistsScreen(),
-    ),
-    GoRoute(
-      path: Routes.playlistDetail,
-      pageBuilder: (context, state) {
-        final id = state.pathParameters['id']!;
-        return _slidePage(state, PlaylistDetailScreen(playlistId: id));
-      },
-    ),
-    GoRoute(
-      path: Routes.noResults,
-      builder: (context, state) => const NoResultsScreen(),
-    ),
-    GoRoute(
-      path: Routes.likedSongs,
-      pageBuilder: (context, state) =>
-          _slidePage(state, const LikedSongsPlaylistDetailWrapper()),
-    ),
-    GoRoute(
-      path: Routes.song,
-      pageBuilder: (context, state) {
-        final extra = state.extra;
-        final child = extra is SongPlayerRouteData
-            ? SongPlayerScreen(song: extra.song, category: extra.category)
-            : const NoResultsScreen();
-        return CustomTransitionPage<void>(
-          key: state.pageKey,
+    ShellRoute(
+      navigatorKey: shellNavigatorKey,
+      builder: (context, state, child) {
+        return GlobalAudioPlayerWrapper(
+          currentPath: state.matchedLocation,
           child: child,
-          transitionDuration: const Duration(milliseconds: 250),
-          reverseTransitionDuration: const Duration(milliseconds: 250),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-              reverseCurve: Curves.easeInCubic,
-            );
-            return FadeTransition(
-              opacity: curved,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.04),
-                  end: Offset.zero,
-                ).animate(curved),
-                child: child,
-              ),
-            );
-          },
         );
       },
+      routes: [
+        GoRoute(
+          path: Routes.root,
+          builder: (context, state) => const AuthWrapper(),
+        ),
+        GoRoute(path: Routes.main, builder: (context, state) => const MainScreen()),
+        GoRoute(
+          path: Routes.friends,
+          builder: (context, state) {
+            final extra = state.extra;
+            return FriendsScreen(
+              initialFilter: extra is FriendsFilter ? extra : null,
+            );
+          },
+        ),
+        GoRoute(
+          path: Routes.followers,
+          pageBuilder: (context, state) => _slidePage(
+            state,
+            const FollowListScreen(mode: FollowListMode.followers),
+          ),
+        ),
+        GoRoute(
+          path: Routes.following,
+          pageBuilder: (context, state) => _slidePage(
+            state,
+            const FollowListScreen(mode: FollowListMode.following),
+          ),
+        ),
+        GoRoute(
+          path: Routes.userDetail,
+          pageBuilder: (context, state) {
+            final extra = state.extra;
+            final child = extra is User
+                ? UserDetailScreen(user: extra)
+                : const StatelessStatusScreen(
+                    icon: Icons.person_off_outlined,
+                    appBarTitle: 'Profile',
+                    title: 'Profile Unavailable',
+                    subtitle: 'This profile could not be opened.',
+                    iconColor: AppColors.error,
+                    iconBackgroundColor: AppColors.errorBackground,
+                  );
+            return _slidePage(state, child);
+          },
+        ),
+        GoRoute(
+          path: Routes.status,
+          builder: (context, state) => const StatelessStatusScreen(
+            icon: Icons.signal_wifi_off,
+            appBarTitle: 'Library',
+            title: 'No Internet Connection',
+            subtitle:
+                'You\'re offline. Some content may not be available. Check your connection and try again.',
+            iconColor: AppColors.error,
+            iconBackgroundColor: Color(0x33FF5252),
+            highlightWord: 'Internet',
+          ),
+        ),
+        GoRoute(
+          path: Routes.noPlaylists,
+          builder: (context, state) => const NoPlaylistsScreen(),
+        ),
+        GoRoute(
+          path: Routes.playlistDetail,
+          pageBuilder: (context, state) {
+            final id = state.pathParameters['id']!;
+            return _slidePage(state, PlaylistDetailScreen(playlistId: id));
+          },
+        ),
+        GoRoute(
+          path: Routes.noResults,
+          builder: (context, state) => const NoResultsScreen(),
+        ),
+        GoRoute(
+          path: Routes.likedSongs,
+          pageBuilder: (context, state) =>
+              _slidePage(state, const LikedSongsPlaylistDetailWrapper()),
+        ),
+        GoRoute(
+          path: Routes.song,
+          pageBuilder: (context, state) {
+            final extra = state.extra;
+            final child = extra is SongPlayerRouteData
+                ? SongPlayerScreen(song: extra.song, category: extra.category)
+                : const NoResultsScreen();
+            return CustomTransitionPage<void>(
+              key: state.pageKey,
+              child: child,
+              transitionDuration: const Duration(milliseconds: 250),
+              reverseTransitionDuration: const Duration(milliseconds: 250),
+              transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                final curved = CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic,
+                );
+                return FadeTransition(
+                  opacity: curved,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.04),
+                      end: Offset.zero,
+                    ).animate(curved),
+                    child: child,
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
     ),
   ],
 );

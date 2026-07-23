@@ -9,6 +9,8 @@ import 'package:music_app_frontend/features/playlist/providers/playlist_provider
 import 'package:music_app_frontend/features/playlist/services/liked_songs_service.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
 import 'package:music_app_frontend/features/song/providers/song_provider.dart';
+import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
+import 'package:music_app_frontend/features/song/widgets/playing_equalizer_wave.dart';
 
 class LikedSongsScreen extends ConsumerStatefulWidget {
   const LikedSongsScreen({super.key});
@@ -191,29 +193,59 @@ class _LikedSongsScreenState extends ConsumerState<LikedSongsScreen> {
     final bool hasImage =
         song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty;
 
+    final playerState = ref.watch(globalAudioPlayerProvider);
+    final isCurrentPlayingSong = playerState.currentSong?.id == song.id;
+    final isPlaying = isCurrentPlayingSong && playerState.isPlaying;
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      leading: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: AppColors.surface,
-          image: hasImage
-              ? DecorationImage(
-                  image: NetworkImage(song.coverImageUrl!),
-                  fit: BoxFit.cover,
-                  onError: (e, st) {},
-                )
-              : null,
-        ),
-        child: !hasImage
-            ? const Icon(Icons.music_note, color: AppColors.hint, size: 24)
-            : null,
+      leading: Stack(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: AppColors.surface,
+              image: hasImage
+                  ? DecorationImage(
+                      image: NetworkImage(song.coverImageUrl!),
+                      fit: BoxFit.cover,
+                      onError: (e, st) {},
+                    )
+                  : null,
+            ),
+            child: !hasImage
+                ? const Icon(Icons.music_note, color: AppColors.hint, size: 24)
+                : null,
+          ),
+          if (isCurrentPlayingSong)
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.black.withValues(alpha: 0.5),
+              ),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: PlayingEqualizerWave(
+                    isAnimated: isPlaying,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       title: Text(
         song.title,
-        style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+        style: AppTextStyles.body.copyWith(
+          fontWeight: FontWeight.w600,
+          color: isCurrentPlayingSong ? AppColors.primary : Colors.white,
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -264,10 +296,7 @@ class _LikedSongsScreenState extends ConsumerState<LikedSongsScreen> {
               ),
       ),
       onTap: () {
-        context.push(
-          Routes.songById(song.id),
-          extra: SongPlayerRouteData(song: song, category: 'Liked Songs'),
-        );
+        ref.read(globalAudioPlayerProvider.notifier).playSong(song);
       },
     );
   }

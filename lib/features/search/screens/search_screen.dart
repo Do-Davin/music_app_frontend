@@ -5,7 +5,6 @@ import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/constants/mock_data.dart' hide Song;
 import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:music_app_frontend/features/song/models/song.dart';
-import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
 import 'package:music_app_frontend/features/playlist/screens/playlist_detail_screen.dart';
 import 'package:music_app_frontend/features/playlist/providers/playlist_provider.dart';
@@ -13,6 +12,7 @@ import 'package:music_app_frontend/features/playlist/models/playlist.dart' as mo
 import 'package:music_app_frontend/features/auth/presentation/providers/user_provider.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
 
 import 'package:music_app_frontend/features/search/providers/search_provider.dart';
 
