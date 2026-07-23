@@ -160,7 +160,7 @@ class CreateLibrarySheet extends ConsumerWidget {
                 const SizedBox(height: 12),
                 _buildTextField(titleCtrl, 'Song Title'),
                 const SizedBox(height: 12),
-                _buildTextField(artistCtrl, 'Artist'),
+                _buildTextField(artistCtrl, 'Artist (optional)'),
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -312,7 +312,7 @@ class CreateLibrarySheet extends ConsumerWidget {
               children: [
                 _buildTextField(titleCtrl, 'Song Title'),
                 const SizedBox(height: 12),
-                _buildTextField(artistCtrl, 'Artist'),
+                _buildTextField(artistCtrl, 'Artist (optional)'),
                 const SizedBox(height: 16),
                 Row(
                   children: [

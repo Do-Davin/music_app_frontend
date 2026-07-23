@@ -14,6 +14,7 @@ class GlobalPlayerState {
   final List<Song> queue;
   final int currentIndex;
   final bool isMaximized;
+  final bool isLoopMode;
   final String? errorMessage;
 
   GlobalPlayerState({
@@ -25,6 +26,7 @@ class GlobalPlayerState {
     this.queue = const [],
     this.currentIndex = -1,
     this.isMaximized = false,
+    this.isLoopMode = false,
     this.errorMessage,
   });
 
@@ -37,6 +39,7 @@ class GlobalPlayerState {
     List<Song>? queue,
     int? currentIndex,
     bool? isMaximized,
+    bool? isLoopMode,
     String? errorMessage,
     bool clearSong = false,
   }) {
@@ -49,6 +52,7 @@ class GlobalPlayerState {
       queue: queue ?? this.queue,
       currentIndex: currentIndex ?? this.currentIndex,
       isMaximized: isMaximized ?? this.isMaximized,
+      isLoopMode: isLoopMode ?? this.isLoopMode,
       errorMessage: errorMessage ?? this.errorMessage,
     );
   }
@@ -94,7 +98,7 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
         );
 
         if (processingState == ProcessingState.completed) {
-          next();
+          next(auto: true);
         }
       }
     });
@@ -119,6 +123,10 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
           position: position,
           duration: duration,
         );
+
+        if (ytState == PlayerState.ended) {
+          next(auto: true);
+        }
       }
     });
   }
@@ -235,10 +243,43 @@ class GlobalAudioPlayerNotifier extends StateNotifier<GlobalPlayerState> {
     }
   }
 
-  void next() {
+  bool _isTransitioning = false;
+
+  void next({bool auto = false}) {
     if (state.queue.isEmpty || state.currentIndex == -1) return;
+
+    if (state.currentIndex == state.queue.length - 1) {
+      if (auto && !state.isLoopMode) {
+        // Reset state FIRST so the stream listener sees currentSong == null
+        // and immediately stops re-firing ProcessingState.completed.
+        final wasYoutube = state.currentSong?.isYoutube ?? false;
+        state = GlobalPlayerState(isLoopMode: state.isLoopMode);
+        // Now stop the underlying player (safe fire-and-forget).
+        if (wasYoutube) {
+          _youtubeController?.dispose();
+          _youtubeController = null;
+        } else {
+          _audioPlayer.stop();
+        }
+        _isTransitioning = false;
+        return;
+      }
+    }
+
+    // Guard against concurrent auto-advance calls.
+    if (auto && _isTransitioning) return;
+    _isTransitioning = auto;
+
     final nextIndex = (state.currentIndex + 1) % state.queue.length;
-    playSong(state.queue[nextIndex]);
+    playSong(state.queue[nextIndex]).then((_) {
+      _isTransitioning = false;
+    }).catchError((_) {
+      _isTransitioning = false;
+    });
+  }
+
+  void toggleLoopMode() {
+    state = state.copyWith(isLoopMode: !state.isLoopMode);
   }
 
   void previous() {

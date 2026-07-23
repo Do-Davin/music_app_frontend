@@ -9,6 +9,7 @@ import 'package:music_app_frontend/features/references/providers/reference_mater
 import 'package:music_app_frontend/features/relationships/providers/relationship_provider.dart';
 import 'package:music_app_frontend/features/search/providers/recent_songs_provider.dart';
 import 'package:music_app_frontend/features/search/providers/search_provider.dart';
+import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
 import 'package:music_app_frontend/features/song/providers/song_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -169,6 +170,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Stop music playback and clear the mini-player
+    _ref.read(globalAudioPlayerProvider.notifier).clear();
     // Clear recent items for the current user before clearing session
     _ref.read(recentItemsProvider.notifier).reset();
     await _clearStoredSession();
