@@ -333,6 +333,11 @@ class PlaylistQueries {
           key
           tempo
           tags
+          lyrics
+          chordNotationStyle
+          isPublic
+          playCount
+          userId
         }
         createdAt
         updatedAt
