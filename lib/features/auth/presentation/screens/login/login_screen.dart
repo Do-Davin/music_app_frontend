@@ -147,6 +147,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       final previousError = previous?.errorMessage;
       final nextError = next.errorMessage;
+      final becameAuthenticated =
+          next.isAuthenticated && !(previous?.isAuthenticated ?? false);
 
       if (nextError != null && nextError != previousError) {
         // Clear the password field so the user can re-enter
@@ -162,6 +164,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ..showSnackBar(
             SnackBar(content: Text(_cleanErrorMessage(nextError))),
           );
+      }
+
+      if (becameAuthenticated) {
+        context.go(Routes.root);
       }
     });
 

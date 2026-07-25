@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/forgot_password_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
@@ -54,6 +55,8 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
   void dispose() {
     _timer?.cancel();
     _passcodeController.dispose();
+    ref.read(forgotPasswordProvider.notifier).reset();
+    ref.read(authProvider.notifier).clearFeedback();
     super.dispose();
   }
 
@@ -93,8 +96,7 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
   }
 
   void _onBackToLogin() {
-    ref.read(forgotPasswordProvider.notifier).reset();
-    context.go(Routes.login);
+    context.go(Routes.root);
   }
 
   @override

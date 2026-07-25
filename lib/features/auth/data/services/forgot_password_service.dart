@@ -15,6 +15,7 @@ class ForgotPasswordService {
         variables: {
           'input': {'email': email},
         },
+        fetchPolicy: FetchPolicy.noCache,
       ),
     );
 
@@ -35,6 +36,7 @@ class ForgotPasswordService {
         variables: {
           'input': {'email': email, 'code': code},
         },
+        fetchPolicy: FetchPolicy.noCache,
       ),
     );
 
@@ -61,6 +63,7 @@ class ForgotPasswordService {
         variables: {
           'input': {'email': email, 'code': code, 'newPassword': newPassword},
         },
+        fetchPolicy: FetchPolicy.noCache,
       ),
     );
 
