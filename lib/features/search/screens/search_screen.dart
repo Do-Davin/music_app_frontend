@@ -15,6 +15,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/features/song/providers/global_audio_player_provider.dart';
 
 import 'package:music_app_frontend/features/search/providers/search_provider.dart';
+import 'package:music_app_frontend/features/song/screens/song_player_screen.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});

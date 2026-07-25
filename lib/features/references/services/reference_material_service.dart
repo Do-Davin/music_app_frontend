@@ -35,6 +35,7 @@ class ReferenceMaterialService {
     description
     filePath
     fileUrl
+    cloudinaryResourceType
     fileName
     fileSize
     mimeType
@@ -44,7 +45,40 @@ class ReferenceMaterialService {
     updatedAt
   ''';
 
-  // Query all reference materials
+  /// Extracts a human-readable message from a GraphQL error list.
+  /// Strips the "Exception: " prefix that [Exception.toString()] adds.
+  static String _extractErrorMessage(List<dynamic> errors) {
+    final raw = errors[0]['message']?.toString() ?? 'Unknown error';
+    // Strip wrapper added by Dart's Exception class
+    if (raw.startsWith('Exception: ')) return raw.substring('Exception: '.length);
+    return raw;
+  }
+
+  /// Throws a [ReferenceMaterialException] with a clean message.
+  static Never _throwFromErrors(List<dynamic> errors) {
+    throw ReferenceMaterialException(_extractErrorMessage(errors));
+  }
+
+  /// Safely parses the HTTP response body as JSON.
+  /// Throws [ReferenceMaterialException] with a clear message if the server
+  /// returned a non-JSON body (e.g. 502 HTML error page).
+  static Map<String, dynamic> _parseJsonResponse(
+    String body,
+    int statusCode,
+  ) {
+    try {
+      return jsonDecode(body) as Map<String, dynamic>;
+    } on FormatException {
+      throw ReferenceMaterialException(
+        'Server error (HTTP $statusCode). Please try again.',
+      );
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  //  READ
+  // ────────────────────────────────────────────────────────────────
+
   Future<List<ReferenceMaterial>> fetchAll({
     String? type,
     String? songId,
@@ -58,6 +92,7 @@ class ReferenceMaterialService {
           description
           filePath
           fileUrl
+          cloudinaryResourceType
           fileName
           fileSize
           mimeType
@@ -69,23 +104,32 @@ class ReferenceMaterialService {
       }
     ''';
 
+    // Only include variables that are non-null — avoids sending explicit nulls
+    // which some GraphQL servers treat differently from omitted fields.
+    final variables = <String, dynamic>{};
+    if (type != null) variables['type'] = type;
+    if (songId != null) variables['songId'] = songId;
+
     final result = await _client.query(
       QueryOptions(
         document: gql(query),
-        variables: {'type': ?type, 'songId': ?songId},
+        variables: variables,
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     );
 
-    if (result.hasException) {
-      throw result.exception!;
-    }
+    if (result.hasException) throw result.exception!;
 
     final List data = result.data?['referenceMaterials'] ?? [];
-    return data.map((json) => ReferenceMaterial.fromJson(json)).toList();
+    return data
+        .map((json) => ReferenceMaterial.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
-  // Create with file upload using multipart
+  // ────────────────────────────────────────────────────────────────
+  //  CREATE
+  // ────────────────────────────────────────────────────────────────
+
   Future<ReferenceMaterial> create({
     required String title,
     required String type,
@@ -103,18 +147,16 @@ class ReferenceMaterialService {
         songId: songId,
         topic: topic,
       );
-    } else {
-      return _createWithoutFile(
-        title: title,
-        type: type,
-        description: description,
-        songId: songId,
-        topic: topic,
-      );
     }
+    return _createWithoutFile(
+      title: title,
+      type: type,
+      description: description,
+      songId: songId,
+      topic: topic,
+    );
   }
 
-  // Create using GraphQL multipart request (includes Authorization header)
   Future<ReferenceMaterial> _createWithMultipart({
     required String title,
     required String type,
@@ -129,42 +171,38 @@ class ReferenceMaterialService {
       Uri.parse(GraphQLConfig.httpEndpoint),
     );
 
-    // Attach Bearer token so the backend JwtAuthGuard accepts the request
     if (token != null && token.isNotEmpty) {
       request.headers['Authorization'] = 'Bearer $token';
     }
 
+    // Build the input map — only include non-null optional fields so the
+    // backend's `if (input.X !== undefined)` guards behave correctly.
+    final inputMap = <String, dynamic>{
+      'title': title,
+      'type': type,
+      'file': null, // placeholder — replaced by multipart map below
+    };
+    if (description != null) inputMap['description'] = description;
+    if (songId != null) inputMap['songId'] = songId;
+    if (topic != null) inputMap['topic'] = topic;
+
     final operations = {
-      'query':
-          '''
+      'query': '''
         mutation CreateReferenceMaterial(\$input: CreateReferenceMaterialInput!) {
           createReferenceMaterial(input: \$input) {
             $_materialFields
           }
         }
       ''',
-      'variables': {
-        'input': {
-          'title': title,
-          'type': type,
-          'description': description,
-          'songId': songId,
-          'topic': topic,
-          'file': null,
-        },
-      },
-    };
-
-    final map = {
-      '0': ['variables.input.file'],
+      'variables': {'input': inputMap},
     };
 
     request.fields['operations'] = jsonEncode(operations);
-    request.fields['map'] = jsonEncode(map);
+    request.fields['map'] = jsonEncode({
+      '0': ['variables.input.file'],
+    });
 
-    // Read file bytes eagerly into memory to avoid issues on physical
-    // devices where file_picker returns a temporary cached path that may
-    // be cleaned up before the multipart stream finishes reading.
+    // Read eagerly to avoid temporary-path issues on physical devices.
     final fileBytes = await file.readAsBytes();
     final fileName = p.basename(file.path);
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
@@ -177,21 +215,24 @@ class ReferenceMaterialService {
       ),
     );
 
-    final response = await request.send();
-    final responseBody = await response.stream.bytesToString();
-    final json = jsonDecode(responseBody) as Map<String, dynamic>;
-
-    if (json['errors'] != null) {
-      final errors = json['errors'] as List;
-      throw Exception(errors[0]['message']);
-    }
-
-    return ReferenceMaterial.fromJson(
-      json['data']['createReferenceMaterial'] as Map<String, dynamic>,
+    final streamed = await request.send().timeout(
+      const Duration(minutes: 3),
+      onTimeout: () => throw ReferenceMaterialException(
+        'Upload timed out. Check your connection and try again.',
+      ),
     );
+    final responseBody = await streamed.stream.bytesToString();
+    final json = _parseJsonResponse(responseBody, streamed.statusCode);
+
+    if (json['errors'] != null) _throwFromErrors(json['errors'] as List);
+
+    final data = json['data']?['createReferenceMaterial'];
+    if (data == null) {
+      throw const ReferenceMaterialException('Server returned no data for create.');
+    }
+    return ReferenceMaterial.fromJson(data as Map<String, dynamic>);
   }
 
-  // Create without file using GraphQL client (token handled by AuthLink)
   Future<ReferenceMaterial> _createWithoutFile({
     required String title,
     required String type,
@@ -199,8 +240,7 @@ class ReferenceMaterialService {
     String? songId,
     String? topic,
   }) async {
-    const String mutation =
-        '''
+    const String mutation = '''
       mutation CreateReferenceMaterial(\$input: CreateReferenceMaterialInput!) {
         createReferenceMaterial(input: \$input) {
           $_materialFields
@@ -208,31 +248,29 @@ class ReferenceMaterialService {
       }
     ''';
 
+    final inputMap = <String, dynamic>{'title': title, 'type': type};
+    if (description != null) inputMap['description'] = description;
+    if (songId != null) inputMap['songId'] = songId;
+    if (topic != null) inputMap['topic'] = topic;
+
     final result = await _client.mutate(
       MutationOptions(
         document: gql(mutation),
-        variables: {
-          'input': {
-            'title': title,
-            'type': type,
-            'description': description,
-            'songId': songId,
-            'topic': topic,
-          },
-        },
+        variables: {'input': inputMap},
       ),
     );
 
-    if (result.hasException) {
-      throw result.exception!;
-    }
+    if (result.hasException) throw result.exception!;
 
     return ReferenceMaterial.fromJson(
       result.data!['createReferenceMaterial'] as Map<String, dynamic>,
     );
   }
 
-  // Update with optional file replacement
+  // ────────────────────────────────────────────────────────────────
+  //  UPDATE
+  // ────────────────────────────────────────────────────────────────
+
   Future<ReferenceMaterial> update({
     required String id,
     String? title,
@@ -252,16 +290,15 @@ class ReferenceMaterialService {
         songId: songId,
         topic: topic,
       );
-    } else {
-      return _updateWithoutFile(
-        id: id,
-        title: title,
-        type: type,
-        description: description,
-        songId: songId,
-        topic: topic,
-      );
     }
+    return _updateWithoutFile(
+      id: id,
+      title: title,
+      type: type,
+      description: description,
+      songId: songId,
+      topic: topic,
+    );
   }
 
   Future<ReferenceMaterial> _updateWithMultipart({
@@ -283,38 +320,30 @@ class ReferenceMaterialService {
       request.headers['Authorization'] = 'Bearer $token';
     }
 
+    // Only include fields that were provided by the caller.
+    final inputMap = <String, dynamic>{'file': null};
+    if (title != null) inputMap['title'] = title;
+    if (type != null) inputMap['type'] = type;
+    if (description != null) inputMap['description'] = description;
+    if (songId != null) inputMap['songId'] = songId;
+    if (topic != null) inputMap['topic'] = topic;
+
     final operations = {
-      'query':
-          '''
+      'query': '''
         mutation UpdateReferenceMaterial(\$id: ID!, \$input: UpdateReferenceMaterialInput!) {
           updateReferenceMaterial(id: \$id, input: \$input) {
             $_materialFields
           }
         }
       ''',
-      'variables': {
-        'id': id,
-        'input': {
-          'title': title,
-          'type': type,
-          'description': description,
-          'songId': songId,
-          'topic': topic,
-          'file': null,
-        },
-      },
-    };
-
-    final map = {
-      '0': ['variables.input.file'],
+      'variables': {'id': id, 'input': inputMap},
     };
 
     request.fields['operations'] = jsonEncode(operations);
-    request.fields['map'] = jsonEncode(map);
+    request.fields['map'] = jsonEncode({
+      '0': ['variables.input.file'],
+    });
 
-    // Read file bytes eagerly into memory to avoid issues on physical
-    // devices where file_picker returns a temporary cached path that may
-    // be cleaned up before the multipart stream finishes reading.
     final fileBytes = await file.readAsBytes();
     final fileName = p.basename(file.path);
     final mimeType = lookupMimeType(file.path) ?? 'application/octet-stream';
@@ -327,18 +356,22 @@ class ReferenceMaterialService {
       ),
     );
 
-    final response = await request.send();
-    final responseBody = await response.stream.bytesToString();
-    final json = jsonDecode(responseBody) as Map<String, dynamic>;
-
-    if (json['errors'] != null) {
-      final errors = json['errors'] as List;
-      throw Exception(errors[0]['message']);
-    }
-
-    return ReferenceMaterial.fromJson(
-      json['data']['updateReferenceMaterial'] as Map<String, dynamic>,
+    final streamed = await request.send().timeout(
+      const Duration(minutes: 3),
+      onTimeout: () => throw ReferenceMaterialException(
+        'Upload timed out. Check your connection and try again.',
+      ),
     );
+    final responseBody = await streamed.stream.bytesToString();
+    final json = _parseJsonResponse(responseBody, streamed.statusCode);
+
+    if (json['errors'] != null) _throwFromErrors(json['errors'] as List);
+
+    final data = json['data']?['updateReferenceMaterial'];
+    if (data == null) {
+      throw const ReferenceMaterialException('Server returned no data for update.');
+    }
+    return ReferenceMaterial.fromJson(data as Map<String, dynamic>);
   }
 
   Future<ReferenceMaterial> _updateWithoutFile({
@@ -349,8 +382,7 @@ class ReferenceMaterialService {
     String? songId,
     String? topic,
   }) async {
-    const String mutation =
-        '''
+    const String mutation = '''
       mutation UpdateReferenceMaterial(\$id: ID!, \$input: UpdateReferenceMaterialInput!) {
         updateReferenceMaterial(id: \$id, input: \$input) {
           $_materialFields
@@ -358,32 +390,32 @@ class ReferenceMaterialService {
       }
     ''';
 
+    // Only include fields that were provided by the caller.
+    final inputMap = <String, dynamic>{};
+    if (title != null) inputMap['title'] = title;
+    if (type != null) inputMap['type'] = type;
+    if (description != null) inputMap['description'] = description;
+    if (songId != null) inputMap['songId'] = songId;
+    if (topic != null) inputMap['topic'] = topic;
+
     final result = await _client.mutate(
       MutationOptions(
         document: gql(mutation),
-        variables: {
-          'id': id,
-          'input': {
-            'title': title,
-            'type': type,
-            'description': description,
-            'songId': songId,
-            'topic': topic,
-          },
-        },
+        variables: {'id': id, 'input': inputMap},
       ),
     );
 
-    if (result.hasException) {
-      throw result.exception!;
-    }
+    if (result.hasException) throw result.exception!;
 
     return ReferenceMaterial.fromJson(
       result.data!['updateReferenceMaterial'] as Map<String, dynamic>,
     );
   }
 
-  // Delete reference material
+  // ────────────────────────────────────────────────────────────────
+  //  DELETE
+  // ────────────────────────────────────────────────────────────────
+
   Future<bool> delete(String id) async {
     const String mutation = r'''
       mutation DeleteReferenceMaterial($id: ID!) {
@@ -395,10 +427,17 @@ class ReferenceMaterialService {
       MutationOptions(document: gql(mutation), variables: {'id': id}),
     );
 
-    if (result.hasException) {
-      throw result.exception!;
-    }
+    if (result.hasException) throw result.exception!;
 
     return result.data?['deleteReferenceMaterial'] ?? false;
   }
+}
+
+/// Typed exception for clean error messages in the UI layer.
+class ReferenceMaterialException implements Exception {
+  final String message;
+  const ReferenceMaterialException(this.message);
+
+  @override
+  String toString() => message;
 }

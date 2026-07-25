@@ -1,28 +1,18 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// ─────────────────────────────────────────────────────────
-//  pubspec.yaml — add these packages:
-//
-//  dependencies:
-//    syncfusion_flutter_pdfviewer: ^25.1.35
-//    flutter_inappwebview: ^6.0.0
-//    share_plus: ^9.0.0
-//    file_picker: ^8.0.0       (already added for screen)
-// ─────────────────────────────────────────────────────────
-
-// ── Simple data class for the preview sheet ───────────────
-// Separate from your full ReferenceMaterial model to keep
-// the widget independent and reusable.
+// ── Simple data class for the preview sheet ──────────────
 class PreviewFile {
-  final String name; // display name, e.g. "Lecture.pdf"
-  final String type; // "PDF" | "PPT" | "Note" | "Image"
-  final String? localPath; // path on device (if downloaded)
-  final String? remoteUrl; // full URL from backend
+  final String name;       // display name, e.g. "Lecture.pdf"
+  final String type;       // "PDF" | "PPT" | "Note" | "Image" …
+  final String? localPath; // path on device (if already downloaded)
+  final String? remoteUrl; // full Cloudinary URL
 
   const PreviewFile({
     required this.name,
@@ -31,10 +21,9 @@ class PreviewFile {
     this.remoteUrl,
   });
 
-  String get extension => name.split('.').last.toLowerCase();
+  String get extension => name.contains('.') ? name.split('.').last.toLowerCase() : '';
 
   bool get isPdf {
-    // Check filename extension first, then fall back to type string
     if (extension == 'pdf') return true;
     return type.toLowerCase() == 'pdf';
   }
@@ -49,13 +38,17 @@ class PreviewFile {
     return ['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(type.toLowerCase());
   }
 
-  /// True when there is content to show (URL or local file exists).
+  bool get isDoc {
+    if (['doc', 'docx'].contains(extension)) return true;
+    return type.toLowerCase() == 'doc';
+  }
+
+  bool get isText => extension == 'txt' || type.toLowerCase() == 'note';
+
   bool get hasContent => localPath != null || remoteUrl != null;
 }
 
-// ─────────────────────────────────────────────────────────
-//  Entry point — call this from your reference card onTap
-// ─────────────────────────────────────────────────────────
+// ── Entry point ───────────────────────────────────────────
 void showFilePreview(BuildContext context, {required PreviewFile file}) {
   showModalBottomSheet(
     context: context,
@@ -75,18 +68,37 @@ class FilePreviewSheet extends StatefulWidget {
 }
 
 class _FilePreviewSheetState extends State<FilePreviewSheet> {
+  // ── PDF state ─────────────────────────────────────────
+  final PdfViewerController _pdfController = PdfViewerController();
   double _zoom = 1.0;
   int _pdfCurrentPage = 1;
   int _pdfTotalPages = 1;
-  final PdfViewerController _pdfController = PdfViewerController();
 
-  // ── VibeFlow colours ──────────────────────────────────
-  static const _bg = Color(0xFF1C1C1E);
-  static const _surface = Color(0xFF2C2C2E);
-  static const _gold = Color(0xFFB8860B);
-  static const _goldLight = Color(0xFFD4A017);
+  /// PDF bytes downloaded from Cloudinary — null until fetch completes.
+  Uint8List? _pdfBytes;
+  bool _pdfLoading = false;
+  String? _pdfError;
+
+  // ── Colours ───────────────────────────────────────────
+  static const _bg          = Color(0xFF1C1C1E);
+  static const _surface     = Color(0xFF2C2C2E);
+  static const _gold        = Color(0xFFB8860B);
+  static const _goldLight   = Color(0xFFD4A017);
   static const _textPrimary = Color(0xFFFFFFFF);
-  static const _textSecondary = Color(0xFF8E8E93);
+  static const _textSecond  = Color(0xFF8E8E93);
+
+  @override
+  void initState() {
+    super.initState();
+    // If this is a PDF from a remote URL, pre-fetch the bytes immediately
+    // so SfPdfViewer.memory() gets raw bytes instead of hitting Cloudinary
+    // with a potentially wrong Content-Type header.
+    if (widget.file.isPdf &&
+        widget.file.localPath == null &&
+        widget.file.remoteUrl != null) {
+      _fetchPdfBytes(widget.file.remoteUrl!);
+    }
+  }
 
   @override
   void dispose() {
@@ -94,13 +106,43 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
     super.dispose();
   }
 
+  // ── Download PDF bytes into memory ────────────────────
+  Future<void> _fetchPdfBytes(String url) async {
+    if (!mounted) return;
+    setState(() {
+      _pdfLoading = true;
+      _pdfError = null;
+    });
+
+    try {
+      final response = await http.get(Uri.parse(url)).timeout(
+        const Duration(minutes: 3),
+        onTimeout: () => throw Exception('Download timed out'),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Server returned HTTP ${response.statusCode}');
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _pdfBytes = response.bodyBytes;
+        _pdfLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _pdfError = 'Could not download PDF: ${e.toString().replaceFirst('Exception: ', '')}';
+        _pdfLoading = false;
+      });
+    }
+  }
+
+  // ── Share ─────────────────────────────────────────────
   void _onShare() {
     if (widget.file.localPath != null) {
       SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(widget.file.localPath!)],
-          text: widget.file.name,
-        ),
+        ShareParams(files: [XFile(widget.file.localPath!)], text: widget.file.name),
       );
     } else if (widget.file.remoteUrl != null) {
       SharePlus.instance.share(
@@ -109,7 +151,7 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
     }
   }
 
-  // ─────────────────────────────────────────────────────
+  // ── Root build ────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final screenH = MediaQuery.of(context).size.height;
@@ -130,39 +172,31 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
     );
   }
 
-  // ── Drag handle ──────────────────────────────────────
   Widget _handle() => Padding(
     padding: const EdgeInsets.symmetric(vertical: 10),
     child: Container(
-      width: 40,
-      height: 4,
+      width: 40, height: 4,
       decoration: BoxDecoration(
-        color: _textSecondary.withValues(alpha: 0.4),
+        color: _textSecond.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(2),
       ),
     ),
   );
 
-  // ── Header row ────────────────────────────────────────
   Widget _header() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     child: Row(
       children: [
         GestureDetector(
           onTap: () => Navigator.pop(context),
-          child: const Icon(
-            Icons.arrow_back_ios_new,
-            color: _textPrimary,
-            size: 20,
-          ),
+          child: const Icon(Icons.arrow_back_ios_new, color: _textPrimary, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             'Preview: ${widget.file.name}',
             style: const TextStyle(
-              color: _textPrimary,
-              fontSize: 14,
+              color: _textPrimary, fontSize: 14,
               fontWeight: FontWeight.w500,
               overflow: TextOverflow.ellipsis,
             ),
@@ -178,82 +212,105 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
     ),
   );
 
-  // ── Route to the right viewer ─────────────────────────
+  // ── Route to viewer ───────────────────────────────────
   Widget _body() {
-    // No content at all — show a clear message instead of blank screen
     if (!widget.file.hasContent) {
-      return Center(
+      return _centeredMessage(Icons.folder_open, 'No file attached to this material.');
+    }
+    if (widget.file.isPdf) return _pdfViewer();
+    // For non-PDF types, we need a remote URL for the web/image viewers
+    final url = widget.file.remoteUrl;
+    if (url == null) return _unsupportedViewer();
+    if (widget.file.isPpt)   return _webViewer(url, useGoogleDocs: true);
+    if (widget.file.isImage) return _imageViewer();
+    if (widget.file.isDoc)   return _webViewer(url, useGoogleDocs: true);
+    // txt / note / unknown → Google Docs viewer
+    return _webViewer(url, useGoogleDocs: true);
+  }
+
+  // ── PDF viewer — downloads bytes first to avoid Cloudinary MIME issues ──
+  Widget _pdfViewer() {
+    final localPath = widget.file.localPath;
+
+    // ── Local file: serve directly
+    if (localPath != null) {
+      return _pdfStack(
+        child: SfPdfViewer.file(
+          File(localPath),
+          controller: _pdfController,
+          pageLayoutMode: PdfPageLayoutMode.continuous,
+          initialZoomLevel: _zoom,
+          onDocumentLoadFailed: (d) => setState(() => _pdfError = d.description),
+          onPageChanged: _onPageChanged,
+        ),
+      );
+    }
+
+    // ── Still downloading
+    if (_pdfLoading) {
+      return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.folder_open,
-              size: 64,
-              color: _gold.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'No file attached to this material.',
-              style: TextStyle(color: _textSecondary, fontSize: 14),
-              textAlign: TextAlign.center,
-            ),
+            CircularProgressIndicator(color: _gold),
+            SizedBox(height: 16),
+            Text('Loading PDF…', style: TextStyle(color: _textSecond, fontSize: 13)),
           ],
         ),
       );
     }
-    if (widget.file.isPdf) return _pdfViewer();
-    if (widget.file.isPpt) return _pptViewer();
-    if (widget.file.isImage) return _imageViewer();
-    // Has a URL/file but unknown type — open via in-app browser
-    return _genericWebViewer();
+
+    // ── Download failed
+    if (_pdfError != null) {
+      return _errorView(_pdfError!, widget.file.remoteUrl);
+    }
+
+    // ── Bytes ready — use SfPdfViewer.memory to bypass MIME/redirect issues
+    if (_pdfBytes != null) {
+      return _pdfStack(
+        child: SfPdfViewer.memory(
+          _pdfBytes!,
+          controller: _pdfController,
+          pageLayoutMode: PdfPageLayoutMode.continuous,
+          initialZoomLevel: _zoom,
+          onDocumentLoadFailed: (d) => setState(() => _pdfError = d.description),
+          onPageChanged: _onPageChanged,
+        ),
+      );
+    }
+
+    // ── Should not reach here, but handle gracefully
+    return _unsupportedViewer();
   }
 
-  // ── PDF viewer ────────────────────────────────────────
-  Widget _pdfViewer() {
-    final path = widget.file.localPath;
-    final url = widget.file.remoteUrl;
-
-    if (path == null && url == null) return _unsupportedViewer();
-
+  /// Wraps the PDF viewer widget in a Stack with the control bar.
+  Widget _pdfStack({required Widget child}) {
     return Stack(
       children: [
-        path != null
-            ? SfPdfViewer.file(
-                File(path),
-                controller: _pdfController,
-                pageLayoutMode: PdfPageLayoutMode.continuous,
-                initialZoomLevel: _zoom,
-                onDocumentLoadFailed: (details) =>
-                    _showError('Failed to load PDF: ${details.description}'),
-                onPageChanged: (d) => setState(() {
-                  _pdfCurrentPage = d.newPageNumber;
-                  _pdfTotalPages = _pdfController.pageCount;
-                }),
-              )
-            : SfPdfViewer.network(
-                url!,
-                controller: _pdfController,
-                pageLayoutMode: PdfPageLayoutMode.continuous,
-                initialZoomLevel: _zoom,
-                onDocumentLoadFailed: (details) =>
-                    _showError('Failed to load PDF: ${details.description}'),
-                onPageChanged: (d) => setState(() {
-                  _pdfCurrentPage = d.newPageNumber;
-                  _pdfTotalPages = _pdfController.pageCount;
-                }),
-              ),
-        Positioned(bottom: 16, right: 16, child: _bottomBar(showPageNav: true)),
+        child,
+        if (_pdfError != null)
+          _errorView(_pdfError!, widget.file.remoteUrl),
+        if (_pdfError == null)
+          Positioned(
+            bottom: 16, right: 16,
+            child: _bottomBar(showPageNav: true, isPdfZoom: true),
+          ),
       ],
     );
   }
 
-  // ── PPT viewer via Google Docs ────────────────────────
-  Widget _pptViewer() {
-    final url = widget.file.remoteUrl;
-    if (url == null) return _unsupportedViewer();
+  void _onPageChanged(PdfPageChangedDetails d) {
+    setState(() {
+      _pdfCurrentPage = d.newPageNumber;
+      _pdfTotalPages  = _pdfController.pageCount;
+    });
+  }
 
-    final googleUrl =
-        'https://docs.google.com/viewer?url=${Uri.encodeComponent(url)}&embedded=true';
+  // ── Web viewer (Google Docs or direct URL) ────────────
+  Widget _webViewer(String url, {bool useGoogleDocs = false}) {
+    final viewerUrl = useGoogleDocs
+        ? 'https://docs.google.com/viewer?url=${Uri.encodeComponent(url)}&embedded=true'
+        : url;
 
     return Stack(
       children: [
@@ -262,21 +319,19 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: InAppWebView(
-              initialUrlRequest: URLRequest(url: WebUri(googleUrl)),
+              initialUrlRequest: URLRequest(url: WebUri(viewerUrl)),
               initialSettings: InAppWebViewSettings(
                 javaScriptEnabled: true,
                 transparentBackground: true,
               ),
-              onReceivedError: (controller, request, error) {
-                debugPrint('WebView Error: ${error.description}');
-              },
+              onReceivedError: (controller, request, error) =>
+                  debugPrint('WebView error: ${error.description}'),
             ),
           ),
         ),
         Positioned(
-          bottom: 24,
-          right: 24,
-          child: _bottomBar(showPageNav: false),
+          bottom: 24, right: 24,
+          child: _bottomBar(showPageNav: false, isPdfZoom: false),
         ),
       ],
     );
@@ -285,7 +340,7 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
   // ── Image viewer ──────────────────────────────────────
   Widget _imageViewer() {
     final path = widget.file.localPath;
-    final url = widget.file.remoteUrl;
+    final url  = widget.file.remoteUrl;
     return Center(
       child: InteractiveViewer(
         minScale: 0.5,
@@ -293,24 +348,26 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
         child: path != null
             ? Image.file(
                 File(path),
-                errorBuilder: (context, error, stackTrace) =>
-                    _showError('Failed to load local image'),
+                errorBuilder: (_, e, st) => _errorView('Failed to load image.', url),
               )
             : url != null
             ? Image.network(
                 url,
-                errorBuilder: (context, error, stackTrace) =>
-                    _showError('Failed to load remote image'),
+                loadingBuilder: (_, child, progress) => progress == null
+                    ? child
+                    : const Center(child: CircularProgressIndicator(color: _gold)),
+                errorBuilder: (_, e, st) => _errorView('Failed to load image.', url),
               )
             : const SizedBox(),
       ),
     );
   }
 
-  Widget _showError(String message) {
+  // ── Error view with optional "Open in Browser" button ─
+  Widget _errorView(String message, String? fallbackUrl) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -321,10 +378,10 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
               style: const TextStyle(color: _textPrimary, fontSize: 14),
               textAlign: TextAlign.center,
             ),
-            if (widget.file.remoteUrl != null) ...[
+            if (fallbackUrl != null) ...[
               const SizedBox(height: 24),
               ElevatedButton.icon(
-                onPressed: () => _launchInBrowser(widget.file.remoteUrl!),
+                onPressed: () => _launchInBrowser(fallbackUrl),
                 icon: const Icon(Icons.open_in_browser, size: 18),
                 label: const Text('Open in Browser'),
                 style: ElevatedButton.styleFrom(
@@ -339,69 +396,63 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
     );
   }
 
-  Future<void> _launchInBrowser(String url) async {
-    final uri = Uri.tryParse(url);
-    if (uri != null && await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      debugPrint('Could not launch $url');
-    }
-  }
-
-  // ── Unsupported type ──────────────────────────────────
+  // ── Unsupported / no URL ──────────────────────────────
   Widget _unsupportedViewer() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.insert_drive_file_outlined,
-            size: 64,
-            color: _gold.withValues(alpha: 0.5),
-          ),
+          Icon(Icons.insert_drive_file_outlined, size: 64,
+              color: _gold.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
-          Text(
-            widget.file.name,
-            style: const TextStyle(color: _textPrimary, fontSize: 15),
-            textAlign: TextAlign.center,
-          ),
+          Text(widget.file.name,
+              style: const TextStyle(color: _textPrimary, fontSize: 15),
+              textAlign: TextAlign.center),
           const SizedBox(height: 8),
           const Text(
-            'Preview not available.\nDownload to open externally.',
-            style: TextStyle(color: _textSecondary, fontSize: 13),
+            'Preview not available.',
+            style: TextStyle(color: _textSecond, fontSize: 13),
             textAlign: TextAlign.center,
           ),
+          if (widget.file.remoteUrl != null) ...[
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => _launchInBrowser(widget.file.remoteUrl!),
+              icon: const Icon(Icons.open_in_browser, size: 18),
+              label: const Text('Open in Browser'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _gold,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // ── Generic web viewer — for doc/txt/other files with a URL ──
-  Widget _genericWebViewer() {
-    final url = widget.file.remoteUrl;
-    if (url == null) return _unsupportedViewer();
+  Widget _centeredMessage(IconData icon, String text) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 64, color: _gold.withValues(alpha: 0.4)),
+        const SizedBox(height: 16),
+        Text(text,
+            style: const TextStyle(color: _textSecond, fontSize: 14),
+            textAlign: TextAlign.center),
+      ],
+    ),
+  );
 
-    // Use Google Docs viewer as a universal fallback
-    final viewerUrl =
-        'https://docs.google.com/viewer?url=${Uri.encodeComponent(url)}&embedded=true';
-
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: InAppWebView(
-          initialUrlRequest: URLRequest(url: WebUri(viewerUrl)),
-          initialSettings: InAppWebViewSettings(
-            javaScriptEnabled: true,
-            transparentBackground: true,
-          ),
-        ),
-      ),
-    );
+  Future<void> _launchInBrowser(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
-  // ── Bottom control bar (zoom + page nav) ──────────────
-  Widget _bottomBar({required bool showPageNav}) {
+  // ── Bottom control bar ────────────────────────────────
+  Widget _bottomBar({required bool showPageNav, required bool isPdfZoom}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -412,24 +463,21 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Zoom minus
           GestureDetector(
             onTap: () {
-              final newZoom = (_zoom - 0.25).clamp(0.5, 3.0);
-              setState(() => _zoom = newZoom);
-              _pdfController.zoomLevel = newZoom;
+              final z = (_zoom - 0.25).clamp(0.5, 3.0);
+              setState(() => _zoom = z);
+              if (isPdfZoom) _pdfController.zoomLevel = z;
             },
             child: const Icon(Icons.remove, color: _textPrimary, size: 16),
           ),
-
-          // ── Zoom slider
           SizedBox(
             width: 70,
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 thumbColor: _goldLight,
                 activeTrackColor: _gold,
-                inactiveTrackColor: _textSecondary.withValues(alpha: 0.3),
+                inactiveTrackColor: _textSecond.withValues(alpha: 0.3),
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
                 trackHeight: 2,
                 overlayShape: SliderComponentShape.noOverlay,
@@ -440,50 +488,29 @@ class _FilePreviewSheetState extends State<FilePreviewSheet> {
                 max: 3.0,
                 onChanged: (v) {
                   setState(() => _zoom = v);
-                  _pdfController.zoomLevel = v;
+                  if (isPdfZoom) _pdfController.zoomLevel = v;
                 },
               ),
             ),
           ),
-
-          // ── Zoom label
           Text(
             '${(_zoom * 100).round()}%',
-            style: const TextStyle(
-              color: _textPrimary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(color: _textPrimary, fontSize: 12,
+                fontWeight: FontWeight.w500),
           ),
-
-          // ── Page nav (PDF only)
           if (showPageNav) ...[
             const SizedBox(width: 10),
             GestureDetector(
-              onTap: _pdfCurrentPage > 1
-                  ? () => _pdfController.previousPage()
-                  : null,
-              child: Icon(
-                Icons.chevron_left,
-                color: _pdfCurrentPage > 1 ? _textPrimary : _textSecondary,
-                size: 20,
-              ),
+              onTap: _pdfCurrentPage > 1 ? () => _pdfController.previousPage() : null,
+              child: Icon(Icons.chevron_left,
+                  color: _pdfCurrentPage > 1 ? _textPrimary : _textSecond, size: 20),
             ),
-            Text(
-              '$_pdfCurrentPage / $_pdfTotalPages',
-              style: const TextStyle(color: _textSecondary, fontSize: 11),
-            ),
+            Text('$_pdfCurrentPage / $_pdfTotalPages',
+                style: const TextStyle(color: _textSecond, fontSize: 11)),
             GestureDetector(
-              onTap: _pdfCurrentPage < _pdfTotalPages
-                  ? () => _pdfController.nextPage()
-                  : null,
-              child: Icon(
-                Icons.chevron_right,
-                color: _pdfCurrentPage < _pdfTotalPages
-                    ? _textPrimary
-                    : _textSecondary,
-                size: 20,
-              ),
+              onTap: _pdfCurrentPage < _pdfTotalPages ? () => _pdfController.nextPage() : null,
+              child: Icon(Icons.chevron_right,
+                  color: _pdfCurrentPage < _pdfTotalPages ? _textPrimary : _textSecond, size: 20),
             ),
           ],
         ],

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_app_frontend/core/constants/app_colors.dart';
 import 'package:music_app_frontend/core/constants/app_text_styles.dart';
 import 'package:music_app_frontend/core/routing/routes.dart';
+import 'package:music_app_frontend/features/auth/presentation/providers/auth_provider.dart';
 import 'package:music_app_frontend/features/auth/presentation/providers/forgot_password_provider.dart';
 import 'package:music_app_frontend/shared/widgets/widgets.dart';
 
@@ -18,15 +20,58 @@ class VerifyAccountScreen extends ConsumerStatefulWidget {
 class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
   final TextEditingController _passcodeController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  Timer? _timer;
+  int _secondsRemaining = 60; // 1 minute
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    setState(() {
+      _secondsRemaining = 60;
+    });
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 0) {
+        setState(() {
+          _secondsRemaining--;
+        });
+      } else {
+        _timer?.cancel();
+      }
+    });
+  }
+
+  String _formatTime(int seconds) {
+    final int minutes = seconds ~/ 60;
+    final int remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _passcodeController.dispose();
+    ref.read(forgotPasswordProvider.notifier).reset();
+    ref.read(authProvider.notifier).clearFeedback();
     super.dispose();
   }
 
   Future<void> _onSubmitCode() async {
     FocusScope.of(context).unfocus();
+
+    if (_secondsRemaining <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('The verification code has expired. Please request a new code.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
 
     if (!_formKey.currentState!.validate()) return;
 
@@ -39,20 +84,18 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
     if (!mounted) return;
 
     if (state.codeVerified) {
+      _timer?.cancel();
       context.push(Routes.newPassword);
     }
   }
 
   Future<void> _onResendCode() async {
+    if (_secondsRemaining > 0) return;
     await ref.read(forgotPasswordProvider.notifier).resendCode();
+    _startTimer();
   }
 
   void _onBackToLogin() {
-    ref.read(forgotPasswordProvider.notifier).reset();
-    if (context.canPop()) {
-      context.pop();
-      return;
-    }
     context.go(Routes.root);
   }
 
@@ -149,6 +192,33 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                                 color: Colors.white.withValues(alpha: 0.65),
                                 fontSize: 14,
                               ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.timer_outlined,
+                                  color: _secondsRemaining > 0
+                                      ? AppColors.primary
+                                      : Colors.redAccent,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  _secondsRemaining > 0
+                                      ? 'Code expires in: ${_formatTime(_secondsRemaining)}'
+                                      : 'Verification code expired',
+                                  style: AppTextStyles.body.copyWith(
+                                    color: _secondsRemaining > 0
+                                        ? Colors.white.withValues(alpha: 0.7)
+                                        : Colors.redAccent,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
 
                             if (forgotState.codeSent) ...[
@@ -249,13 +319,17 @@ class _VerifyAccountScreenState extends ConsumerState<VerifyAccountScreen> {
                       const SizedBox(height: 18),
 
                       GestureDetector(
-                        onTap: _onResendCode,
+                        onTap: _secondsRemaining > 0 ? null : _onResendCode,
                         child: Text(
                           'Resend Code',
                           style: AppTextStyles.body.copyWith(
-                            color: AppColors.primary,
+                            color: _secondsRemaining > 0
+                                ? Colors.white.withValues(alpha: 0.3)
+                                : AppColors.primary,
                             fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
+                            decoration: _secondsRemaining > 0
+                                ? TextDecoration.none
+                                : TextDecoration.underline,
                             decorationColor: AppColors.primary,
                           ),
                         ),

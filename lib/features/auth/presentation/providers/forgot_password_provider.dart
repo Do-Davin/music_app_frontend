@@ -67,6 +67,11 @@ class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
       isLoading: true,
       errorMessage: null,
       successMessage: null,
+      codeSent: false,
+      codeVerified: false,
+      passwordReset: false,
+      email: '',
+      code: '',
     );
     try {
       final result = await _service.sendResetCode(email); // ← calls Tier 1
@@ -84,6 +89,8 @@ class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
         isLoading: false,
         errorMessage: _normalizeError(e),
         successMessage: null,
+        codeSent: false,
+        email: '',
       );
     }
   }
@@ -94,6 +101,8 @@ class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
       isLoading: true,
       errorMessage: null,
       successMessage: null,
+      codeVerified: false,
+      code: '',
     );
     try {
       final result = await _service.verifyCode(
@@ -113,6 +122,8 @@ class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
         isLoading: false,
         errorMessage: _normalizeError(e),
         successMessage: null,
+        codeVerified: false,
+        code: '',
       );
     }
   }
@@ -123,6 +134,7 @@ class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
       isLoading: true,
       errorMessage: null,
       successMessage: null,
+      passwordReset: false,
     );
     try {
       final result = await _service.resetPassword(
@@ -141,6 +153,7 @@ class ForgotPasswordNotifier extends StateNotifier<ForgotPasswordState> {
         isLoading: false,
         errorMessage: _normalizeError(e),
         successMessage: null,
+        passwordReset: false,
       );
     }
   }

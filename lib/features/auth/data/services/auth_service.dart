@@ -17,6 +17,10 @@ class AuthService {
         variables: {
           'input': {'email': email, 'password': password},
         },
+        // Never read from or write to cache for auth mutations — a stale
+        // cached result from a previous attempt would cause login to silently
+        // succeed or fail without hitting the server.
+        fetchPolicy: FetchPolicy.noCache,
       ),
     );
 
@@ -38,6 +42,8 @@ class AuthService {
         variables: {
           'input': {'username': username, 'email': email, 'password': password},
         },
+        // Never read from or write to cache for auth mutations.
+        fetchPolicy: FetchPolicy.noCache,
       ),
     );
 
